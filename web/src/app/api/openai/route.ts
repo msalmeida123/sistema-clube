@@ -7,7 +7,7 @@ const supabase = createClient(
 )
 
 // Transcrever áudio com Whisper
-export async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
+async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
     // Baixar o áudio
     const audioResponse = await fetch(audioUrl)
@@ -47,7 +47,7 @@ export async function transcreveAudio(audioUrl: string, apiKey: string): Promise
 }
 
 // Gerar resposta com GPT
-export async function gerarRespostaIA(
+async function gerarRespostaIA(
   mensagem: string, 
   apiKey: string,
   modelo: string,
@@ -96,7 +96,7 @@ ${contexto}`
 }
 
 // Função principal para processar mensagem com IA
-export async function processarMensagemComIA(
+async function processarMensagemComIA(
   mensagem: string,
   tipo: string,
   mediaUrl?: string
