@@ -16,7 +16,7 @@ version: '3.8'
 
 services:
   sistema-clube:
-    image: ghcr.io/SEU_USUARIO/sistema-clube:latest
+    image: ghcr.io/msalmeida123/sistema-clube:latest
     # Ou use a imagem local:
     # build:
     #   context: ./web
