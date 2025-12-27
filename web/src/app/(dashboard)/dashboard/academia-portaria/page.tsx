@@ -34,7 +34,7 @@ type Acesso = {
   id: string
   data_hora: string
   tipo: string
-  associado: { nome: string; numero_titulo: string }
+  associado: { nome: string; numero_titulo: string } | null
 }
 
 export default function AcademiaPortariaPage() {
@@ -90,7 +90,15 @@ export default function AcademiaPortariaPage() {
       .order('data_hora', { ascending: false })
       .limit(20)
 
-    setAcessosHoje(data || [])
+    // Transformar dados para o formato correto
+    const acessosFormatados = (data || []).map((item: any) => ({
+      id: item.id,
+      data_hora: item.data_hora,
+      tipo: item.tipo,
+      associado: Array.isArray(item.associado) ? item.associado[0] : item.associado
+    }))
+
+    setAcessosHoje(acessosFormatados)
     setTotalHoje(count || 0)
   }
 
