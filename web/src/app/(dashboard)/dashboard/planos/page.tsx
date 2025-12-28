@@ -468,11 +468,11 @@ export default function PlanosPage() {
                 </div>
 
                 <div className="flex gap-2 mb-3">
-                  {p.permite_piscina && <Waves className="h-4 w-4 text-blue-500" title="Piscina" />}
-                  {p.permite_academia && <Dumbbell className="h-4 w-4 text-orange-500" title="Academia" />}
-                  {p.permite_quadras && <Goal className="h-4 w-4 text-green-500" title="Quadras" />}
-                  {p.permite_salao_festas && <PartyPopper className="h-4 w-4 text-purple-500" title="Salão" />}
-                  {p.permite_restaurante && <UtensilsCrossed className="h-4 w-4 text-red-500" title="Restaurante" />}
+                  {p.permite_piscina && <span title="Piscina"><Waves className="h-4 w-4 text-blue-500" /></span>}
+                  {p.permite_academia && <span title="Academia"><Dumbbell className="h-4 w-4 text-orange-500" /></span>}
+                  {p.permite_quadras && <span title="Quadras"><Goal className="h-4 w-4 text-green-500" /></span>}
+                  {p.permite_salao_festas && <span title="Salão"><PartyPopper className="h-4 w-4 text-purple-500" /></span>}
+                  {p.permite_restaurante && <span title="Restaurante"><UtensilsCrossed className="h-4 w-4 text-red-500" /></span>}
                 </div>
 
                 {p.beneficios && p.beneficios.length > 0 && (
