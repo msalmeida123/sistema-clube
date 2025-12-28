@@ -494,17 +494,17 @@ export default function AcademiaPage() {
                         </td>
                         <td className="p-3">{a.plano?.nome}</td>
                         <td className="p-3">
-                          {a.qr_code ? (
+                          {a.associado?.qr_code ? (
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(a.qr_code || '')
+                                navigator.clipboard.writeText(a.associado?.qr_code || '')
                                 toast.success('QR Code copiado!')
                               }}
                               className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-mono hover:bg-orange-200"
                               title="Clique para copiar"
                             >
                               <QrCode className="h-3 w-3" />
-                              {a.qr_code}
+                              {a.associado?.qr_code}
                             </button>
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
