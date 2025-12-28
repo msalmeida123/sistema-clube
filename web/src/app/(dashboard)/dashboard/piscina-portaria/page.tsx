@@ -36,7 +36,7 @@ type Acesso = {
   data_hora: string
   tipo: string
   exame_valido: boolean
-  associado: { nome: string; numero_titulo: string }
+  associado: { nome: string; numero_titulo: string } | null
 }
 
 export default function PiscinaPortariaPage() {
@@ -94,7 +94,16 @@ export default function PiscinaPortariaPage() {
       .order('data_hora', { ascending: false })
       .limit(20)
 
-    setAcessosHoje(data || [])
+    // Transformar dados para o formato correto
+    const acessosFormatados = (data || []).map((item: any) => ({
+      id: item.id,
+      data_hora: item.data_hora,
+      tipo: item.tipo,
+      exame_valido: item.exame_valido,
+      associado: Array.isArray(item.associado) ? item.associado[0] : item.associado
+    }))
+
+    setAcessosHoje(acessosFormatados)
     setTotalHoje(count || 0)
   }
 
