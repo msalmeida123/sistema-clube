@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 // Transcrever áudio com Whisper
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
@@ -101,6 +103,8 @@ async function processarMensagemComIA(
   tipo: string,
   mediaUrl?: string
 ): Promise<{ resposta: string | null, transcricao?: string }> {
+  const supabase = getSupabase()
+  
   // Buscar configuração
   const { data: config } = await supabase
     .from('config_bot_ia')
