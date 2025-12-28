@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
-// Transcrever áudio com Whisper
+// Transcrever Ã¡udio com Whisper
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
     const audioResponse = await fetch(audioUrl)
@@ -36,7 +38,7 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
 // Gerar resposta com GPT
 async function gerarRespostaIA(mensagem: string, config: any): Promise<string | null> {
   try {
-    const systemPrompt = `${config.instrucoes_sistema || 'Você é um assistente virtual do clube.'}
+    const systemPrompt = `${config.instrucoes_sistema || 'VocÃª Ã© um assistente virtual do clube.'}
 
 DOCUMENTO DO CLUBE:
 ${config.documento_contexto || ''}`
@@ -113,22 +115,22 @@ async function processarComIA(
       .single()
 
     if (!configIA?.openai_api_key || !configIA?.responder_com_ia) {
-      console.log('Bot IA não ativado')
+      console.log('Bot IA nÃ£o ativado')
       return
     }
 
     let textoProcessar = mensagem
     let transcricao: string | null = null
 
-    // Transcrever áudio se necessário
+    // Transcrever Ã¡udio se necessÃ¡rio
     if (tipo === 'audio' && mediaUrl && configIA.transcrever_audios) {
       transcricao = await transcreveAudio(mediaUrl, configIA.openai_api_key)
       if (transcricao) {
         textoProcessar = transcricao
-        // Salvar transcrição como nota
+        // Salvar transcriÃ§Ã£o como nota
         await supabase
           .from('mensagens_whatsapp')
-          .update({ conteudo: `🎤 Áudio transcrito:\n"${transcricao}"` })
+          .update({ conteudo: `ðŸŽ¤ Ãudio transcrito:\n"${transcricao}"` })
           .eq('conversa_id', conversaId)
           .eq('tipo', 'audio')
           .order('created_at', { ascending: false })
@@ -140,7 +142,7 @@ async function processarComIA(
     const respostaIA = await gerarRespostaIA(textoProcessar, configIA)
     
     if (respostaIA) {
-      // Delay para simular digitação
+      // Delay para simular digitaÃ§Ã£o
       await new Promise(r => setTimeout(r, 2000))
       
       const enviada = await enviarMensagem(telefone, respostaIA)
@@ -171,7 +173,7 @@ async function processarComIA(
   }
 }
 
-// Processar respostas automáticas (regras simples)
+// Processar respostas automÃ¡ticas (regras simples)
 async function processarRespostasAutomaticas(
   conversaId: string,
   telefone: string,
@@ -219,7 +221,7 @@ async function processarRespostasAutomaticas(
         const enviada = await enviarMensagem(telefone, regra.resposta)
         
         if (enviada) {
-          await supabase.from('mensagens_whatsapp').insert({
+          await getSupabase().from('mensagens_whatsapp').insert({
             conversa_id: conversaId,
             direcao: 'saida',
             conteudo: regra.resposta,
@@ -232,14 +234,14 @@ async function processarRespostasAutomaticas(
             .update({ uso_count: (regra.uso_count || 0) + 1 })
             .eq('id', regra.id)
 
-          console.log(`Resposta automática "${regra.nome}" enviada`)
-          return true // Parar após primeira resposta
+          console.log(`Resposta automÃ¡tica "${regra.nome}" enviada`)
+          return true // Parar apÃ³s primeira resposta
         }
       }
     }
     return false
   } catch (error) {
-    console.error('Erro respostas automáticas:', error)
+    console.error('Erro respostas automÃ¡ticas:', error)
     return false
   }
 }
@@ -305,7 +307,7 @@ export async function POST(request: Request) {
       }
 
       // Salvar mensagem
-      await supabase.from('mensagens_whatsapp').insert({
+      await getSupabase().from('mensagens_whatsapp').insert({
         conversa_id: conversa.id,
         direcao: 'entrada',
         conteudo: mensagem,
@@ -316,11 +318,11 @@ export async function POST(request: Request) {
       })
 
       // Processar respostas (async)
-      // Primeiro tenta regras automáticas, se não der match usa IA
+      // Primeiro tenta regras automÃ¡ticas, se nÃ£o der match usa IA
       processarRespostasAutomaticas(conversa.id, telefone, mensagem, isPrimeiraMsg)
         .then(respondeu => {
           if (!respondeu) {
-            // Se nenhuma regra automática respondeu, usar IA
+            // Se nenhuma regra automÃ¡tica respondeu, usar IA
             processarComIA(conversa.id, telefone, mensagem, tipo, mediaUrl)
           }
         })
