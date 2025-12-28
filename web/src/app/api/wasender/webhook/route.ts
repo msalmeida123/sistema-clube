@@ -286,7 +286,7 @@ export async function POST(request: Request) {
           .select()
           .single()
 
-        if (error) return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
+        if (error || !nova) return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
         conversa = nova
       } else {
         await supabase
@@ -297,6 +297,11 @@ export async function POST(request: Request) {
             nao_lidas: (conversa.nao_lidas || 0) + 1
           })
           .eq('id', conversa.id)
+      }
+
+      // Garantir que conversa existe
+      if (!conversa) {
+        return NextResponse.json({ error: 'Erro ao obter conversa' }, { status: 500 })
       }
 
       // Salvar mensagem
