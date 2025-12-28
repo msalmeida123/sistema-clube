@@ -16,6 +16,7 @@ type Chapa = {
   nome: string
   presidente: string
   vice_presidente: string
+  votos?: number
 }
 
 type Associado = {
