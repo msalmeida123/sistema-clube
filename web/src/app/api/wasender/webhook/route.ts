@@ -109,7 +109,7 @@ async function processarComIA(
   mediaUrl?: string
 ) {
   try {
-    const { data: configIA } = await supabase
+    const { data: configIA } = await getSupabase()
       .from('config_bot_ia')
       .select('*')
       .single()
@@ -128,7 +128,7 @@ async function processarComIA(
       if (transcricao) {
         textoProcessar = transcricao
         // Salvar transcriÃ§Ã£o como nota
-        await supabase
+        await getSupabase()
           .from('mensagens_whatsapp')
           .update({ conteudo: `ðŸŽ¤ Ãudio transcrito:\n"${transcricao}"` })
           .eq('conversa_id', conversaId)
@@ -149,7 +149,7 @@ async function processarComIA(
       
       if (enviada) {
         // Salvar resposta no banco
-        await supabase
+        await getSupabase()
           .from('mensagens_whatsapp')
           .insert({
             conversa_id: conversaId,
@@ -160,7 +160,7 @@ async function processarComIA(
             message_id: typeof enviada === 'string' ? enviada : null
           })
 
-        await supabase
+        await getSupabase()
           .from('conversas_whatsapp')
           .update({ ultima_mensagem: respostaIA.substring(0, 100) })
           .eq('id', conversaId)
@@ -181,7 +181,7 @@ async function processarRespostasAutomaticas(
   isPrimeiraMsg: boolean
 ) {
   try {
-    const { data: regras } = await supabase
+    const { data: regras } = await getSupabase()
       .from('respostas_automaticas')
       .select('*')
       .eq('ativo', true)
@@ -229,7 +229,7 @@ async function processarRespostasAutomaticas(
             status: 'enviada'
           })
 
-          await supabase
+          await getSupabase()
             .from('respostas_automaticas')
             .update({ uso_count: (regra.uso_count || 0) + 1 })
             .eq('id', regra.id)
@@ -267,7 +267,7 @@ export async function POST(request: Request) {
       let isPrimeiraMsg = false
 
       // Buscar ou criar conversa
-      let { data: conversa } = await supabase
+      let { data: conversa } = await getSupabase()
         .from('conversas_whatsapp')
         .select('id, nao_lidas')
         .eq('telefone', telefone)
@@ -275,7 +275,7 @@ export async function POST(request: Request) {
 
       if (!conversa) {
         isPrimeiraMsg = true
-        const { data: nova, error } = await supabase
+        const { data: nova, error } = await getSupabase()
           .from('conversas_whatsapp')
           .insert({
             telefone,
@@ -291,7 +291,7 @@ export async function POST(request: Request) {
         if (error || !nova) return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
         conversa = nova
       } else {
-        await supabase
+        await getSupabase()
           .from('conversas_whatsapp')
           .update({
             ultimo_contato: new Date().toISOString(),
@@ -339,7 +339,7 @@ export async function POST(request: Request) {
       if (ack === 2) status = 'entregue'
       if (ack === 3) status = 'lida'
 
-      await supabase
+      await getSupabase()
         .from('mensagens_whatsapp')
         .update({ status })
         .eq('message_id', messageId)
