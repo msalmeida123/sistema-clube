@@ -72,7 +72,7 @@ ${config.documento_contexto || ''}`
 // Enviar mensagem via WaSender
 async function enviarMensagem(telefone: string, mensagem: string): Promise<string | false> {
   try {
-    const { data: config } = await supabase
+    const { data: config } = await getSupabase()
       .from('config_wasender')
       .select('api_key')
       .single()
