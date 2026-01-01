@@ -13,6 +13,10 @@ RUN npm ci
 # Copiar código fonte
 COPY . .
 
+# Variáveis de ambiente dummy para o build (serão substituídas em runtime)
+ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key
+
 # Build da aplicação
 RUN npm run build
 
