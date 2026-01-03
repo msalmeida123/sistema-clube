@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
@@ -36,6 +37,7 @@ const menuItems = [
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
+  { href: '/dashboard/permissoes', label: 'Permissões', icon: Shield, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, permissao: 'configuracoes', apenasAdmin: true },
 ]
 
@@ -204,7 +206,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="min-h-[calc(100vh-4rem)]">
-          {children}
+          <PermissoesProvider>
+            {children}
+          </PermissoesProvider>
         </main>
       </div>
 
