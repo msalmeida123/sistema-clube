@@ -28,20 +28,18 @@ type ConfigPix = {
 
 // Mapeamento de setores para pontos de acesso
 const SETOR_PARA_PONTO: Record<string, string[]> = {
-  'admin': ['clube', 'piscina', 'academia'],
-  'presidente': ['clube', 'piscina', 'academia'],
-  'vice_presidente': ['clube', 'piscina', 'academia'],
-  'diretoria': ['clube', 'piscina', 'academia'],
+  'admin': ['clube'],
+  'presidente': ['clube'],
+  'vice_presidente': ['clube'],
+  'diretoria': ['clube'],
   'portaria_clube': ['clube'],
-  'portaria_piscina': ['piscina'],
-  'portaria_academia': ['academia'],
-  '': ['clube', 'piscina', 'academia'],
+  'portaria_piscina': ['clube'],
+  'portaria_academia': ['clube'],
+  '': ['clube'],
 }
 
 const PONTOS_ACESSO = [
   { id: 'clube', label: '🏛️ Sede Social' },
-  { id: 'piscina', label: '🏊 Piscina' },
-  { id: 'academia', label: '🏋️ Academia' },
 ]
 
 export default function PortariaPage() {
@@ -86,12 +84,12 @@ export default function PortariaPage() {
           if (pontos.length > 0) setPontoAcesso(pontos[0])
         } else {
           setUserSetor('admin')
-          setPontosPermitidos(['clube', 'piscina', 'academia'])
+          setPontosPermitidos(['clube'])
           setPontoAcesso('clube')
         }
       } else {
         setUserSetor('admin')
-        setPontosPermitidos(['clube', 'piscina', 'academia'])
+        setPontosPermitidos(['clube'])
         setPontoAcesso('clube')
       }
 
