@@ -3,28 +3,45 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-type Permissao = {
-  codigo: string
-  rota: string
-  pode_visualizar: boolean
-  pode_criar: boolean
-  pode_editar: boolean
-  pode_excluir: boolean
-}
-
 type PermissoesContextType = {
-  permissoes: Record<string, Permissao>
+  permissoes: string[]
   isAdmin: boolean
   loading: boolean
-  temPermissao: (codigo: string, acao?: 'visualizar' | 'criar' | 'editar' | 'excluir') => boolean
-  temPermissaoRota: (rota: string) => boolean
+  temPermissao: (codigo: string) => boolean
   recarregar: () => Promise<void>
 }
 
 const PermissoesContext = createContext<PermissoesContextType | null>(null)
 
+// Mapeamento de rotas para códigos de permissão
+const ROTAS_PERMISSOES: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/dashboard/associados': 'associados',
+  '/dashboard/dependentes': 'dependentes',
+  '/dashboard/financeiro': 'financeiro',
+  '/dashboard/compras': 'compras',
+  '/dashboard/portaria': 'portaria',
+  '/dashboard/piscina-portaria': 'portaria',
+  '/dashboard/academia-portaria': 'portaria',
+  '/dashboard/academia': 'academia',
+  '/dashboard/exames-medicos': 'exames',
+  '/dashboard/infracoes': 'infracoes',
+  '/dashboard/eleicoes': 'eleicoes',
+  '/dashboard/relatorios': 'relatorios',
+  '/dashboard/crm': 'crm',
+  '/dashboard/whatsapp': 'crm',
+  '/dashboard/respostas-automaticas': 'crm',
+  '/dashboard/bot-ia': 'crm',
+  '/dashboard/configuracoes': 'configuracoes',
+  '/dashboard/permissoes': 'usuarios',
+  '/dashboard/planos': 'configuracoes',
+  '/dashboard/convites': 'associados',
+  '/dashboard/quiosques': 'configuracoes',
+  '/dashboard/carnes': 'financeiro',
+}
+
 export function PermissoesProvider({ children }: { children: ReactNode }) {
-  const [permissoes, setPermissoes] = useState<Record<string, Permissao>>({})
+  const [permissoes, setPermissoes] = useState<string[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const supabase = createClientComponentClient()
@@ -39,88 +56,25 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      // Verificar se é admin
+      // Buscar dados do usuário incluindo permissões
       const { data: userData } = await supabase
         .from('usuarios')
-        .select('is_admin, perfil_acesso_id')
+        .select('is_admin, permissoes')
         .eq('id', user.id)
         .single()
 
       if (userData?.is_admin) {
         setIsAdmin(true)
         // Admin tem acesso a tudo
-        const { data: paginas } = await supabase.from('paginas_sistema').select('codigo, rota')
-        const todasPermissoes: Record<string, Permissao> = {}
-        ;(paginas || []).forEach(p => {
-          todasPermissoes[p.codigo] = {
-            codigo: p.codigo,
-            rota: p.rota,
-            pode_visualizar: true,
-            pode_criar: true,
-            pode_editar: true,
-            pode_excluir: true
-          }
-        })
-        setPermissoes(todasPermissoes)
-        setLoading(false)
-        return
+        setPermissoes([
+          'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
+          'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
+          'crm', 'configuracoes', 'usuarios', 'academia'
+        ])
+      } else {
+        setIsAdmin(false)
+        setPermissoes(userData?.permissoes || [])
       }
-
-      // Carregar páginas
-      const { data: paginas } = await supabase
-        .from('paginas_sistema')
-        .select('id, codigo, rota')
-
-      const paginasMap: Record<string, { codigo: string; rota: string }> = {}
-      ;(paginas || []).forEach(p => {
-        paginasMap[p.id] = { codigo: p.codigo, rota: p.rota }
-      })
-
-      // Carregar permissões do perfil
-      const permissoesMap: Record<string, Permissao> = {}
-
-      if (userData?.perfil_acesso_id) {
-        const { data: permissoesPerfil } = await supabase
-          .from('permissoes_perfil')
-          .select('pagina_id, pode_visualizar, pode_criar, pode_editar, pode_excluir')
-          .eq('perfil_id', userData.perfil_acesso_id)
-
-        ;(permissoesPerfil || []).forEach(p => {
-          const pagina = paginasMap[p.pagina_id]
-          if (pagina) {
-            permissoesMap[pagina.codigo] = {
-              codigo: pagina.codigo,
-              rota: pagina.rota,
-              pode_visualizar: p.pode_visualizar,
-              pode_criar: p.pode_criar,
-              pode_editar: p.pode_editar,
-              pode_excluir: p.pode_excluir
-            }
-          }
-        })
-      }
-
-      // Carregar permissões individuais (sobrescrevem as do perfil)
-      const { data: permissoesUsuario } = await supabase
-        .from('permissoes_usuario')
-        .select('pagina_id, pode_visualizar, pode_criar, pode_editar, pode_excluir')
-        .eq('usuario_id', user.id)
-
-      ;(permissoesUsuario || []).forEach(p => {
-        const pagina = paginasMap[p.pagina_id]
-        if (pagina) {
-          permissoesMap[pagina.codigo] = {
-            codigo: pagina.codigo,
-            rota: pagina.rota,
-            pode_visualizar: p.pode_visualizar,
-            pode_criar: p.pode_criar,
-            pode_editar: p.pode_editar,
-            pode_excluir: p.pode_excluir
-          }
-        }
-      })
-
-      setPermissoes(permissoesMap)
     } catch (error) {
       console.error('Erro ao carregar permissões:', error)
     } finally {
@@ -130,43 +84,18 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     carregarPermissoes()
+
+    // Escutar mudanças de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      carregarPermissoes()
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  const temPermissao = (codigo: string, acao: 'visualizar' | 'criar' | 'editar' | 'excluir' = 'visualizar') => {
+  const temPermissao = (codigo: string) => {
     if (isAdmin) return true
-    const perm = permissoes[codigo]
-    if (!perm) return false
-    
-    switch (acao) {
-      case 'visualizar': return perm.pode_visualizar
-      case 'criar': return perm.pode_criar
-      case 'editar': return perm.pode_editar
-      case 'excluir': return perm.pode_excluir
-      default: return false
-    }
-  }
-
-  const temPermissaoRota = (rota: string) => {
-    if (isAdmin) return true
-    
-    // Normalizar rota
-    const rotaLimpa = rota.split('?')[0]
-    
-    // Verificar permissão exata
-    const permissaoExata = Object.values(permissoes).find(p => {
-      const rotaPerm = p.rota.split('?')[0]
-      return rotaPerm === rotaLimpa && p.pode_visualizar
-    })
-    
-    if (permissaoExata) return true
-
-    // Verificar permissão pai (ex: /dashboard/financeiro permite /dashboard/financeiro?tab=xxx)
-    const permissaoPai = Object.values(permissoes).find(p => {
-      const rotaPerm = p.rota.split('?')[0]
-      return rotaLimpa.startsWith(rotaPerm) && p.pode_visualizar
-    })
-
-    return !!permissaoPai
+    return permissoes.includes(codigo)
   }
 
   return (
@@ -175,7 +104,6 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       isAdmin,
       loading,
       temPermissao,
-      temPermissaoRota,
       recarregar: carregarPermissoes
     }}>
       {children}
@@ -189,4 +117,18 @@ export function usePermissoes() {
     throw new Error('usePermissoes deve ser usado dentro de PermissoesProvider')
   }
   return context
+}
+
+// Hook auxiliar para verificar permissão de rota
+export function usePermissaoRota(rota: string): boolean {
+  const { isAdmin, permissoes } = usePermissoes()
+  
+  if (isAdmin) return true
+  
+  // Encontrar o código de permissão para a rota
+  const rotaBase = Object.keys(ROTAS_PERMISSOES).find(r => rota.startsWith(r))
+  if (!rotaBase) return true // Rota não mapeada, permitir
+  
+  const codigo = ROTAS_PERMISSOES[rotaBase]
+  return permissoes.includes(codigo)
 }

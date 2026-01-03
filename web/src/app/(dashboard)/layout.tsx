@@ -13,44 +13,37 @@ import {
   Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent
 } from 'lucide-react'
 
-// Itens do menu com código da página
+// Itens do menu com código da permissão
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, codigo: 'dashboard' },
-  { href: '/dashboard/associados', label: 'Associados', icon: Users, codigo: 'associados' },
-  { href: '/dashboard/dependentes', label: 'Dependentes', icon: UserPlus, codigo: 'dependentes' },
-  { href: '/dashboard/planos', label: 'Planos/Categorias', icon: BadgeDollarSign, codigo: 'planos' },
-  { href: '/dashboard/academia', label: 'Academia', icon: Dumbbell, codigo: 'academia' },
-  { href: '/dashboard/academia-portaria', label: 'Portaria Academia', icon: ScanLine, codigo: 'portaria_academia' },
-  { href: '/dashboard/piscina-portaria', label: 'Portaria Piscina', icon: Waves, codigo: 'portaria_piscina' },
-  { href: '/dashboard/convites', label: 'Convites', icon: Ticket, codigo: 'convites' },
-  { href: '/dashboard/quiosques', label: 'Quiosques', icon: Tent, codigo: 'quiosques' },
-  { href: '/dashboard/exames-medicos', label: 'Exames Médicos', icon: Stethoscope, codigo: 'exames' },
-  { href: '/dashboard/infracoes', label: 'Infrações', icon: AlertTriangle, codigo: 'infracoes' },
-  { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet, codigo: 'financeiro' },
-  { href: '/dashboard/carnes', label: 'Carnês', icon: Receipt, codigo: 'carnes' },
-  { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, codigo: 'compras' },
-  { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, codigo: 'portaria' },
-  { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, codigo: 'whatsapp' },
-  { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, codigo: 'whatsapp_conexao' },
-  { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, codigo: 'whatsapp_respostas' },
-  { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, codigo: 'whatsapp_bot' },
-  { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, codigo: 'eleicoes' },
-  { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, codigo: 'relatorios' },
-  { href: '/dashboard/usuarios', label: 'Usuários', icon: Users, codigo: 'usuarios' },
-  { href: '/dashboard/permissoes', label: 'Permissões', icon: Shield, codigo: 'permissoes', apenasAdmin: true },
-  { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, codigo: 'configuracoes', apenasAdmin: true },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissao: 'dashboard' },
+  { href: '/dashboard/associados', label: 'Associados', icon: Users, permissao: 'associados' },
+  { href: '/dashboard/dependentes', label: 'Dependentes', icon: UserPlus, permissao: 'dependentes' },
+  { href: '/dashboard/planos', label: 'Planos/Categorias', icon: BadgeDollarSign, permissao: 'configuracoes' },
+  { href: '/dashboard/academia', label: 'Academia', icon: Dumbbell, permissao: 'portaria' },
+  { href: '/dashboard/academia-portaria', label: 'Portaria Academia', icon: ScanLine, permissao: 'portaria' },
+  { href: '/dashboard/piscina-portaria', label: 'Portaria Piscina', icon: Waves, permissao: 'portaria' },
+  { href: '/dashboard/convites', label: 'Convites', icon: Ticket, permissao: 'associados' },
+  { href: '/dashboard/quiosques', label: 'Quiosques', icon: Tent, permissao: 'configuracoes' },
+  { href: '/dashboard/exames-medicos', label: 'Exames Médicos', icon: Stethoscope, permissao: 'exames' },
+  { href: '/dashboard/infracoes', label: 'Infrações', icon: AlertTriangle, permissao: 'infracoes' },
+  { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet, permissao: 'financeiro' },
+  { href: '/dashboard/carnes', label: 'Carnês', icon: Receipt, permissao: 'financeiro' },
+  { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, permissao: 'compras' },
+  { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
+  { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm' },
+  { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
+  { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
+  { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
+  { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
+  { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
+  { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, permissao: 'configuracoes', apenasAdmin: true },
 ]
-
-type Permissao = {
-  codigo: string
-  pode_visualizar: boolean
-}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [userName, setUserName] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
-  const [permissoes, setPermissoes] = useState<Record<string, Permissao>>({})
+  const [permissoes, setPermissoes] = useState<string[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -66,10 +59,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       setUser(user)
 
-      // Buscar dados do usuário
+      // Buscar dados do usuário incluindo permissões
       const { data: userData } = await supabase
         .from('usuarios')
-        .select('is_admin, nome, perfil_acesso_id')
+        .select('is_admin, nome, permissoes')
         .eq('id', user.id)
         .single()
       
@@ -79,14 +72,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         // Se é admin, tem acesso a tudo
         if (userData.is_admin) {
-          const todasPermissoes: Record<string, Permissao> = {}
-          menuItems.forEach(item => {
-            todasPermissoes[item.codigo] = { codigo: item.codigo, pode_visualizar: true }
-          })
-          setPermissoes(todasPermissoes)
+          setPermissoes([
+            'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
+            'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
+            'crm', 'configuracoes', 'usuarios'
+          ])
         } else {
-          // Carregar permissões do banco
-          await carregarPermissoes(user.id, userData.perfil_acesso_id)
+          // Usar array de permissões do usuário
+          setPermissoes(userData.permissoes || [])
         }
       }
 
@@ -96,53 +89,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     carregarUsuario()
   }, [router, supabase])
 
-  const carregarPermissoes = async (userId: string, perfilId: string | null) => {
-    // Carregar páginas
-    const { data: paginas } = await supabase
-      .from('paginas_sistema')
-      .select('id, codigo')
-
-    const paginasMap: Record<string, string> = {}
-    ;(paginas || []).forEach(p => {
-      paginasMap[p.id] = p.codigo
-    })
-
-    const permissoesMap: Record<string, Permissao> = {}
-
-    // Carregar permissões do perfil
-    if (perfilId) {
-      const { data: permissoesPerfil } = await supabase
-        .from('permissoes_perfil')
-        .select('pagina_id, pode_visualizar')
-        .eq('perfil_id', perfilId)
-
-      ;(permissoesPerfil || []).forEach(p => {
-        const codigo = paginasMap[p.pagina_id]
-        if (codigo) {
-          permissoesMap[codigo] = { codigo, pode_visualizar: p.pode_visualizar }
-        }
-      })
-    }
-
-    // Carregar permissões individuais (sobrescrevem as do perfil)
-    const { data: permissoesUsuario } = await supabase
-      .from('permissoes_usuario')
-      .select('pagina_id, pode_visualizar')
-      .eq('usuario_id', userId)
-
-    ;(permissoesUsuario || []).forEach(p => {
-      const codigo = paginasMap[p.pagina_id]
-      if (codigo) {
-        permissoesMap[codigo] = { codigo, pode_visualizar: p.pode_visualizar }
-      }
-    })
-
-    setPermissoes(permissoesMap)
-  }
-
-  const temPermissao = (codigo: string) => {
+  const temPermissao = (permissao: string) => {
     if (isAdmin) return true
-    return permissoes[codigo]?.pode_visualizar || false
+    return permissoes.includes(permissao)
   }
 
   const handleLogout = async () => {
@@ -155,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Se é página apenas para admin, verificar se é admin
     if (item.apenasAdmin && !isAdmin) return false
     // Verificar permissão normal
-    return temPermissao(item.codigo)
+    return temPermissao(item.permissao)
   })
 
   if (loading) {
