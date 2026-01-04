@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
+import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   Send, Search, Phone, User, MessageSquare, Plus, RefreshCw, 
   Check, CheckCheck, Clock, Download, Image, Paperclip, Mic, 
@@ -598,7 +599,8 @@ export default function CRMPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-4">
+    <PaginaProtegida codigoPagina="crm">
+    <div className="flex h-[calc(100vh-120px)] gap-4 p-6">
       {/* Input de arquivo oculto */}
       <input
         type="file"
@@ -1140,5 +1142,6 @@ export default function CRMPage() {
         </div>
       )}
     </div>
+    </PaginaProtegida>
   )
 }

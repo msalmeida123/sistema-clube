@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import { Plus, Search, Eye, Edit, Trash2, Stethoscope, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -129,15 +130,18 @@ export default function ExamesMedicosPage() {
   }).length
 
   return (
-    <div className="space-y-6">
+    <PaginaProtegida codigoPagina="exames">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Stethoscope className="h-7 w-7" />
           Exames Médicos
         </h1>
-        <Link href="/dashboard/exames-medicos/novo">
-          <Button><Plus className="h-4 w-4 mr-2" />Novo Exame</Button>
-        </Link>
+        <ComPermissao codigoPagina="exames" acao="criar">
+          <Link href="/dashboard/exames-medicos/novo">
+            <Button><Plus className="h-4 w-4 mr-2" />Novo Exame</Button>
+          </Link>
+        </ComPermissao>
       </div>
 
       {/* Cards de Resumo */}
@@ -275,19 +279,23 @@ export default function ExamesMedicosPage() {
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Link href={`/dashboard/exames-medicos/${e.id}/editar`}>
-                              <Button variant="ghost" size="icon" title="Editar">
-                                <Edit className="h-4 w-4" />
+                            <ComPermissao codigoPagina="exames" acao="editar">
+                              <Link href={`/dashboard/exames-medicos/${e.id}/editar`}>
+                                <Button variant="ghost" size="icon" title="Editar">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </ComPermissao>
+                            <ComPermissao codigoPagina="exames" acao="excluir">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Excluir"
+                                onClick={() => excluirExame(e.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Excluir"
-                              onClick={() => excluirExame(e.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                            </ComPermissao>
                           </div>
                         </td>
                       </tr>
@@ -300,5 +308,6 @@ export default function ExamesMedicosPage() {
         </CardContent>
       </Card>
     </div>
+    </PaginaProtegida>
   )
 }

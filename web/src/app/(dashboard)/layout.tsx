@@ -11,7 +11,7 @@ import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -37,6 +37,7 @@ const menuItems = [
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
+  { href: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/permissoes', label: 'Permissões', icon: Shield, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, permissao: 'configuracoes', apenasAdmin: true },
 ]

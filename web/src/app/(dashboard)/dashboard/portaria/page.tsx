@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   QrCode, Search, CheckCircle, XCircle, User, Usb, AlertTriangle,
   CreditCard, Smartphone, DollarSign, Loader2, X, Banknote
@@ -474,6 +475,7 @@ export default function PortariaPage() {
   }
 
   return (
+    <PaginaProtegida codigoPagina="portaria">
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <Card>
         <CardHeader>
@@ -714,5 +716,6 @@ export default function PortariaPage() {
         </CardContent>
       </Card>
     </div>
+    </PaginaProtegida>
   )
 }

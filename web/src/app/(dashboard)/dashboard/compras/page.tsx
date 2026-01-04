@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import { Plus, Search, Eye, Trash2, CheckCircle, Clock, XCircle, ShoppingCart, FileText } from 'lucide-react'
 import Link from 'next/link'
 
@@ -100,12 +101,15 @@ export default function ComprasPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <PaginaProtegida codigoPagina="compras">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Compras e Orçamentos</h1>
-        <Link href="/dashboard/compras/novo">
-          <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
-        </Link>
+        <ComPermissao codigoPagina="compras" acao="criar">
+          <Link href="/dashboard/compras/novo">
+            <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
+          </Link>
+        </ComPermissao>
       </div>
 
       {/* Cards de Resumo */}
@@ -214,11 +218,13 @@ export default function ComprasPage() {
                         <Link href={`/dashboard/compras/${o.id}`}>
                           <Button size="sm" variant="outline"><Eye className="h-3 w-3" /></Button>
                         </Link>
-                        {o.status === 'pendente' && (
-                          <Button size="sm" variant="ghost" onClick={() => excluirOrcamento(o.id)}>
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
-                        )}
+                        <ComPermissao codigoPagina="compras" acao="excluir">
+                          {o.status === 'pendente' && (
+                            <Button size="sm" variant="ghost" onClick={() => excluirOrcamento(o.id)}>
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          )}
+                        </ComPermissao>
                       </div>
                     </td>
                   </tr>
@@ -229,5 +235,6 @@ export default function ComprasPage() {
         </CardContent>
       </Card>
     </div>
+    </PaginaProtegida>
   )
 }

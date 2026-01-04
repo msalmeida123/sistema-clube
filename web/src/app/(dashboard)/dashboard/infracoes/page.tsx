@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import { Plus, Search, Eye, AlertTriangle, Clock, CheckCircle, Archive } from 'lucide-react'
 
 type Infracao = {
@@ -119,12 +120,15 @@ export default function InfracoesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PaginaProtegida codigoPagina="infracoes">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Registro de Infrações</h1>
-        <Link href="/dashboard/infracoes/nova">
-          <Button><Plus className="h-4 w-4 mr-2" />Nova Ocorrência</Button>
-        </Link>
+        <ComPermissao codigoPagina="infracoes" acao="criar">
+          <Link href="/dashboard/infracoes/nova">
+            <Button><Plus className="h-4 w-4 mr-2" />Nova Ocorrência</Button>
+          </Link>
+        </ComPermissao>
       </div>
 
       {/* Filtros */}
@@ -265,5 +269,6 @@ export default function InfracoesPage() {
         </CardContent>
       </Card>
     </div>
+    </PaginaProtegida>
   )
 }

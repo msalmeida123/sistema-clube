@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import { 
   CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye, 
   Trash2, X, TrendingUp, TrendingDown, Calendar, Users, Receipt,
@@ -306,6 +307,7 @@ export default function FinanceiroPage() {
   ]
 
   return (
+    <PaginaProtegida codigoPagina="financeiro">
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -832,5 +834,6 @@ export default function FinanceiroPage() {
         </div>
       )}
     </div>
+    </PaginaProtegida>
   )
 }

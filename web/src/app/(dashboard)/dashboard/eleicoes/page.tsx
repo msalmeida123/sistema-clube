@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import { Plus, Vote, Trophy, Calendar, Users, Clock, CheckCircle, XCircle, Eye, BarChart3, X } from 'lucide-react'
 import Link from 'next/link'
 
@@ -119,12 +120,15 @@ export default function EleicoesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PaginaProtegida codigoPagina="eleicoes">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Eleições</h1>
-        <Button onClick={() => setShowNovaEleicao(true)}>
-          <Plus className="h-4 w-4 mr-2" />Nova Eleição
-        </Button>
+        <ComPermissao codigoPagina="eleicoes" acao="criar">
+          <Button onClick={() => setShowNovaEleicao(true)}>
+            <Plus className="h-4 w-4 mr-2" />Nova Eleição
+          </Button>
+        </ComPermissao>
       </div>
 
       {/* Cards de Resumo */}
@@ -297,5 +301,6 @@ export default function EleicoesPage() {
         </div>
       )}
     </div>
+    </PaginaProtegida>
   )
 }

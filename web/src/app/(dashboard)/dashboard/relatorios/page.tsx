@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   FileText, Users, DollarSign, Calendar, Download, Printer, 
   TrendingUp, TrendingDown, BarChart3, PieChart, UserCheck,
@@ -194,7 +195,8 @@ export default function RelatoriosPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <PaginaProtegida codigoPagina="relatorios">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Relatórios</h1>
         {dados && (
@@ -553,5 +555,6 @@ export default function RelatoriosPage() {
         </Card>
       )}
     </div>
+    </PaginaProtegida>
   )
 }
