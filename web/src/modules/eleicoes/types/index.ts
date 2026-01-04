@@ -48,6 +48,7 @@ export interface EleicaoFormData {
   descricao?: string
   data_inicio: string
   data_fim: string
+  status?: string
 }
 
 export interface ResultadoEleicao {
