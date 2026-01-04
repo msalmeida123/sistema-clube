@@ -34,7 +34,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm">Receita do Mês</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.receitaMes)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(stats.receitaMes || 0)}</p>
             </div>
             <TrendingUp className="h-10 w-10 text-green-200" />
           </div>
@@ -46,7 +46,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-red-100 text-sm">Despesas do Mês</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.despesaMes)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(stats.despesaMes || 0)}</p>
             </div>
             <TrendingDown className="h-10 w-10 text-red-200" />
           </div>
@@ -58,7 +58,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">A Receber</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.aReceber)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(stats.aReceber || 0)}</p>
             </div>
             <DollarSign className="h-10 w-10 text-blue-200" />
           </div>
@@ -70,7 +70,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-100 text-sm">A Pagar</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.aPagar)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(stats.aPagar || 0)}</p>
             </div>
             <CreditCard className="h-10 w-10 text-orange-200" />
           </div>
@@ -97,25 +97,25 @@ export function StatsCardsSecundarios({ stats, loading }: StatsCardsProps) {
     { 
       icon: CheckCircle, 
       color: 'green', 
-      value: stats.mensalidadesPagas, 
+      value: stats.mensalidadesPagas || 0, 
       label: 'Mensalidades Pagas' 
     },
     { 
       icon: Receipt, 
       color: 'blue', 
-      value: stats.parcelasPagas, 
+      value: stats.parcelasPagas || 0, 
       label: 'Parcelas Pagas' 
     },
     { 
       icon: Ticket, 
       color: 'purple', 
-      value: stats.convitesMes, 
+      value: stats.convitesMes || 0, 
       label: 'Convites no Mês' 
     },
     { 
       icon: AlertCircle, 
       color: 'red', 
-      value: stats.inadimplentes, 
+      value: stats.inadimplentes || 0, 
       label: 'Inadimplentes' 
     },
   ]
@@ -148,7 +148,7 @@ export function SaldoCard({ stats, loading }: StatsCardsProps) {
     )
   }
 
-  const saldo = stats.receitaMes - stats.despesaMes
+  const saldo = (stats.receitaMes || 0) - (stats.despesaMes || 0)
   const positivo = saldo >= 0
 
   return (
