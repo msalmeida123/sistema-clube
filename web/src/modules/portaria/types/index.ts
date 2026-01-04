@@ -11,6 +11,7 @@ export interface AcessoFormData {
   tipo?: TipoAcesso
   local?: LocalAcesso
   observacao?: string
+  status?: string
 }
 
 export type TipoAcesso = 'entrada' | 'saida'
