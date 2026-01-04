@@ -1,5 +1,12 @@
 // Tipos do módulo de Configurações
 
+// Alias para compatibilidade com hooks gerados
+export type Configuracao = ConfiguracaoClube
+export type ConfiguracaoFormData = ConfigFormData
+export interface ConfiguracaoFilters {
+  search?: string
+}
+
 export interface ConfiguracaoClube {
   id: string
   nome_clube: string
