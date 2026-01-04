@@ -63,6 +63,14 @@ export interface FinanceiroStats {
   total_recebido: number
   total_atrasado: number
   inadimplentes: number
+  // Campos usados nos componentes de stats
+  receitaMes: number
+  despesaMes: number
+  aReceber: number
+  aPagar: number
+  mensalidadesPagas: number
+  parcelasPagas: number
+  convitesMes: number
 }
 
 export interface ResumoMensal {
