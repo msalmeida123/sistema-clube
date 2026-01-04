@@ -240,39 +240,29 @@ export default function UsuariosPage() {
           return
         }
 
-        // Criar auth user
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.senha,
-          options: {
-            data: {
-              nome: form.nome
-            }
-          }
+        // Usar API para criar usuário (não desloga o admin)
+        const response = await fetch('/api/usuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome: form.nome,
+            email: form.email,
+            senha: form.senha,
+            telefone: form.telefone || null,
+            setor: form.setor || null,
+            is_admin: form.is_admin,
+            perfil_acesso_id: form.perfil_acesso_id || null,
+            permissoes: form.permissoes
+          })
         })
 
-        if (authError) throw authError
+        const result = await response.json()
 
-        if (authData.user) {
-          // Criar registro na tabela usuarios
-          const { error: userError } = await supabase
-            .from('usuarios')
-            .insert({
-              auth_id: authData.user.id,
-              nome: form.nome,
-              email: form.email,
-              telefone: form.telefone || null,
-              setor: form.setor || null,
-              is_admin: form.is_admin,
-              perfil_acesso_id: form.perfil_acesso_id || null,
-              permissoes: form.permissoes,
-              ativo: true
-            })
-
-          if (userError) throw userError
+        if (!response.ok) {
+          throw new Error(result.error || 'Erro ao criar usuário')
         }
 
-        toast.success('Usuário criado com sucesso! Um email de confirmação foi enviado.')
+        toast.success('Usuário criado com sucesso!')
       }
 
       fecharModal()
