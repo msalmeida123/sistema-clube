@@ -41,6 +41,7 @@ export interface InfracaoFormData {
   descricao: string
   gravidade: GravidadeInfracao
   testemunhas?: string
+  status?: string
 }
 
 export interface InfracoesStats {
