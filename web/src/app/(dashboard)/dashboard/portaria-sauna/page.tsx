@@ -10,7 +10,7 @@ import {
   Droplets, Search, Key, CreditCard, User, Clock, AlertTriangle,
   CheckCircle, XCircle, Loader2, QrCode, LogIn, LogOut, Settings
 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+
 
 type Armario = {
   id: string
@@ -45,7 +45,7 @@ type Pessoa = {
 }
 
 export default function PortariaSaunaPage() {
-  const { usuario } = useAuth()
+  const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [tab, setTab] = useState<'entrada' | 'saida' | 'armarios' | 'multas'>('entrada')
   const [armarios, setArmarios] = useState<Armario[]>([])
   const [armariosDisponiveis, setArmariosDisponiveis] = useState<Armario[]>([])
@@ -69,6 +69,19 @@ export default function PortariaSaunaPage() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
+    // Carregar usuário logado
+    const carregarUsuario = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userData } = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('auth_id', user.id)
+          .single()
+        if (userData) setUsuarioId(userData.id)
+      }
+    }
+    carregarUsuario()
     carregarDados()
   }, [])
 
@@ -205,7 +218,7 @@ export default function PortariaSaunaPage() {
         dependente_id: pessoa.tipo === 'dependente' ? pessoa.id : null,
         carteirinha_retida: true,
         chave_entregue: true,
-        usuario_entrada_id: usuario?.id,
+        usuario_entrada_id: usuarioId,
       })
 
     if (usoError) {
@@ -250,7 +263,7 @@ export default function PortariaSaunaPage() {
         chave_devolvida: !chavePerdida,
         chave_perdida: chavePerdida,
         valor_multa: chavePerdida ? parseFloat(valorMulta) : 0,
-        usuario_saida_id: usuario?.id,
+        usuario_saida_id: usuarioId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', usoParaSaida.id)
