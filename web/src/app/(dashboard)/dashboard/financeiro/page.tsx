@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
+import { PaginaProtegida, ComPermissao, usePermissaoPagina } from '@/components/ui/permissao'
 import { 
   CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye, 
   Trash2, X, TrendingUp, TrendingDown, Calendar, Users, Receipt,
@@ -298,13 +298,25 @@ export default function FinanceiroPage() {
   }
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'mensalidades', label: 'Mensalidades', icon: Calendar },
-    { id: 'carnes', label: 'Carnês/Parcelas', icon: Receipt },
-    { id: 'convites', label: 'Convites', icon: Ticket },
-    { id: 'contas', label: 'Contas a Pagar', icon: FileText },
-    { id: 'compras', label: 'Compras', icon: ShoppingCart },
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, permissao: null },
+    { id: 'mensalidades', label: 'Mensalidades', icon: Calendar, permissao: null },
+    { id: 'carnes', label: 'Carnês/Parcelas', icon: Receipt, permissao: null },
+    { id: 'convites', label: 'Convites', icon: Ticket, permissao: null },
+    { id: 'contas', label: 'Contas a Pagar', icon: FileText, permissao: 'financeiro_contas' },
+    { id: 'compras', label: 'Compras', icon: ShoppingCart, permissao: 'financeiro_compras' },
   ]
+
+  // Hooks de permissão para as abas restritas
+  const permContas = usePermissaoPagina('financeiro_contas')
+  const permCompras = usePermissaoPagina('financeiro_compras')
+
+  // Filtrar tabs baseado nas permissões
+  const tabsVisiveis = tabs.filter(t => {
+    if (!t.permissao) return true
+    if (t.permissao === 'financeiro_contas') return permContas.podeVisualizar || permContas.isAdmin
+    if (t.permissao === 'financeiro_compras') return permCompras.podeVisualizar || permCompras.isAdmin
+    return true
+  })
 
   return (
     <PaginaProtegida codigoPagina="financeiro">
@@ -326,7 +338,7 @@ export default function FinanceiroPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
-        {tabs.map(t => (
+        {tabsVisiveis.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id as any)}
@@ -696,7 +708,7 @@ export default function FinanceiroPage() {
       )}
 
       {/* Contas a Pagar */}
-      {tab === 'contas' && (
+      {tab === 'contas' && (permContas.podeVisualizar || permContas.isAdmin) && (
         <div className="space-y-4">
           <div className="flex gap-4 items-center">
             <div className="relative flex-1">
@@ -776,7 +788,7 @@ export default function FinanceiroPage() {
       )}
 
       {/* Compras */}
-      {tab === 'compras' && (
+      {tab === 'compras' && (permCompras.podeVisualizar || permCompras.isAdmin) && (
         <div className="space-y-4">
           <div className="flex gap-4 items-center">
             <div className="relative flex-1">
