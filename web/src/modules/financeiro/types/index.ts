@@ -55,6 +55,9 @@ export interface MensalidadeFilters {
   associado_id?: string
   status?: StatusPagamento
   referencia?: string
+  ano?: number
+  dataInicio?: string
+  dataFim?: string
   data_inicio?: string
   data_fim?: string
 }
