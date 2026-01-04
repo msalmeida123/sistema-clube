@@ -258,7 +258,7 @@ export default function UsuariosPage() {
           const { error: userError } = await supabase
             .from('usuarios')
             .insert({
-              id: authData.user.id,
+              auth_id: authData.user.id,
               nome: form.nome,
               email: form.email,
               telefone: form.telefone || null,
