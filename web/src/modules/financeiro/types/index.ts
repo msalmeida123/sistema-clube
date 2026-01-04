@@ -99,6 +99,7 @@ export interface ResumoFinanceiro {
   total_recebido: number
   total_atrasado: number
   inadimplentes: number
+  adimplentes?: number
   // Alias camelCase para compatibilidade
   totalReceber?: number
   totalRecebido?: number
