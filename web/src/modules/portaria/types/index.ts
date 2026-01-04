@@ -1,5 +1,18 @@
 // Tipos do módulo Portaria
 
+// Alias para compatibilidade com repositórios gerados
+export type Acesso = RegistroAcesso
+export interface AcessoFilters {
+  search?: string
+  status?: string
+}
+export interface AcessoFormData {
+  pessoa_id?: string
+  tipo?: TipoAcesso
+  local?: LocalAcesso
+  observacao?: string
+}
+
 export type TipoAcesso = 'entrada' | 'saida'
 export type LocalAcesso = 'clube' | 'piscina' | 'academia'
 export type TipoPessoa = 'associado' | 'dependente' | 'convidado' | 'funcionario'
@@ -37,6 +50,7 @@ export interface PessoaAcesso {
 }
 
 export interface RegistroFilters {
+  search?: string
   local?: LocalAcesso
   tipo?: TipoAcesso
   tipo_pessoa?: TipoPessoa

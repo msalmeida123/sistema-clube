@@ -38,6 +38,7 @@ export interface Voto {
 }
 
 export interface EleicaoFilters {
+  search?: string
   status?: StatusEleicao
   ano?: number
 }

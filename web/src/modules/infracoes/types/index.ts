@@ -26,6 +26,7 @@ export interface Infracao {
 }
 
 export interface InfracaoFilters {
+  search?: string
   associado_id?: string
   gravidade?: GravidadeInfracao
   status?: StatusInfracao
