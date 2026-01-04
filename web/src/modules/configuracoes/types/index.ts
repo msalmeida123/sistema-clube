@@ -5,6 +5,7 @@ export type Configuracao = ConfiguracaoClube
 export type ConfiguracaoFormData = ConfigFormData
 export interface ConfiguracaoFilters {
   search?: string
+  status?: string
 }
 
 export interface ConfiguracaoClube {
