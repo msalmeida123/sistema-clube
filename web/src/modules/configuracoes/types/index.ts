@@ -74,6 +74,7 @@ export interface ConfigFormData {
   email?: string
   endereco?: string
   dia_vencimento_padrao?: number
+  status?: string
 }
 
 export interface SicoobConfig {
