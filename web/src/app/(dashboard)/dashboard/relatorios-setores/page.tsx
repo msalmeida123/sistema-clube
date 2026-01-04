@@ -902,6 +902,231 @@ export default function RelatoriosSetoresPage() {
     setLoading(false)
   }
 
+  const gerarRelatorioAssociados = async (visualizar = false) => {
+    setLoading(true)
+    toast.loading('Gerando relatório de Associados...')
+
+    // Buscar todos os associados com plano
+    const { data: associados } = await supabase
+      .from('associados')
+      .select(`
+        *,
+        plano:planos(nome, tipo)
+      `)
+      .order('nome')
+
+    // Buscar dependentes
+    const { data: dependentes } = await supabase
+      .from('dependentes')
+      .select('*, associado:associados(nome)')
+      .order('nome')
+
+    const dados = associados || []
+    const deps = dependentes || []
+
+    // Separar por tipo de plano
+    const individuais = dados.filter(a => a.plano?.tipo === 'individual' || a.plano?.nome?.toLowerCase().includes('individual'))
+    const familiares = dados.filter(a => a.plano?.tipo === 'familiar' || a.plano?.nome?.toLowerCase().includes('familiar'))
+    const patrimoniais = dados.filter(a => a.plano?.tipo === 'patrimonial' || a.plano?.nome?.toLowerCase().includes('patrimonial'))
+    const outros = dados.filter(a => !individuais.includes(a) && !familiares.includes(a) && !patrimoniais.includes(a))
+
+    // Estatísticas
+    const totalAssociados = dados.length
+    const ativos = dados.filter(a => a.status === 'ativo').length
+    const inativos = dados.filter(a => a.status === 'inativo').length
+    const pendentes = dados.filter(a => a.status === 'pendente').length
+    const totalDependentes = deps.length
+
+    const periodo = new Date().toLocaleDateString('pt-BR')
+
+    const gerarTabelaAssociados = (lista: any[], titulo: string, cor: string) => {
+      if (lista.length === 0) return ''
+      return `
+        <div class="section">
+          <h2 style="color:${cor}">${titulo} (${lista.length})</h2>
+          <div class="sub-stats">
+            <span class="stat-mini">✅ Ativos: ${lista.filter(a => a.status === 'ativo').length}</span>
+            <span class="stat-mini">⏸️ Inativos: ${lista.filter(a => a.status === 'inativo').length}</span>
+            <span class="stat-mini">⏳ Pendentes: ${lista.filter(a => a.status === 'pendente').length}</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Título</th>
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>Telefone</th>
+                <th>Email</th>
+                <th>Plano</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lista.map(a => `
+                <tr>
+                  <td><strong>${a.numero_titulo || '-'}</strong></td>
+                  <td>${a.nome}</td>
+                  <td>${a.cpf || '-'}</td>
+                  <td>${a.telefone || '-'}</td>
+                  <td>${a.email || '-'}</td>
+                  <td>${a.plano?.nome || '-'}</td>
+                  <td class="status-${a.status}">${a.status}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório de Associados - ${periodo}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1f2937; }
+          .header { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; padding: 25px; border-radius: 10px; margin-bottom: 25px; }
+          .header h1 { font-size: 28px; margin-bottom: 5px; }
+          .header p { opacity: 0.9; }
+          .info-row { display: flex; gap: 10px; margin-top: 15px; font-size: 14px; }
+          .info-row span { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; }
+          .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 25px; }
+          .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
+          .stat-value { font-size: 28px; font-weight: 700; color: #6366f1; }
+          .stat-label { color: #64748b; font-size: 12px; margin-top: 5px; }
+          .section { margin-bottom: 30px; page-break-inside: avoid; }
+          .sub-stats { display: flex; gap: 15px; margin: 10px 0; }
+          .stat-mini { background: #f1f5f9; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+          h2 { font-size: 18px; margin: 25px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+          th { background: #6366f1; color: white; padding: 10px 8px; text-align: left; }
+          td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+          tr:nth-child(even) { background: #f8fafc; }
+          .status-ativo { color: #10b981; font-weight: 600; }
+          .status-inativo { color: #ef4444; font-weight: 600; }
+          .status-pendente { color: #f59e0b; font-weight: 600; }
+          .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
+          .page-break { page-break-before: always; }
+          @media print { 
+            body { padding: 15px; font-size: 10px; }
+            .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .section { page-break-inside: avoid; }
+            table { font-size: 9px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>👥 Relatório de Associados</h1>
+          <p>Listagem Completa por Tipo de Plano</p>
+          <div class="info-row">
+            <span>📅 Data: ${periodo}</span>
+            <span>🕐 Gerado: ${new Date().toLocaleString('pt-BR')}</span>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value">${totalAssociados}</div>
+            <div class="stat-label">Total Associados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#10b981">${ativos}</div>
+            <div class="stat-label">Ativos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#ef4444">${inativos}</div>
+            <div class="stat-label">Inativos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#f59e0b">${pendentes}</div>
+            <div class="stat-label">Pendentes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#8b5cf6">${totalDependentes}</div>
+            <div class="stat-label">Dependentes</div>
+          </div>
+        </div>
+
+        <div class="stats" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="stat-card">
+            <div class="stat-value" style="color:#3b82f6">${individuais.length}</div>
+            <div class="stat-label">Individual</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#10b981">${familiares.length}</div>
+            <div class="stat-label">Familiar</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#f59e0b">${patrimoniais.length}</div>
+            <div class="stat-label">Patrimonial</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:#6b7280">${outros.length}</div>
+            <div class="stat-label">Outros</div>
+          </div>
+        </div>
+
+        ${gerarTabelaAssociados(individuais, '👤 Associados Individual', '#3b82f6')}
+        
+        ${familiares.length > 0 ? '<div class="page-break"></div>' : ''}
+        ${gerarTabelaAssociados(familiares, '👨‍👩‍👧‍👦 Associados Familiar', '#10b981')}
+        
+        ${patrimoniais.length > 0 ? '<div class="page-break"></div>' : ''}
+        ${gerarTabelaAssociados(patrimoniais, '🏛️ Associados Patrimonial', '#f59e0b')}
+        
+        ${outros.length > 0 ? `
+          <div class="page-break"></div>
+          ${gerarTabelaAssociados(outros, '📋 Outros Planos', '#6b7280')}
+        ` : ''}
+
+        ${deps.length > 0 ? `
+          <div class="page-break"></div>
+          <div class="section">
+            <h2 style="color:#8b5cf6">👥 Dependentes (${deps.length})</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>CPF</th>
+                  <th>Parentesco</th>
+                  <th>Data Nasc.</th>
+                  <th>Titular</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${deps.map(d => `
+                  <tr>
+                    <td>${d.nome}</td>
+                    <td>${d.cpf || '-'}</td>
+                    <td>${d.parentesco || '-'}</td>
+                    <td>${d.data_nascimento ? new Date(d.data_nascimento).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td>${d.associado?.nome || '-'}</td>
+                    <td class="status-${d.status}">${d.status}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          <p><strong>Sistema Clube</strong> - Relatório gerado automaticamente</p>
+          <p>${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    abrirRelatorio(html, visualizar)
+    toast.dismiss()
+    toast.success('Relatório gerado!')
+    setLoading(false)
+  }
+
   const abrirRelatorio = (html: string, visualizar: boolean) => {
     const janela = window.open('', '_blank')
     if (janela) {
@@ -914,6 +1139,14 @@ export default function RelatoriosSetoresPage() {
   }
 
   const relatorios = [
+    {
+      id: 'associados',
+      titulo: 'Associados',
+      descricao: 'Listagem por tipo: Individual, Familiar e Patrimonial',
+      icon: Users,
+      cor: 'bg-indigo-500',
+      gerar: gerarRelatorioAssociados,
+    },
     {
       id: 'piscina',
       titulo: 'Piscina',
