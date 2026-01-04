@@ -40,6 +40,7 @@ const menuItems = [
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
+  { href: '/dashboard/relatorios-setores', label: 'Relatórios Setores', icon: FileText, permissao: 'relatorios' },
   { href: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/permissoes', label: 'Permissões', icon: Shield, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, permissao: 'configuracoes', apenasAdmin: true },
