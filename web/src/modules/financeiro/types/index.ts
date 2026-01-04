@@ -95,12 +95,13 @@ export interface ResumoMensal {
 }
 
 export interface ResumoFinanceiro {
-  total_receber: number
-  total_recebido: number
-  total_atrasado: number
-  inadimplentes: number
+  // snake_case
+  total_receber?: number
+  total_recebido?: number
+  total_atrasado?: number
+  inadimplentes?: number
   adimplentes?: number
-  // Alias camelCase para compatibilidade
+  // camelCase
   totalReceber?: number
   totalRecebido?: number
   totalAtrasado?: number
