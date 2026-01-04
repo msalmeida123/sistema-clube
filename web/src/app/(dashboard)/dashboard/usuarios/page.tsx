@@ -43,19 +43,21 @@ const setoresDisponiveis = [
 ]
 
 const permissoesDisponiveis = [
-  { value: 'dashboard', label: 'Dashboard' },
-  { value: 'associados', label: 'Associados' },
-  { value: 'dependentes', label: 'Dependentes' },
-  { value: 'financeiro', label: 'Financeiro' },
-  { value: 'compras', label: 'Compras' },
-  { value: 'portaria', label: 'Portaria' },
-  { value: 'exames', label: 'Exames Médicos' },
-  { value: 'infracoes', label: 'Infrações' },
-  { value: 'eleicoes', label: 'Eleições' },
-  { value: 'relatorios', label: 'Relatórios' },
-  { value: 'crm', label: 'CRM/WhatsApp' },
-  { value: 'configuracoes', label: 'Configurações' },
-  { value: 'usuarios', label: 'Usuários' },
+  { value: 'dashboard', label: 'Dashboard', grupo: null },
+  { value: 'associados', label: 'Associados', grupo: null },
+  { value: 'dependentes', label: 'Dependentes', grupo: null },
+  { value: 'financeiro', label: 'Financeiro', grupo: null },
+  { value: 'financeiro_contas', label: '↳ Contas a Pagar', grupo: 'financeiro' },
+  { value: 'financeiro_compras', label: '↳ Compras', grupo: 'financeiro' },
+  { value: 'compras', label: 'Compras (módulo)', grupo: null },
+  { value: 'portaria', label: 'Portaria', grupo: null },
+  { value: 'exames', label: 'Exames Médicos', grupo: null },
+  { value: 'infracoes', label: 'Infrações', grupo: null },
+  { value: 'eleicoes', label: 'Eleições', grupo: null },
+  { value: 'relatorios', label: 'Relatórios', grupo: null },
+  { value: 'crm', label: 'CRM/WhatsApp', grupo: null },
+  { value: 'configuracoes', label: 'Configurações', grupo: null },
+  { value: 'usuarios', label: 'Usuários', grupo: null },
 ]
 
 export default function UsuariosPage() {
@@ -160,12 +162,27 @@ export default function UsuariosPage() {
   }
 
   const togglePermissao = (permissao: string) => {
-    setForm(prev => ({
-      ...prev,
-      permissoes: prev.permissoes.includes(permissao)
-        ? prev.permissoes.filter(p => p !== permissao)
-        : [...prev.permissoes, permissao]
-    }))
+    setForm(prev => {
+      const estaMarcada = prev.permissoes.includes(permissao)
+      
+      if (estaMarcada) {
+        // Ao desmarcar, remove a permissão e todas as subpermissões
+        const subPermissoes = permissoesDisponiveis
+          .filter(p => p.grupo === permissao)
+          .map(p => p.value)
+        
+        return {
+          ...prev,
+          permissoes: prev.permissoes.filter(p => p !== permissao && !subPermissoes.includes(p))
+        }
+      } else {
+        // Ao marcar, adiciona a permissão
+        return {
+          ...prev,
+          permissoes: [...prev.permissoes, permissao]
+        }
+      }
+    })
   }
 
   const marcarTodasPermissoes = () => {
@@ -565,20 +582,30 @@ export default function UsuariosPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {permissoesDisponiveis.map(p => (
-                      <label
-                        key={p.value}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.permissoes.includes(p.value)}
-                          onChange={() => togglePermissao(p.value)}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm">{p.label}</span>
-                      </label>
-                    ))}
+                    {permissoesDisponiveis.map(p => {
+                      const isSubPermissao = p.grupo !== null
+                      const paiMarcado = !isSubPermissao || form.permissoes.includes(p.grupo!)
+                      
+                      return (
+                        <label
+                          key={p.value}
+                          className={`flex items-center gap-2 p-2 rounded cursor-pointer ${
+                            isSubPermissao ? 'ml-4 bg-gray-50' : 'hover:bg-gray-50'
+                          } ${!paiMarcado ? 'opacity-50' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.permissoes.includes(p.value)}
+                            onChange={() => togglePermissao(p.value)}
+                            disabled={!paiMarcado}
+                            className="h-4 w-4"
+                          />
+                          <span className={`text-sm ${isSubPermissao ? 'text-gray-600' : ''}`}>
+                            {p.label}
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
               )}
