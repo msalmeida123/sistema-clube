@@ -32,6 +32,7 @@ const menuItems = [
   { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, permissao: 'compras' },
   { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
   { href: '/dashboard/portaria-sauna', label: 'Portaria Sauna', icon: Droplets, permissao: 'portaria_sauna' },
+  { href: '/dashboard/configuracao-sauna', label: 'Config. Sauna', icon: Settings, permissao: 'configuracoes' },
   { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm' },
   { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
