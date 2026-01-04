@@ -51,11 +51,22 @@ export interface Carne {
 }
 
 export interface MensalidadeFilters {
+  search?: string
   associado_id?: string
   status?: StatusPagamento
   referencia?: string
   data_inicio?: string
   data_fim?: string
+}
+
+export interface MensalidadeFormData {
+  associado_id: string
+  referencia: string
+  valor: number
+  data_vencimento: string
+  desconto?: number
+  observacao?: string
+  status?: StatusPagamento
 }
 
 export interface FinanceiroStats {
