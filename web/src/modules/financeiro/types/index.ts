@@ -90,3 +90,10 @@ export interface ResumoMensal {
   despesas: number
   saldo: number
 }
+
+export interface ResumoFinanceiro {
+  total_receber: number
+  total_recebido: number
+  total_atrasado: number
+  inadimplentes: number
+}
