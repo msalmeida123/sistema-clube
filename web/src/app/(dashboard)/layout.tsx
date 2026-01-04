@@ -11,7 +11,7 @@ import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -31,6 +31,7 @@ const menuItems = [
   { href: '/dashboard/carnes', label: 'Carnês', icon: Receipt, permissao: 'financeiro' },
   { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, permissao: 'compras' },
   { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
+  { href: '/dashboard/portaria-sauna', label: 'Portaria Sauna', icon: Droplets, permissao: 'portaria_sauna' },
   { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm' },
   { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
