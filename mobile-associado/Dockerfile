@@ -3,17 +3,21 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Instalar dependências de build
+RUN apk add --no-cache python3 make g++
+
 # Copiar package files
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci
+RUN npm install
 
 # Copiar código fonte
 COPY . .
 
 # Build para web
-RUN npx expo export --platform web
+ENV NODE_ENV=production
+RUN npx expo export --platform web --output-dir dist
 
 # Stage de produção com Nginx
 FROM nginx:alpine
@@ -22,21 +26,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Configuração do Nginx para SPA
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /assets { \
-        expires 1y; \
-        add_header Cache-Control "public, immutable"; \
-    } \
-    gzip on; \
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \
-}' > /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

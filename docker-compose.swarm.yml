@@ -34,7 +34,7 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
     networks:
-      - traefik-public
+      - clube-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -65,7 +65,7 @@ services:
         - "traefik.http.routers.app-associado.tls.certresolver=letsencrypt"
         - "traefik.http.services.app-associado.loadbalancer.server.port=80"
     networks:
-      - traefik-public
+      - clube-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
       interval: 30s
@@ -74,5 +74,6 @@ services:
       start_period: 30s
 
 networks:
-  traefik-public:
-    external: true
+  clube-network:
+    driver: overlay
+    attachable: true
