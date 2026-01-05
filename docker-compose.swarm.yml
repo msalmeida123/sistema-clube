@@ -1,13 +1,17 @@
 version: '3.8'
 
 # ==============================================
-# SISTEMA CLUBE v1.1.1 - Stack para Portainer
+# SISTEMA CLUBE v1.2.0 - Stack para Portainer
 # Deploy: Docker Swarm
+# Inclui: Web Admin + App Mobile Associado
 # ==============================================
 
 services:
+  # ========================================
+  # Sistema Web (Admin/Funcionários)
+  # ========================================
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube:1.1.1
+    image: ghcr.io/msalmeida123/sistema-clube:latest
     deploy:
       mode: replicated
       replicas: 1
@@ -27,20 +31,48 @@ services:
         - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://fkjjjpgxkjhqkhmdpmzk.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MTYzNTYsImV4cCI6MjA2NDE5MjM1Nn0.zOsGPPpNwSvMl-8720iwNYw0J3iBTvlsoBCo4vZPNSg
+      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
     networks:
-      - default
+      - traefik-public
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    ports:
-      - "3000:3000"
+
+  # ========================================
+  # App Mobile Associado (PWA/Web)
+  # ========================================
+  app-associado:
+    image: ghcr.io/msalmeida123/clube-associado:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.app-associado.rule=Host(`app.mindforge.dev.br`)"
+        - "traefik.http.routers.app-associado.entrypoints=websecure"
+        - "traefik.http.routers.app-associado.tls.certresolver=letsencrypt"
+        - "traefik.http.services.app-associado.loadbalancer.server.port=80"
+    networks:
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
-  default:
-    driver: overlay
-    attachable: true
+  traefik-public:
+    external: true
