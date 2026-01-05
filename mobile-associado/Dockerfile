@@ -1,33 +1,42 @@
-# Dockerfile para App Mobile Associado (Expo Web)
-FROM node:18-alpine AS builder
-
+# Dockerfile para App Mobile Associado (Next.js)
+FROM node:18-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-# Instalar dependências de build
-RUN apk add --no-cache python3 make g++
-
-# Copiar package files
-COPY package*.json ./
-
-# Instalar dependências
-RUN npm install
-
-# Copiar código fonte
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build para web
-ENV NODE_ENV=production
-RUN npx expo export --platform web --output-dir dist
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV production
 
-# Stage de produção com Nginx
-FROM nginx:alpine
+RUN npm run build
 
-# Copiar build
-COPY --from=builder /app/dist /usr/share/nginx/html
+FROM node:18-alpine AS runner
+WORKDIR /app
 
-# Configuração do Nginx para SPA
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-EXPOSE 80
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=builder /app/public ./public
+
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]
