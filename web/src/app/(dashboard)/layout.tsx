@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { NotificationBadgeInline } from '@/components/ui/notification-badge'
 import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -34,7 +35,7 @@ const menuItems = [
   { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
   { href: '/dashboard/portaria-sauna', label: 'Portaria Sauna', icon: Droplets, permissao: 'portaria_sauna' },
   { href: '/dashboard/configuracao-sauna', label: 'Config. Sauna', icon: Settings, permissao: 'configuracoes' },
-  { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm' },
+  { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm', showNotification: true },
   { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
@@ -53,9 +54,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [permissoes, setPermissoes] = useState<string[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [mensagensNaoLidas, setMensagensNaoLidas] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClientComponentClient()
+
+  // Buscar mensagens não lidas do WhatsApp
+  const fetchMensagensNaoLidas = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('conversas_whatsapp')
+        .select('nao_lidas')
+        .gt('nao_lidas', 0)
+
+      if (!error && data) {
+        const total = data.reduce((acc, conv) => acc + (conv.nao_lidas || 0), 0)
+        setMensagensNaoLidas(total)
+      }
+    } catch (error) {
+      console.error('Erro ao buscar mensagens não lidas:', error)
+    }
+  }, [supabase])
 
   useEffect(() => {
     const carregarUsuario = async () => {
@@ -95,6 +114,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     carregarUsuario()
   }, [router, supabase])
+
+  // Monitorar mensagens não lidas em tempo real
+  useEffect(() => {
+    // Buscar inicial
+    fetchMensagensNaoLidas()
+
+    // Configurar Realtime para atualizações
+    const channel = supabase
+      .channel('whatsapp-menu-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversas_whatsapp'
+        },
+        () => {
+          fetchMensagensNaoLidas()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'mensagens_whatsapp',
+          filter: 'direcao=eq.entrada'
+        },
+        (payload) => {
+          console.log('🔔 Nova mensagem WhatsApp recebida!')
+          fetchMensagensNaoLidas()
+          
+          // Tocar som de notificação
+          try {
+            const audio = new Audio('/sounds/notification.mp3')
+            audio.volume = 0.3
+            audio.play().catch(() => {})
+          } catch (e) {}
+
+          // Mostrar notificação do navegador (se permitido)
+          if (Notification.permission === 'granted') {
+            new Notification('Nova mensagem WhatsApp', {
+              body: 'Você recebeu uma nova mensagem',
+              icon: '/icon-192.png'
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    // Polling como fallback (a cada 30 segundos)
+    const interval = setInterval(fetchMensagensNaoLidas, 30000)
+
+    // Solicitar permissão de notificação
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
+  }, [supabase, fetchMensagensNaoLidas])
 
   const temPermissao = (permissao: string) => {
     if (isAdmin) return true
@@ -154,8 +236,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   : "text-gray-600 hover:bg-gray-100"
               )}
             >
-              <item.icon className="h-5 w-5" />
-              {item.label}
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              <span className="flex-1">{item.label}</span>
+              {/* Badge de notificação para CRM WhatsApp */}
+              {item.showNotification && mensagensNaoLidas > 0 && (
+                <NotificationBadgeInline 
+                  count={mensagensNaoLidas} 
+                  className={pathname === item.href ? "bg-white text-primary" : ""}
+                />
+              )}
             </Link>
           ))}
         </nav>
@@ -201,6 +290,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {menuItems.find(item => item.href === pathname)?.label || 'Painel'}
             </h1>
           </div>
+
+          {/* Indicador de novas mensagens no header */}
+          {mensagensNaoLidas > 0 && (
+            <Link 
+              href="/dashboard/crm"
+              className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+            >
+              <Bell className="h-4 w-4 animate-bounce" />
+              <span className="text-sm font-medium">
+                {mensagensNaoLidas} {mensagensNaoLidas === 1 ? 'nova mensagem' : 'novas mensagens'}
+              </span>
+            </Link>
+          )}
 
           {isAdmin && (
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
