@@ -3,7 +3,7 @@ FROM node:18-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 FROM node:18-alpine AS builder
 WORKDIR /app
@@ -12,6 +12,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DOCKER_BUILD=true
 
 RUN npm run build
 
