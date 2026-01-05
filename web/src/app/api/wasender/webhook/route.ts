@@ -8,7 +8,22 @@ function getSupabase() {
   )
 }
 
-// Transcrever Ã¡udio com Whisper
+// Salvar log do webhook para debug
+async function salvarLogWebhook(payload: any, tipo: string) {
+  try {
+    await getSupabase()
+      .from('webhook_logs')
+      .insert({
+        tipo,
+        payload: JSON.stringify(payload),
+        created_at: new Date().toISOString()
+      })
+  } catch (e) {
+    console.error('Erro ao salvar log:', e)
+  }
+}
+
+// Transcrever áudio com Whisper
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
     const audioResponse = await fetch(audioUrl)
@@ -38,7 +53,7 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
 // Gerar resposta com GPT
 async function gerarRespostaIA(mensagem: string, config: any): Promise<string | null> {
   try {
-    const systemPrompt = `${config.instrucoes_sistema || 'VocÃª Ã© um assistente virtual do clube.'}
+    const systemPrompt = `${config.instrucoes_sistema || 'Você é um assistente virtual do clube.'}
 
 DOCUMENTO DO CLUBE:
 ${config.documento_contexto || ''}`
@@ -115,22 +130,22 @@ async function processarComIA(
       .single()
 
     if (!configIA?.openai_api_key || !configIA?.responder_com_ia) {
-      console.log('Bot IA nÃ£o ativado')
+      console.log('Bot IA não ativado')
       return
     }
 
     let textoProcessar = mensagem
     let transcricao: string | null = null
 
-    // Transcrever Ã¡udio se necessÃ¡rio
+    // Transcrever áudio se necessário
     if (tipo === 'audio' && mediaUrl && configIA.transcrever_audios) {
       transcricao = await transcreveAudio(mediaUrl, configIA.openai_api_key)
       if (transcricao) {
         textoProcessar = transcricao
-        // Salvar transcriÃ§Ã£o como nota
+        // Salvar transcrição como nota
         await getSupabase()
           .from('mensagens_whatsapp')
-          .update({ conteudo: `ðŸŽ¤ Ãudio transcrito:\n"${transcricao}"` })
+          .update({ conteudo: `🎤 Áudio transcrito:\n"${transcricao}"` })
           .eq('conversa_id', conversaId)
           .eq('tipo', 'audio')
           .order('created_at', { ascending: false })
@@ -142,7 +157,7 @@ async function processarComIA(
     const respostaIA = await gerarRespostaIA(textoProcessar, configIA)
     
     if (respostaIA) {
-      // Delay para simular digitaÃ§Ã£o
+      // Delay para simular digitação
       await new Promise(r => setTimeout(r, 2000))
       
       const enviada = await enviarMensagem(telefone, respostaIA)
@@ -173,7 +188,7 @@ async function processarComIA(
   }
 }
 
-// Processar respostas automÃ¡ticas (regras simples)
+// Processar respostas automáticas (regras simples)
 async function processarRespostasAutomaticas(
   conversaId: string,
   telefone: string,
@@ -234,126 +249,214 @@ async function processarRespostasAutomaticas(
             .update({ uso_count: (regra.uso_count || 0) + 1 })
             .eq('id', regra.id)
 
-          console.log(`Resposta automÃ¡tica "${regra.nome}" enviada`)
-          return true // Parar apÃ³s primeira resposta
+          console.log(`Resposta automática "${regra.nome}" enviada`)
+          return true // Parar após primeira resposta
         }
       }
     }
     return false
   } catch (error) {
-    console.error('Erro respostas automÃ¡ticas:', error)
+    console.error('Erro respostas automáticas:', error)
     return false
   }
+}
+
+// Extrair dados da mensagem (suporta múltiplos formatos do WaSender)
+function extrairDadosMensagem(body: any) {
+  // Formato 1: { event, data: { from, message, ... } }
+  if (body.data) {
+    const data = body.data
+    return {
+      telefone: data.from?.replace('@c.us', '').replace(/\D/g, '') || 
+                data.sender?.replace('@c.us', '').replace(/\D/g, '') ||
+                data.phone?.replace(/\D/g, ''),
+      mensagem: data.message || data.body || data.text || data.content,
+      messageId: data.id || data.messageId || data.message_id,
+      tipo: data.type || data.messageType || 'texto',
+      mediaUrl: data.mediaUrl || data.media?.url || data.file?.url,
+      nomeContato: data.pushName || data.notifyName || data.name || data.senderName
+    }
+  }
+  
+  // Formato 2: Dados direto no body
+  return {
+    telefone: body.from?.replace('@c.us', '').replace(/\D/g, '') || 
+              body.sender?.replace('@c.us', '').replace(/\D/g, '') ||
+              body.phone?.replace(/\D/g, ''),
+    mensagem: body.message || body.body || body.text || body.content,
+    messageId: body.id || body.messageId || body.message_id,
+    tipo: body.type || body.messageType || 'texto',
+    mediaUrl: body.mediaUrl || body.media?.url || body.file?.url,
+    nomeContato: body.pushName || body.notifyName || body.name || body.senderName
+  }
+}
+
+// Verificar se é evento de mensagem recebida
+function isEventoMensagem(body: any): boolean {
+  const event = body.event || body.type || body.action
+  const eventosValidos = [
+    'message', 
+    'message.received', 
+    'messages.upsert',
+    'message_received',
+    'incoming_message',
+    'new_message'
+  ]
+  
+  // Se não tem evento definido mas tem dados de mensagem, considerar válido
+  if (!event && (body.message || body.body || body.text || body.data?.message)) {
+    return true
+  }
+  
+  return eventosValidos.includes(event?.toLowerCase())
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    console.log('Webhook recebido:', JSON.stringify(body, null, 2))
+    console.log('=== WEBHOOK RECEBIDO ===')
+    console.log(JSON.stringify(body, null, 2))
+    
+    // Salvar log para debug
+    await salvarLogWebhook(body, 'webhook_recebido')
 
-    const { event, data } = body
+    // Verificar se é evento de mensagem
+    if (!isEventoMensagem(body)) {
+      // Verificar se é status de mensagem
+      const event = body.event || body.type
+      if (event === 'message.ack' || event === 'ack' || event === 'message_status') {
+        const messageId = body.data?.id || body.data?.messageId || body.id || body.messageId
+        const ack = body.data?.ack || body.ack || body.status
+        let status = 'enviada'
+        if (ack === 2 || ack === 'delivered') status = 'entregue'
+        if (ack === 3 || ack === 'read') status = 'lida'
 
-    if (event === 'message' || event === 'message.received') {
-      const telefone = data.from?.replace('@c.us', '').replace(/\D/g, '') || data.sender
-      const mensagem = data.message || data.body || data.text
-      const messageId = data.id || data.messageId
-      const tipo = data.type || 'texto'
-      const mediaUrl = data.mediaUrl || data.media?.url
-
-      if (!telefone || !mensagem) {
-        return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
+        if (messageId) {
+          await getSupabase()
+            .from('mensagens_whatsapp')
+            .update({ status })
+            .eq('message_id', messageId)
+        }
+        return NextResponse.json({ success: true, type: 'ack' })
       }
+      
+      console.log('Evento ignorado:', body.event || body.type || 'sem evento')
+      return NextResponse.json({ success: true, message: 'Evento ignorado' })
+    }
 
-      let isPrimeiraMsg = false
+    // Extrair dados da mensagem
+    const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato } = extrairDadosMensagem(body)
 
-      // Buscar ou criar conversa
-      let { data: conversa } = await getSupabase()
+    console.log('Dados extraídos:', { telefone, mensagem, messageId, tipo, nomeContato })
+
+    if (!telefone || !mensagem) {
+      console.log('Dados incompletos - telefone:', telefone, 'mensagem:', mensagem)
+      await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro')
+      return NextResponse.json({ error: 'Dados incompletos', telefone, mensagem }, { status: 400 })
+    }
+
+    let isPrimeiraMsg = false
+
+    // Buscar ou criar conversa
+    let { data: conversa } = await getSupabase()
+      .from('conversas_whatsapp')
+      .select('id, nao_lidas')
+      .eq('telefone', telefone)
+      .single()
+
+    if (!conversa) {
+      isPrimeiraMsg = true
+      const { data: nova, error } = await getSupabase()
         .from('conversas_whatsapp')
-        .select('id, nao_lidas')
-        .eq('telefone', telefone)
+        .insert({
+          telefone,
+          nome_contato: nomeContato || null,
+          status: 'aberta',
+          nao_lidas: 1,
+          ultimo_contato: new Date().toISOString(),
+          ultima_mensagem: mensagem.substring(0, 100)
+        })
+        .select()
         .single()
 
-      if (!conversa) {
-        isPrimeiraMsg = true
-        const { data: nova, error } = await getSupabase()
-          .from('conversas_whatsapp')
-          .insert({
-            telefone,
-            nome_contato: data.pushName || data.notifyName || null,
-            status: 'aberta',
-            nao_lidas: 1,
-            ultimo_contato: new Date().toISOString(),
-            ultima_mensagem: mensagem.substring(0, 100)
-          })
-          .select()
-          .single()
-
-        if (error || !nova) return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
-        conversa = nova
-      } else {
-        await getSupabase()
-          .from('conversas_whatsapp')
-          .update({
-            ultimo_contato: new Date().toISOString(),
-            ultima_mensagem: mensagem.substring(0, 100),
-            nao_lidas: (conversa.nao_lidas || 0) + 1
-          })
-          .eq('id', conversa.id)
+      if (error) {
+        console.error('Erro ao criar conversa:', error)
+        await salvarLogWebhook({ erro: error.message }, 'erro_conversa')
+        return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
       }
-
-      // Garantir que conversa existe
-      if (!conversa) {
-        return NextResponse.json({ error: 'Erro ao obter conversa' }, { status: 500 })
-      }
-
-      // Salvar mensagem
-      await getSupabase().from('mensagens_whatsapp').insert({
-        conversa_id: conversa.id,
-        direcao: 'entrada',
-        conteudo: mensagem,
-        tipo,
-        status: 'recebida',
-        message_id: messageId,
-        media_url: mediaUrl
-      })
-
-      // Processar respostas (async)
-      // Primeiro tenta regras automÃ¡ticas, se nÃ£o der match usa IA
-      processarRespostasAutomaticas(conversa.id, telefone, mensagem, isPrimeiraMsg)
-        .then(respondeu => {
-          if (!respondeu) {
-            // Se nenhuma regra automÃ¡tica respondeu, usar IA
-            processarComIA(conversa.id, telefone, mensagem, tipo, mediaUrl)
-          }
-        })
-        .catch(err => console.error('Erro processamento:', err))
-
-      return NextResponse.json({ success: true, conversa_id: conversa.id })
-    }
-
-    // Status de mensagem
-    if (event === 'message.ack' || event === 'ack') {
-      const messageId = data.id || data.messageId
-      const ack = data.ack
-      let status = 'enviada'
-      if (ack === 2) status = 'entregue'
-      if (ack === 3) status = 'lida'
-
+      conversa = nova
+      console.log('Nova conversa criada:', conversa?.id)
+    } else {
       await getSupabase()
-        .from('mensagens_whatsapp')
-        .update({ status })
-        .eq('message_id', messageId)
-
-      return NextResponse.json({ success: true })
+        .from('conversas_whatsapp')
+        .update({
+          ultimo_contato: new Date().toISOString(),
+          ultima_mensagem: mensagem.substring(0, 100),
+          nao_lidas: (conversa.nao_lidas || 0) + 1,
+          nome_contato: nomeContato || undefined // Atualiza nome se disponível
+        })
+        .eq('id', conversa.id)
+      console.log('Conversa atualizada:', conversa.id)
     }
 
-    return NextResponse.json({ success: true, message: 'Evento ignorado' })
+    if (!conversa) {
+      return NextResponse.json({ error: 'Erro ao obter conversa' }, { status: 500 })
+    }
+
+    // Salvar mensagem
+    const { error: msgError } = await getSupabase().from('mensagens_whatsapp').insert({
+      conversa_id: conversa.id,
+      direcao: 'entrada',
+      conteudo: mensagem,
+      tipo,
+      status: 'recebida',
+      message_id: messageId,
+      media_url: mediaUrl
+    })
+
+    if (msgError) {
+      console.error('Erro ao salvar mensagem:', msgError)
+    } else {
+      console.log('Mensagem salva com sucesso')
+    }
+
+    // Processar respostas (async - não bloqueia o retorno)
+    processarRespostasAutomaticas(conversa.id, telefone, mensagem, isPrimeiraMsg)
+      .then(respondeu => {
+        if (!respondeu) {
+          processarComIA(conversa.id, telefone, mensagem, tipo, mediaUrl)
+        }
+      })
+      .catch(err => console.error('Erro processamento:', err))
+
+    return NextResponse.json({ 
+      success: true, 
+      conversa_id: conversa.id,
+      mensagem_recebida: mensagem.substring(0, 50)
+    })
   } catch (error: any) {
     console.error('Erro webhook:', error)
+    await salvarLogWebhook({ erro: error.message, stack: error.stack }, 'erro_geral')
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
-export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'Webhook ativo' })
+export async function GET(request: Request) {
+  // Verificação de webhook (alguns serviços exigem)
+  const { searchParams } = new URL(request.url)
+  const challenge = searchParams.get('hub.challenge') || searchParams.get('challenge')
+  
+  if (challenge) {
+    return new Response(challenge, { status: 200 })
+  }
+  
+  return NextResponse.json({ 
+    status: 'ok', 
+    message: 'Webhook WhatsApp ativo',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      webhook: 'POST /api/wasender/webhook',
+      test: 'GET /api/wasender/webhook'
+    }
+  })
 }
