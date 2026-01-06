@@ -12,7 +12,7 @@ import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -38,6 +38,8 @@ const menuItems = [
   { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm', showNotification: true },
   { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
+  { href: '/dashboard/kanban', label: 'Kanban', icon: Columns3, permissao: 'crm' },
+  { href: '/dashboard/setores', label: 'Setores', icon: Building2, permissao: 'configuracoes' },
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
