@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,7 +81,7 @@ export default function CRMPage() {
   const supabase = createClientComponentClient()
 
   // Carregar conversas
-  const carregarConversas = async () => {
+  const carregarConversas = useCallback(async () => {
     setLoadingConversas(true)
     let query = supabase
       .from('conversas_whatsapp')
@@ -95,12 +95,34 @@ export default function CRMPage() {
     const { data } = await query
     setConversas(data || [])
     setLoadingConversas(false)
-  }
+  }, [busca, supabase])
 
+  // Efeito inicial + Realtime para conversas
   useEffect(() => {
     carregarConversas()
     carregarTemplates()
-  }, [busca])
+
+    // Realtime para atualizações de conversas (novas mensagens, etc)
+    const channel = supabase
+      .channel('conversas-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversas_whatsapp'
+        },
+        (payload) => {
+          console.log('Mudança em conversas:', payload)
+          carregarConversas()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [busca, supabase, carregarConversas])
 
   // Carregar templates
   const carregarTemplates = async () => {
@@ -198,7 +220,7 @@ export default function CRMPage() {
     carregarTemplates()
   }
 
-  // Carregar mensagens da conversa ativa
+  // Carregar mensagens da conversa ativa e marcar como lida
   useEffect(() => {
     if (!conversaAtiva) return
 
@@ -211,14 +233,21 @@ export default function CRMPage() {
       
       setMensagens(data || [])
 
+      // Marcar como lida no banco
       await supabase
         .from('conversas_whatsapp')
         .update({ nao_lidas: 0 })
         .eq('id', conversaAtiva.id)
+
+      // Atualizar estado local imediatamente para remover badge
+      setConversas(prev => prev.map(c => 
+        c.id === conversaAtiva.id ? { ...c, nao_lidas: 0 } : c
+      ))
     }
     
     fetchMensagens()
 
+    // Realtime para novas mensagens na conversa ativa
     const channel = supabase
       .channel(`mensagens-${conversaAtiva.id}`)
       .on('postgres_changes', {
@@ -227,7 +256,21 @@ export default function CRMPage() {
         table: 'mensagens_whatsapp',
         filter: `conversa_id=eq.${conversaAtiva.id}`
       }, (payload) => {
-        setMensagens((prev) => [...prev, payload.new as Mensagem])
+        console.log('Nova mensagem realtime:', payload)
+        setMensagens((prev) => {
+          // Evitar duplicatas
+          if (prev.some(m => m.id === (payload.new as Mensagem).id)) {
+            return prev
+          }
+          return [...prev, payload.new as Mensagem]
+        })
+        
+        // Se a conversa está aberta, marcar como lida automaticamente
+        supabase
+          .from('conversas_whatsapp')
+          .update({ nao_lidas: 0 })
+          .eq('id', conversaAtiva.id)
+          .then()
       })
       .subscribe()
 
@@ -400,7 +443,6 @@ export default function CRMPage() {
       }).eq('id', conversaAtiva.id)
 
       setNovaMensagem('')
-      carregarConversas()
       toast.success('Mensagem enviada!')
 
     } catch (error: any) {
@@ -529,7 +571,6 @@ export default function CRMPage() {
       }).eq('id', conversaAtiva.id)
 
       cancelarMedia()
-      carregarConversas()
       toast.success('Mídia enviada!')
 
     } catch (error: any) {
