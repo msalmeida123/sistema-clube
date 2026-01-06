@@ -13,7 +13,7 @@ import type {
   CRMStats
 } from '../types'
 
-// Hook para lista de contatos
+// Hook para lista de contatos - COM REALTIME
 export function useContatos(initialFilters?: ContatoFilters) {
   const [contatos, setContatos] = useState<Contato[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,7 +39,28 @@ export function useContatos(initialFilters?: ContatoFilters) {
 
   useEffect(() => {
     carregar()
-  }, [carregar])
+
+    // Realtime para atualizações de conversas
+    const channel = supabase
+      .channel('conversas-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversas_whatsapp'
+        },
+        (payload) => {
+          console.log('Mudança em conversas:', payload)
+          carregar()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [carregar, supabase])
 
   const buscar = useCallback((search: string) => {
     setFilters(prev => ({ ...prev, search }))
@@ -60,7 +81,7 @@ export function useContatos(initialFilters?: ContatoFilters) {
   }
 }
 
-// Hook para conversa (mensagens de um contato)
+// Hook para conversa (mensagens de um contato) - COM REALTIME
 export function useConversa(contatoId: string) {
   const [contato, setContato] = useState<Contato | null>(null)
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
@@ -91,12 +112,43 @@ export function useConversa(contatoId: string) {
   }, [contatoId])
 
   useEffect(() => {
+    if (!contatoId) return
+
     carregar()
 
-    // Polling para novas mensagens (a cada 5s)
-    const interval = setInterval(carregar, 5000)
-    return () => clearInterval(interval)
-  }, [carregar])
+    // Configurar Realtime para novas mensagens
+    const channel = supabase
+      .channel(`mensagens-${contatoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'mensagens_whatsapp',
+          filter: `conversa_id=eq.${contatoId}`
+        },
+        (payload) => {
+          console.log('Nova mensagem realtime:', payload)
+          const novaMensagem = payload.new as Mensagem
+          setMensagens(prev => {
+            // Evitar duplicatas
+            if (prev.some(m => m.id === novaMensagem.id)) {
+              return prev
+            }
+            return [...prev, novaMensagem]
+          })
+        }
+      )
+      .subscribe()
+
+    // Polling como fallback (a cada 30s)
+    const interval = setInterval(carregar, 30000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
+  }, [contatoId, supabase])
 
   const enviar = useCallback(async (conteudo: string, usuarioId?: string) => {
     try {
