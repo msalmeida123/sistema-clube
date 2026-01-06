@@ -1,49 +1,49 @@
 version: '3.8'
-
-# ==============================================
-# SISTEMA CLUBE - Stack para Portainer
-# ==============================================
-# 
-# Variáveis de ambiente necessárias:
-# - SUPABASE_URL: URL do seu projeto Supabase
-# - SUPABASE_ANON_KEY: Chave anônima do Supabase
-#
-# Exemplo:
-# SUPABASE_URL=https://xxxxx.supabase.co
-# SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-#
-# ==============================================
-
 services:
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube:latest
-    # Ou use a imagem local:
-    # build:
-    #   context: ./web
-    #   dockerfile: Dockerfile
-    container_name: sistema-clube
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
+    image: ghcr.io/msalmeida123/sistema-clube:v1.2.2
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.sistema-clube.rule=Host(`clube.mindforge.dev.br`)"
+        - "traefik.http.routers.sistema-clube.entrypoints=websecure"
+        - "traefik.http.routers.sistema-clube.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
+        - "traefik.docker.network=network_swarm_public"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL:-https://fkjjjpgxkjhqkhmdpmzk.supabase.co}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
     networks:
-      - sistema-clube-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.sistema-clube.rule=Host(`clube.seudominio.com`)"
-      - "traefik.http.routers.sistema-clube.entrypoints=websecure"
-      - "traefik.http.routers.sistema-clube.tls.certresolver=letsencrypt"
-      - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
-
+      - network_swarm_public
+  app-associado:
+    image: ghcr.io/msalmeida123/clube-associado:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.app-associado.rule=Host(`app.mindforge.dev.br`)"
+        - "traefik.http.routers.app-associado.entrypoints=websecure"
+        - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
+        - "traefik.docker.network=network_swarm_public"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
+    networks:
+      - network_swarm_public
 networks:
-  sistema-clube-network:
-    driver: bridge
+  network_swarm_public:
+    external: true

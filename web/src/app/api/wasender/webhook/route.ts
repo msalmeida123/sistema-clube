@@ -263,6 +263,26 @@ async function processarRespostasAutomaticas(
 
 // Extrair dados da mensagem (suporta múltiplos formatos do WaSender)
 function extrairDadosMensagem(body: any) {
+  // Formato WaSender messages.received: { event, data: { messages: { key, messageBody, message } } }
+  if (body.data?.messages) {
+    const msg = body.data.messages
+    const key = msg.key || {}
+    return {
+      telefone: key.cleanedSenderPn?.replace(/\D/g, '') ||
+                key.cleanedParticipantPn?.replace(/\D/g, '') ||
+                key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, ''),
+      mensagem: msg.messageBody || msg.message?.conversation || msg.message?.extendedTextMessage?.text,
+      messageId: key.id,
+      tipo: msg.message?.imageMessage ? 'imagem' : 
+            msg.message?.videoMessage ? 'video' :
+            msg.message?.audioMessage ? 'audio' :
+            msg.message?.documentMessage ? 'documento' : 'texto',
+      mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
+                msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
+      nomeContato: msg.pushName || body.data.pushName
+    }
+  }
+  
   // Formato 1: { event, data: { from, message, ... } }
   if (body.data) {
     const data = body.data
@@ -296,7 +316,8 @@ function isEventoMensagem(body: any): boolean {
   const event = body.event || body.type || body.action
   const eventosValidos = [
     'message', 
-    'message.received', 
+    'message.received',
+    'messages.received',  // WaSender envia com 's'
     'messages.upsert',
     'message_received',
     'incoming_message',
