@@ -148,6 +148,80 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
   }
 }
 
+// Buscar foto de perfil do contato via API do WaSender
+async function buscarFotoPerfil(telefone: string): Promise<string | null> {
+  try {
+    const { data: config } = await getSupabase()
+      .from('config_wasender')
+      .select('api_key')
+      .single()
+
+    if (!config?.api_key) return null
+
+    let numero = sanitizarTelefone(telefone)
+    if (!numero.startsWith('55')) numero = '55' + numero
+
+    // API do WaSender para buscar foto de perfil
+    const response = await fetch(`https://api.wasenderapi.com/api/contact/${numero}/profile-picture`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${config.api_key}`
+      },
+      signal: AbortSignal.timeout(10000) // Timeout de 10s
+    })
+
+    if (!response.ok) {
+      // Se a API não suportar esse endpoint, tentar endpoint alternativo
+      const altResponse = await fetch(`https://api.wasenderapi.com/api/profile-picture/${numero}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.api_key}`
+        },
+        signal: AbortSignal.timeout(10000)
+      })
+      
+      if (!altResponse.ok) return null
+      const altResult = await altResponse.json()
+      return altResult.profilePictureUrl || altResult.url || altResult.picture || null
+    }
+
+    const result = await response.json()
+    return result.profilePictureUrl || result.url || result.picture || null
+  } catch (error) {
+    console.error('Erro ao buscar foto de perfil:', error)
+    return null
+  }
+}
+
+// Atualizar foto de perfil da conversa (executa em background)
+async function atualizarFotoPerfilConversa(conversaId: string, telefone: string) {
+  try {
+    // Verificar se já tem foto
+    const { data: conversa } = await getSupabase()
+      .from('conversas_whatsapp')
+      .select('foto_perfil_url')
+      .eq('id', conversaId)
+      .single()
+
+    // Se já tem foto, não buscar novamente (pode ser atualizada manualmente depois)
+    if (conversa?.foto_perfil_url) return
+
+    // Buscar foto via API
+    const fotoUrl = await buscarFotoPerfil(telefone)
+    
+    if (fotoUrl) {
+      await getSupabase()
+        .from('conversas_whatsapp')
+        .update({ foto_perfil_url: fotoUrl })
+        .eq('id', conversaId)
+      
+      console.log(`📷 Foto de perfil atualizada para conversa ${conversaId}`)
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar foto de perfil:', error)
+  }
+}
+
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
     // Validar URL
@@ -629,7 +703,7 @@ export async function POST(request: Request) {
     }
 
     // ==========================================
-    // CORREÇÃO: Usar function do banco para evitar duplicatas
+    // Usar function do banco para evitar duplicatas
     // A function processar_mensagem_whatsapp garante atomicidade
     // e busca/cria conversa de forma segura
     // ==========================================
@@ -643,7 +717,8 @@ export async function POST(request: Request) {
         p_direcao: 'entrada',
         p_message_id: messageId || null,
         p_media_url: mediaUrl || null,
-        p_setor_id: null
+        p_setor_id: null,
+        p_foto_perfil_url: null // Será buscada em background
       })
 
     if (erroProcessamento || !resultado || resultado.length === 0) {
@@ -654,6 +729,10 @@ export async function POST(request: Request) {
 
     // Extrair dados do resultado da function
     const { conversa_id: conversaId, mensagem_id: mensagemId, is_nova_conversa: isPrimeiraMsg } = resultado[0]
+
+    // Buscar foto de perfil em background (não bloqueia resposta)
+    atualizarFotoPerfilConversa(conversaId, telefone)
+      .catch(err => console.error('Erro ao buscar foto:', err))
 
     // Processar respostas automáticas e IA (async, não bloqueia resposta)
     processarRespostasAutomaticas(conversaId, telefone, mensagem, isPrimeiraMsg)
