@@ -162,7 +162,8 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     if (!numero.startsWith('55')) numero = '55' + numero
 
     // API do WaSender para buscar foto de perfil
-    const response = await fetch(`https://api.wasenderapi.com/api/contact/${numero}/profile-picture`, {
+    // Endpoint correto: GET https://www.wasenderapi.com/api/contacts/{contactPhoneNumber}/picture
+    const response = await fetch(`https://www.wasenderapi.com/api/contacts/${numero}/picture`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${config.api_key}`
@@ -171,22 +172,13 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     })
 
     if (!response.ok) {
-      // Se a API não suportar esse endpoint, tentar endpoint alternativo
-      const altResponse = await fetch(`https://api.wasenderapi.com/api/profile-picture/${numero}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`
-        },
-        signal: AbortSignal.timeout(10000)
-      })
-      
-      if (!altResponse.ok) return null
-      const altResult = await altResponse.json()
-      return altResult.profilePictureUrl || altResult.url || altResult.picture || null
+      console.log(`Foto de perfil não encontrada para ${numero}: ${response.status}`)
+      return null
     }
 
     const result = await response.json()
-    return result.profilePictureUrl || result.url || result.picture || null
+    // A API pode retornar em diferentes formatos
+    return result.profilePictureUrl || result.url || result.picture || result.imgUrl || null
   } catch (error) {
     console.error('Erro ao buscar foto de perfil:', error)
     return null
@@ -318,7 +310,7 @@ async function enviarMensagem(telefone: string, mensagem: string): Promise<strin
     let numero = sanitizarTelefone(telefone)
     if (!numero.startsWith('55')) numero = '55' + numero
 
-    const response = await fetch('https://api.wasenderapi.com/api/send-message', {
+    const response = await fetch('https://www.wasenderapi.com/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
