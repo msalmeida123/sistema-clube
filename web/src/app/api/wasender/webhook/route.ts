@@ -547,74 +547,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
-    let isPrimeiraMsg = false
+    // ==========================================
+    // CORREÇÃO: Usar function do banco para evitar duplicatas
+    // A function processar_mensagem_whatsapp garante atomicidade
+    // e busca/cria conversa de forma segura
+    // ==========================================
+    
+    const { data: resultado, error: erroProcessamento } = await getSupabase()
+      .rpc('processar_mensagem_whatsapp', {
+        p_telefone: telefone,
+        p_nome_contato: nomeContato || null,
+        p_conteudo: mensagem,
+        p_tipo: tipo,
+        p_direcao: 'entrada',
+        p_message_id: messageId || null,
+        p_media_url: mediaUrl || null,
+        p_setor_id: null
+      })
 
-    // Buscar ou criar conversa
-    let { data: conversa } = await getSupabase()
-      .from('conversas_whatsapp')
-      .select('id, nao_lidas')
-      .eq('telefone', telefone)
-      .single()
-
-    if (!conversa) {
-      isPrimeiraMsg = true
-      const { data: nova, error } = await getSupabase()
-        .from('conversas_whatsapp')
-        .insert({
-          telefone,
-          nome_contato: nomeContato || null,
-          status: 'aberta',
-          nao_lidas: 1,
-          ultimo_contato: new Date().toISOString(),
-          ultima_mensagem: mensagem.substring(0, 100)
-        })
-        .select()
-        .single()
-
-      if (error) {
-        await salvarLogWebhook({ erro: error.message }, 'erro_conversa', ip)
-        return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
-      }
-      conversa = nova
-    } else {
-      await getSupabase()
-        .from('conversas_whatsapp')
-        .update({
-          ultimo_contato: new Date().toISOString(),
-          ultima_mensagem: mensagem.substring(0, 100),
-          nao_lidas: (conversa.nao_lidas || 0) + 1,
-          nome_contato: nomeContato || undefined
-        })
-        .eq('id', conversa.id)
+    if (erroProcessamento || !resultado || resultado.length === 0) {
+      console.error('Erro ao processar mensagem:', erroProcessamento)
+      await salvarLogWebhook({ erro: erroProcessamento?.message || 'Sem resultado' }, 'erro_processar', ip)
+      return NextResponse.json({ error: 'Erro ao processar mensagem' }, { status: 500 })
     }
 
-    if (!conversa) {
-      return NextResponse.json({ error: 'Erro ao obter conversa' }, { status: 500 })
-    }
+    // Extrair dados do resultado da function
+    const { conversa_id: conversaId, mensagem_id: mensagemId, is_nova_conversa: isPrimeiraMsg } = resultado[0]
 
-    // Salvar mensagem
-    await getSupabase().from('mensagens_whatsapp').insert({
-      conversa_id: conversa.id,
-      direcao: 'entrada',
-      conteudo: mensagem,
-      tipo,
-      status: 'recebida',
-      message_id: messageId,
-      media_url: mediaUrl
-    })
-
-    // Processar respostas (async)
-    processarRespostasAutomaticas(conversa.id, telefone, mensagem, isPrimeiraMsg)
+    // Processar respostas automáticas e IA (async, não bloqueia resposta)
+    processarRespostasAutomaticas(conversaId, telefone, mensagem, isPrimeiraMsg)
       .then(respondeu => {
         if (!respondeu) {
-          processarComIA(conversa.id, telefone, mensagem, tipo, mediaUrl)
+          processarComIA(conversaId, telefone, mensagem, tipo, mediaUrl)
         }
       })
       .catch(err => console.error('Erro processamento:', err))
 
     return NextResponse.json({ 
       success: true, 
-      conversa_id: conversa.id
+      conversa_id: conversaId,
+      mensagem_id: mensagemId,
+      is_nova_conversa: isPrimeiraMsg
     })
   } catch (error: any) {
     console.error('Erro webhook:', error)
