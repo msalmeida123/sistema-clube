@@ -13,14 +13,6 @@ const IPS_PERMITIDOS: string[] = [
   // '1.2.3.4',
 ]
 
-// User-Agents permitidos
-const USER_AGENTS_PERMITIDOS: string[] = [
-  'wasender',
-  'wasenderapi',
-  'axios',
-  'node-fetch',
-]
-
 // Rate limiting simples (em memória - para produção use Redis)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const RATE_LIMIT_MAX = 100 // máximo de requisições
@@ -100,11 +92,8 @@ function verificarRateLimit(ip: string): boolean {
 }
 
 // Validar origem da requisição
-function validarOrigem(request: Request): { valido: boolean; motivo?: string } {
+function validarOrigem(): { valido: boolean; motivo?: string } {
   const headersList = headers()
-  
-  // Verificar User-Agent
-  const userAgent = headersList.get('user-agent')?.toLowerCase() || ''
   
   // Verificar IP (se lista de IPs permitidos estiver configurada)
   const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -345,9 +334,9 @@ interface RegraAutomatica {
   palavras_chave?: string[]
   horario_inicio?: string
   horario_fim?: string
-  delay_segundos?: number
+  delay_segundos: number
   resposta: string
-  uso_count?: number
+  uso_count: number
 }
 
 async function processarRespostasAutomaticas(
@@ -355,7 +344,7 @@ async function processarRespostasAutomaticas(
   telefone: string,
   mensagem: string,
   isPrimeiraMsg: boolean
-) {
+): Promise<boolean> {
   try {
     const { data: regras } = await getSupabase()
       .from('respostas_automaticas')
@@ -367,7 +356,8 @@ async function processarRespostasAutomaticas(
 
     const mensagemLower = mensagem.toLowerCase().trim()
 
-    for (const regra of regras as RegraAutomatica[]) {
+    for (const item of regras) {
+      const regra = item as RegraAutomatica
       let deveResponder = false
 
       switch (regra.gatilho_tipo) {
@@ -381,17 +371,19 @@ async function processarRespostasAutomaticas(
             )
           }
           break
-        case 'fora_horario':
+        case 'fora_horario': {
           const hora = new Date().toTimeString().slice(0, 5)
           if (regra.horario_inicio && regra.horario_fim) {
             deveResponder = hora < regra.horario_inicio || hora > regra.horario_fim
           }
           break
+        }
       }
 
       if (deveResponder) {
-        if (regra.delay_segundos && regra.delay_segundos > 0) {
-          await new Promise(r => setTimeout(r, Math.min(regra.delay_segundos, 30) * 1000))
+        const delayMs = Math.min(regra.delay_segundos || 0, 30) * 1000
+        if (delayMs > 0) {
+          await new Promise(r => setTimeout(r, delayMs))
         }
 
         const enviada = await enviarMensagem(telefone, regra.resposta)
@@ -578,7 +570,7 @@ export async function POST(request: Request) {
 
   try {
     // Validar origem
-    const validacao = validarOrigem(request)
+    const validacao = validarOrigem()
     if (!validacao.valido) {
       console.warn(`Requisição bloqueada: ${validacao.motivo}`)
       await salvarLogWebhook({ motivo: validacao.motivo }, 'bloqueado', ip)
