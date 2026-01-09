@@ -8,13 +8,13 @@ import crypto from 'crypto'
 // ==========================================
 
 // IPs permitidos do WaSender (adicione os IPs oficiais se disponíveis)
-const IPS_PERMITIDOS = [
+const IPS_PERMITIDOS: string[] = [
   // Adicione aqui os IPs do WaSender quando disponíveis
   // '1.2.3.4',
 ]
 
 // User-Agents permitidos
-const USER_AGENTS_PERMITIDOS = [
+const USER_AGENTS_PERMITIDOS: string[] = [
   'wasender',
   'wasenderapi',
   'axios',
@@ -144,7 +144,7 @@ function sanitizarTelefone(telefone: string | undefined | null): string {
 // FUNÇÕES DE NEGÓCIO
 // ==========================================
 
-async function salvarLogWebhook(payload: any, tipo: string, ip?: string) {
+async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
   try {
     await getSupabase()
       .from('webhook_logs')
@@ -198,7 +198,18 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
   }
 }
 
-async function gerarRespostaIA(mensagem: string, config: any): Promise<string | null> {
+interface ConfigIA {
+  instrucoes_sistema?: string
+  documento_contexto?: string
+  openai_api_key: string
+  modelo?: string
+  temperatura?: number
+  max_tokens?: number
+  responder_com_ia?: boolean
+  transcrever_audios?: boolean
+}
+
+async function gerarRespostaIA(mensagem: string, config: ConfigIA): Promise<string | null> {
   try {
     const systemPrompt = `${config.instrucoes_sistema || 'Você é um assistente virtual do clube.'}
 
@@ -298,7 +309,7 @@ async function processarComIA(
       }
     }
 
-    const respostaIA = await gerarRespostaIA(textoProcessar, configIA)
+    const respostaIA = await gerarRespostaIA(textoProcessar, configIA as ConfigIA)
     
     if (respostaIA) {
       await new Promise(r => setTimeout(r, 2000))
@@ -328,6 +339,17 @@ async function processarComIA(
   }
 }
 
+interface RegraAutomatica {
+  id: string
+  gatilho_tipo: string
+  palavras_chave?: string[]
+  horario_inicio?: string
+  horario_fim?: string
+  delay_segundos?: number
+  resposta: string
+  uso_count?: number
+}
+
 async function processarRespostasAutomaticas(
   conversaId: string,
   telefone: string,
@@ -345,7 +367,7 @@ async function processarRespostasAutomaticas(
 
     const mensagemLower = mensagem.toLowerCase().trim()
 
-    for (const regra of regras) {
+    for (const regra of regras as RegraAutomatica[]) {
       let deveResponder = false
 
       switch (regra.gatilho_tipo) {
@@ -353,7 +375,7 @@ async function processarRespostasAutomaticas(
           deveResponder = isPrimeiraMsg
           break
         case 'palavra_chave':
-          if (regra.palavras_chave?.length > 0) {
+          if (regra.palavras_chave && regra.palavras_chave.length > 0) {
             deveResponder = regra.palavras_chave.some((p: string) => 
               mensagemLower.includes(p.toLowerCase())
             )
@@ -368,7 +390,7 @@ async function processarRespostasAutomaticas(
       }
 
       if (deveResponder) {
-        if (regra.delay_segundos > 0) {
+        if (regra.delay_segundos && regra.delay_segundos > 0) {
           await new Promise(r => setTimeout(r, Math.min(regra.delay_segundos, 30) * 1000))
         }
 
@@ -399,7 +421,74 @@ async function processarRespostasAutomaticas(
   }
 }
 
-function extrairDadosMensagem(body: any) {
+interface DadosMensagem {
+  telefone: string
+  mensagem: string
+  messageId: string
+  tipo: string
+  mediaUrl?: string
+  nomeContato: string
+}
+
+interface WebhookBody {
+  event?: string
+  type?: string
+  action?: string
+  message?: string
+  body?: string
+  text?: string
+  content?: string
+  from?: string
+  sender?: string
+  phone?: string
+  id?: string
+  messageId?: string
+  mediaUrl?: string
+  media?: { url?: string }
+  pushName?: string
+  notifyName?: string
+  name?: string
+  ack?: number | string
+  status?: string
+  data?: {
+    messages?: {
+      key?: {
+        id?: string
+        cleanedSenderPn?: string
+        cleanedParticipantPn?: string
+        remoteJid?: string
+      }
+      messageBody?: string
+      message?: {
+        conversation?: string
+        extendedTextMessage?: { text?: string }
+        imageMessage?: { url?: string }
+        videoMessage?: { url?: string }
+        audioMessage?: { url?: string }
+        documentMessage?: { url?: string }
+      }
+      pushName?: string
+    }
+    pushName?: string
+    from?: string
+    sender?: string
+    phone?: string
+    message?: string
+    body?: string
+    text?: string
+    content?: string
+    id?: string
+    messageId?: string
+    type?: string
+    mediaUrl?: string
+    media?: { url?: string }
+    notifyName?: string
+    name?: string
+    ack?: number | string
+  }
+}
+
+function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
   // Formato WaSender messages.received
   if (body.data?.messages) {
     const msg = body.data.messages
@@ -458,7 +547,7 @@ function extrairDadosMensagem(body: any) {
   }
 }
 
-function isEventoMensagem(body: any): boolean {
+function isEventoMensagem(body: WebhookBody): boolean {
   const event = body.event || body.type || body.action
   const eventosValidos = [
     'message', 
@@ -474,7 +563,7 @@ function isEventoMensagem(body: any): boolean {
     return true
   }
   
-  return eventosValidos.includes(event?.toLowerCase())
+  return eventosValidos.includes(event?.toLowerCase() || '')
 }
 
 // ==========================================
@@ -507,10 +596,10 @@ export async function POST(request: Request) {
     }
 
     // Parse do JSON
-    let body: any
+    let body: WebhookBody
     try {
       body = JSON.parse(bodyText)
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
     }
 
@@ -589,9 +678,10 @@ export async function POST(request: Request) {
       mensagem_id: mensagemId,
       is_nova_conversa: isPrimeiraMsg
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
     console.error('Erro webhook:', error)
-    await salvarLogWebhook({ erro: error.message }, 'erro_geral', ip)
+    await salvarLogWebhook({ erro: errorMessage }, 'erro_geral', ip)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
