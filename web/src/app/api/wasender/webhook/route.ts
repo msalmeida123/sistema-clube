@@ -1,21 +1,157 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
+import crypto from 'crypto'
+
+// ==========================================
+// CONFIGURAÇÕES DE SEGURANÇA
+// ==========================================
+
+// IPs permitidos do WaSender (adicione os IPs oficiais se disponíveis)
+const IPS_PERMITIDOS = [
+  // Adicione aqui os IPs do WaSender quando disponíveis
+  // '1.2.3.4',
+]
+
+// User-Agents permitidos
+const USER_AGENTS_PERMITIDOS = [
+  'wasender',
+  'wasenderapi',
+  'axios',
+  'node-fetch',
+]
+
+// Rate limiting simples (em memória - para produção use Redis)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const RATE_LIMIT_MAX = 100 // máximo de requisições
+const RATE_LIMIT_WINDOW = 60000 // janela de 1 minuto
 
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
 
-// Salvar log do webhook para debug
-async function salvarLogWebhook(payload: any, tipo: string) {
+// ==========================================
+// FUNÇÕES DE SEGURANÇA
+// ==========================================
+
+// Verificar secret key do webhook
+function verificarWebhookSecret(request: Request, body: string): boolean {
+  const webhookSecret = process.env.WASENDER_WEBHOOK_SECRET
+  
+  // Se não tem secret configurado, permitir (mas logar warning)
+  if (!webhookSecret) {
+    console.warn('⚠️ WASENDER_WEBHOOK_SECRET não configurado! Webhook sem proteção.')
+    return true
+  }
+
+  // Verificar header de assinatura (WaSender pode usar diferentes headers)
+  const headersList = headers()
+  const signature = headersList.get('x-webhook-signature') || 
+                    headersList.get('x-wasender-signature') ||
+                    headersList.get('x-hub-signature-256') ||
+                    headersList.get('authorization')
+
+  if (!signature) {
+    console.warn('⚠️ Requisição sem assinatura de webhook')
+    return false
+  }
+
+  // Se for Bearer token simples
+  if (signature.startsWith('Bearer ')) {
+    return signature.replace('Bearer ', '') === webhookSecret
+  }
+
+  // Se for HMAC signature
+  if (signature.startsWith('sha256=')) {
+    const expectedSignature = 'sha256=' + crypto
+      .createHmac('sha256', webhookSecret)
+      .update(body)
+      .digest('hex')
+    
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    )
+  }
+
+  // Comparação direta
+  return signature === webhookSecret
+}
+
+// Rate limiting por IP
+function verificarRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const record = rateLimitMap.get(ip)
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
+    return true
+  }
+
+  if (record.count >= RATE_LIMIT_MAX) {
+    return false
+  }
+
+  record.count++
+  return true
+}
+
+// Validar origem da requisição
+function validarOrigem(request: Request): { valido: boolean; motivo?: string } {
+  const headersList = headers()
+  
+  // Verificar User-Agent
+  const userAgent = headersList.get('user-agent')?.toLowerCase() || ''
+  
+  // Verificar IP (se lista de IPs permitidos estiver configurada)
+  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+             headersList.get('x-real-ip') ||
+             'unknown'
+
+  // Se temos IPs permitidos configurados, verificar
+  if (IPS_PERMITIDOS.length > 0 && !IPS_PERMITIDOS.includes(ip)) {
+    return { valido: false, motivo: `IP não permitido: ${ip}` }
+  }
+
+  // Rate limiting
+  if (!verificarRateLimit(ip)) {
+    return { valido: false, motivo: 'Rate limit excedido' }
+  }
+
+  return { valido: true }
+}
+
+// Sanitizar entrada para prevenir injection
+function sanitizarTexto(texto: string | undefined | null): string {
+  if (!texto) return ''
+  
+  // Remover caracteres de controle perigosos
+  return texto
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Caracteres de controle
+    .substring(0, 10000) // Limitar tamanho
+}
+
+// Validar telefone (apenas números)
+function sanitizarTelefone(telefone: string | undefined | null): string {
+  if (!telefone) return ''
+  return telefone.replace(/\D/g, '').substring(0, 15)
+}
+
+// ==========================================
+// FUNÇÕES DE NEGÓCIO
+// ==========================================
+
+async function salvarLogWebhook(payload: any, tipo: string, ip?: string) {
   try {
     await getSupabase()
       .from('webhook_logs')
       .insert({
         tipo,
-        payload: JSON.stringify(payload),
+        payload: JSON.stringify(payload).substring(0, 50000), // Limitar tamanho
+        ip_origem: ip,
         created_at: new Date().toISOString()
       })
   } catch (e) {
@@ -23,13 +159,24 @@ async function salvarLogWebhook(payload: any, tipo: string) {
   }
 }
 
-// Transcrever áudio com Whisper
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
-    const audioResponse = await fetch(audioUrl)
+    // Validar URL
+    if (!audioUrl.startsWith('http')) return null
+    
+    const audioResponse = await fetch(audioUrl, { 
+      signal: AbortSignal.timeout(30000) // Timeout de 30s
+    })
     if (!audioResponse.ok) return null
     
     const audioBlob = await audioResponse.blob()
+    
+    // Validar tamanho (máx 25MB)
+    if (audioBlob.size > 25 * 1024 * 1024) {
+      console.warn('Áudio muito grande para transcrição')
+      return null
+    }
+    
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.ogg')
     formData.append('model', 'whisper-1')
@@ -38,19 +185,19 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: formData
+      body: formData,
+      signal: AbortSignal.timeout(60000) // Timeout de 60s
     })
     
     if (!response.ok) return null
     const result = await response.json()
-    return result.text
+    return sanitizarTexto(result.text)
   } catch (error) {
     console.error('Erro ao transcrever:', error)
     return null
   }
 }
 
-// Gerar resposta com GPT
 async function gerarRespostaIA(mensagem: string, config: any): Promise<string | null> {
   try {
     const systemPrompt = `${config.instrucoes_sistema || 'Você é um assistente virtual do clube.'}
@@ -68,11 +215,12 @@ ${config.documento_contexto || ''}`
         model: config.modelo || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: mensagem }
+          { role: 'user', content: mensagem.substring(0, 4000) } // Limitar input
         ],
-        temperature: config.temperatura || 0.7,
-        max_tokens: config.max_tokens || 500
-      })
+        temperature: Math.min(Math.max(config.temperatura || 0.7, 0), 2),
+        max_tokens: Math.min(config.max_tokens || 500, 2000)
+      }),
+      signal: AbortSignal.timeout(30000)
     })
 
     if (!response.ok) return null
@@ -84,7 +232,6 @@ ${config.documento_contexto || ''}`
   }
 }
 
-// Enviar mensagem via WaSender
 async function enviarMensagem(telefone: string, mensagem: string): Promise<string | false> {
   try {
     const { data: config } = await getSupabase()
@@ -94,7 +241,7 @@ async function enviarMensagem(telefone: string, mensagem: string): Promise<strin
 
     if (!config?.api_key) return false
 
-    let numero = telefone.replace(/\D/g, '')
+    let numero = sanitizarTelefone(telefone)
     if (!numero.startsWith('55')) numero = '55' + numero
 
     const response = await fetch('https://api.wasenderapi.com/api/send-message', {
@@ -103,19 +250,21 @@ async function enviarMensagem(telefone: string, mensagem: string): Promise<strin
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.api_key}`
       },
-      body: JSON.stringify({ phone: numero, message: mensagem })
+      body: JSON.stringify({ 
+        phone: numero, 
+        message: mensagem.substring(0, 4000) // Limitar tamanho
+      }),
+      signal: AbortSignal.timeout(30000)
     })
 
     const result = await response.json()
-    console.log('Mensagem enviada:', result)
-    return response.ok ? (result.messageId || true) : false
+    return response.ok ? (result.messageId || 'sent') : false
   } catch (error) {
     console.error('Erro ao enviar:', error)
     return false
   }
 }
 
-// Processar com IA
 async function processarComIA(
   conversaId: string,
   telefone: string,
@@ -130,19 +279,15 @@ async function processarComIA(
       .single()
 
     if (!configIA?.openai_api_key || !configIA?.responder_com_ia) {
-      console.log('Bot IA não ativado')
       return
     }
 
     let textoProcessar = mensagem
-    let transcricao: string | null = null
 
-    // Transcrever áudio se necessário
     if (tipo === 'audio' && mediaUrl && configIA.transcrever_audios) {
-      transcricao = await transcreveAudio(mediaUrl, configIA.openai_api_key)
+      const transcricao = await transcreveAudio(mediaUrl, configIA.openai_api_key)
       if (transcricao) {
         textoProcessar = transcricao
-        // Salvar transcrição como nota
         await getSupabase()
           .from('mensagens_whatsapp')
           .update({ conteudo: `🎤 Áudio transcrito:\n"${transcricao}"` })
@@ -153,17 +298,14 @@ async function processarComIA(
       }
     }
 
-    // Gerar resposta com IA
     const respostaIA = await gerarRespostaIA(textoProcessar, configIA)
     
     if (respostaIA) {
-      // Delay para simular digitação
       await new Promise(r => setTimeout(r, 2000))
       
       const enviada = await enviarMensagem(telefone, respostaIA)
       
       if (enviada) {
-        // Salvar resposta no banco
         await getSupabase()
           .from('mensagens_whatsapp')
           .insert({
@@ -179,8 +321,6 @@ async function processarComIA(
           .from('conversas_whatsapp')
           .update({ ultima_mensagem: respostaIA.substring(0, 100) })
           .eq('id', conversaId)
-
-        console.log(`Resposta IA enviada para ${telefone}`)
       }
     }
   } catch (error) {
@@ -188,7 +328,6 @@ async function processarComIA(
   }
 }
 
-// Processar respostas automáticas (regras simples)
 async function processarRespostasAutomaticas(
   conversaId: string,
   telefone: string,
@@ -230,7 +369,7 @@ async function processarRespostasAutomaticas(
 
       if (deveResponder) {
         if (regra.delay_segundos > 0) {
-          await new Promise(r => setTimeout(r, regra.delay_segundos * 1000))
+          await new Promise(r => setTimeout(r, Math.min(regra.delay_segundos, 30) * 1000))
         }
 
         const enviada = await enviarMensagem(telefone, regra.resposta)
@@ -249,8 +388,7 @@ async function processarRespostasAutomaticas(
             .update({ uso_count: (regra.uso_count || 0) + 1 })
             .eq('id', regra.id)
 
-          console.log(`Resposta automática "${regra.nome}" enviada`)
-          return true // Parar após primeira resposta
+          return true
         }
       }
     }
@@ -261,89 +399,126 @@ async function processarRespostasAutomaticas(
   }
 }
 
-// Extrair dados da mensagem (suporta múltiplos formatos do WaSender)
 function extrairDadosMensagem(body: any) {
-  // Formato WaSender messages.received: { event, data: { messages: { key, messageBody, message } } }
+  // Formato WaSender messages.received
   if (body.data?.messages) {
     const msg = body.data.messages
     const key = msg.key || {}
     return {
-      telefone: key.cleanedSenderPn?.replace(/\D/g, '') ||
-                key.cleanedParticipantPn?.replace(/\D/g, '') ||
-                key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, ''),
-      mensagem: msg.messageBody || msg.message?.conversation || msg.message?.extendedTextMessage?.text,
-      messageId: key.id,
+      telefone: sanitizarTelefone(
+        key.cleanedSenderPn ||
+        key.cleanedParticipantPn ||
+        key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '')
+      ),
+      mensagem: sanitizarTexto(
+        msg.messageBody || 
+        msg.message?.conversation || 
+        msg.message?.extendedTextMessage?.text
+      ),
+      messageId: msg.key?.id || '',
       tipo: msg.message?.imageMessage ? 'imagem' : 
             msg.message?.videoMessage ? 'video' :
             msg.message?.audioMessage ? 'audio' :
             msg.message?.documentMessage ? 'documento' : 'texto',
       mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
                 msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
-      nomeContato: msg.pushName || body.data.pushName
+      nomeContato: sanitizarTexto(msg.pushName || body.data.pushName)
     }
   }
   
-  // Formato 1: { event, data: { from, message, ... } }
+  // Formato padrão
   if (body.data) {
     const data = body.data
     return {
-      telefone: data.from?.replace('@c.us', '').replace(/\D/g, '') || 
-                data.sender?.replace('@c.us', '').replace(/\D/g, '') ||
-                data.phone?.replace(/\D/g, ''),
-      mensagem: data.message || data.body || data.text || data.content,
-      messageId: data.id || data.messageId || data.message_id,
-      tipo: data.type || data.messageType || 'texto',
-      mediaUrl: data.mediaUrl || data.media?.url || data.file?.url,
-      nomeContato: data.pushName || data.notifyName || data.name || data.senderName
+      telefone: sanitizarTelefone(
+        data.from?.replace('@c.us', '') || 
+        data.sender?.replace('@c.us', '') ||
+        data.phone
+      ),
+      mensagem: sanitizarTexto(data.message || data.body || data.text || data.content),
+      messageId: data.id || data.messageId || '',
+      tipo: data.type || 'texto',
+      mediaUrl: data.mediaUrl || data.media?.url,
+      nomeContato: sanitizarTexto(data.pushName || data.notifyName || data.name)
     }
   }
   
-  // Formato 2: Dados direto no body
+  // Dados direto no body
   return {
-    telefone: body.from?.replace('@c.us', '').replace(/\D/g, '') || 
-              body.sender?.replace('@c.us', '').replace(/\D/g, '') ||
-              body.phone?.replace(/\D/g, ''),
-    mensagem: body.message || body.body || body.text || body.content,
-    messageId: body.id || body.messageId || body.message_id,
-    tipo: body.type || body.messageType || 'texto',
-    mediaUrl: body.mediaUrl || body.media?.url || body.file?.url,
-    nomeContato: body.pushName || body.notifyName || body.name || body.senderName
+    telefone: sanitizarTelefone(
+      body.from?.replace('@c.us', '') || 
+      body.sender?.replace('@c.us', '') ||
+      body.phone
+    ),
+    mensagem: sanitizarTexto(body.message || body.body || body.text || body.content),
+    messageId: body.id || body.messageId || '',
+    tipo: body.type || 'texto',
+    mediaUrl: body.mediaUrl || body.media?.url,
+    nomeContato: sanitizarTexto(body.pushName || body.notifyName || body.name)
   }
 }
 
-// Verificar se é evento de mensagem recebida
 function isEventoMensagem(body: any): boolean {
   const event = body.event || body.type || body.action
   const eventosValidos = [
     'message', 
     'message.received',
-    'messages.received',  // WaSender envia com 's'
+    'messages.received',
     'messages.upsert',
     'message_received',
     'incoming_message',
     'new_message'
   ]
   
-  // Se não tem evento definido mas tem dados de mensagem, considerar válido
-  if (!event && (body.message || body.body || body.text || body.data?.message)) {
+  if (!event && (body.message || body.body || body.text || body.data?.message || body.data?.messages)) {
     return true
   }
   
   return eventosValidos.includes(event?.toLowerCase())
 }
 
+// ==========================================
+// HANDLERS HTTP
+// ==========================================
+
 export async function POST(request: Request) {
+  const headersList = headers()
+  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+             headersList.get('x-real-ip') ||
+             'unknown'
+
   try {
-    const body = await request.json()
-    console.log('=== WEBHOOK RECEBIDO ===')
-    console.log(JSON.stringify(body, null, 2))
+    // Validar origem
+    const validacao = validarOrigem(request)
+    if (!validacao.valido) {
+      console.warn(`Requisição bloqueada: ${validacao.motivo}`)
+      await salvarLogWebhook({ motivo: validacao.motivo }, 'bloqueado', ip)
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    }
+
+    // Ler body como texto para verificar assinatura
+    const bodyText = await request.text()
     
-    // Salvar log para debug
-    await salvarLogWebhook(body, 'webhook_recebido')
+    // Verificar secret/assinatura do webhook
+    if (!verificarWebhookSecret(request, bodyText)) {
+      console.warn('Assinatura de webhook inválida')
+      await salvarLogWebhook({ motivo: 'Assinatura inválida' }, 'assinatura_invalida', ip)
+      return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 })
+    }
+
+    // Parse do JSON
+    let body: any
+    try {
+      body = JSON.parse(bodyText)
+    } catch (e) {
+      return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
+    }
+
+    // Salvar log
+    await salvarLogWebhook(body, 'webhook_recebido', ip)
 
     // Verificar se é evento de mensagem
     if (!isEventoMensagem(body)) {
-      // Verificar se é status de mensagem
       const event = body.event || body.type
       if (event === 'message.ack' || event === 'ack' || event === 'message_status') {
         const messageId = body.data?.id || body.data?.messageId || body.id || body.messageId
@@ -361,19 +536,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, type: 'ack' })
       }
       
-      console.log('Evento ignorado:', body.event || body.type || 'sem evento')
       return NextResponse.json({ success: true, message: 'Evento ignorado' })
     }
 
-    // Extrair dados da mensagem
+    // Extrair e validar dados
     const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato } = extrairDadosMensagem(body)
 
-    console.log('Dados extraídos:', { telefone, mensagem, messageId, tipo, nomeContato })
-
     if (!telefone || !mensagem) {
-      console.log('Dados incompletos - telefone:', telefone, 'mensagem:', mensagem)
-      await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro')
-      return NextResponse.json({ error: 'Dados incompletos', telefone, mensagem }, { status: 400 })
+      await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro', ip)
+      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
     let isPrimeiraMsg = false
@@ -401,12 +572,10 @@ export async function POST(request: Request) {
         .single()
 
       if (error) {
-        console.error('Erro ao criar conversa:', error)
-        await salvarLogWebhook({ erro: error.message }, 'erro_conversa')
+        await salvarLogWebhook({ erro: error.message }, 'erro_conversa', ip)
         return NextResponse.json({ error: 'Erro criar conversa' }, { status: 500 })
       }
       conversa = nova
-      console.log('Nova conversa criada:', conversa?.id)
     } else {
       await getSupabase()
         .from('conversas_whatsapp')
@@ -414,10 +583,9 @@ export async function POST(request: Request) {
           ultimo_contato: new Date().toISOString(),
           ultima_mensagem: mensagem.substring(0, 100),
           nao_lidas: (conversa.nao_lidas || 0) + 1,
-          nome_contato: nomeContato || undefined // Atualiza nome se disponível
+          nome_contato: nomeContato || undefined
         })
         .eq('id', conversa.id)
-      console.log('Conversa atualizada:', conversa.id)
     }
 
     if (!conversa) {
@@ -425,7 +593,7 @@ export async function POST(request: Request) {
     }
 
     // Salvar mensagem
-    const { error: msgError } = await getSupabase().from('mensagens_whatsapp').insert({
+    await getSupabase().from('mensagens_whatsapp').insert({
       conversa_id: conversa.id,
       direcao: 'entrada',
       conteudo: mensagem,
@@ -435,13 +603,7 @@ export async function POST(request: Request) {
       media_url: mediaUrl
     })
 
-    if (msgError) {
-      console.error('Erro ao salvar mensagem:', msgError)
-    } else {
-      console.log('Mensagem salva com sucesso')
-    }
-
-    // Processar respostas (async - não bloqueia o retorno)
+    // Processar respostas (async)
     processarRespostasAutomaticas(conversa.id, telefone, mensagem, isPrimeiraMsg)
       .then(respondeu => {
         if (!respondeu) {
@@ -452,18 +614,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      conversa_id: conversa.id,
-      mensagem_recebida: mensagem.substring(0, 50)
+      conversa_id: conversa.id
     })
   } catch (error: any) {
     console.error('Erro webhook:', error)
-    await salvarLogWebhook({ erro: error.message, stack: error.stack }, 'erro_geral')
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    await salvarLogWebhook({ erro: error.message }, 'erro_geral', ip)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
 
 export async function GET(request: Request) {
-  // Verificação de webhook (alguns serviços exigem)
   const { searchParams } = new URL(request.url)
   const challenge = searchParams.get('hub.challenge') || searchParams.get('challenge')
   
@@ -474,10 +634,6 @@ export async function GET(request: Request) {
   return NextResponse.json({ 
     status: 'ok', 
     message: 'Webhook WhatsApp ativo',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      webhook: 'POST /api/wasender/webhook',
-      test: 'GET /api/wasender/webhook'
-    }
+    timestamp: new Date().toISOString()
   })
 }
