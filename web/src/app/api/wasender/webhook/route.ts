@@ -22,38 +22,6 @@ function getSupabase() {
 // FUNÇÕES DE SEGURANÇA
 // ==========================================
 
-// Verificar se o sessionId do webhook corresponde à api_key configurada
-async function verificarSessionId(sessionId: string | undefined): Promise<boolean> {
-  if (!sessionId) {
-    console.warn('⚠️ Webhook sem sessionId')
-    return false
-  }
-
-  try {
-    const { data: config } = await getSupabase()
-      .from('config_wasender')
-      .select('api_key')
-      .single()
-
-    if (!config?.api_key) {
-      console.warn('⚠️ Nenhuma api_key configurada no banco')
-      return false
-    }
-
-    // Comparar o sessionId do webhook com a api_key armazenada
-    const isValid = sessionId === config.api_key
-    
-    if (!isValid) {
-      console.warn(`⚠️ SessionId inválido. Recebido: ${sessionId.substring(0, 10)}...`)
-    }
-
-    return isValid
-  } catch (error) {
-    console.error('Erro ao verificar sessionId:', error)
-    return false
-  }
-}
-
 // Rate limiting por IP
 function verificarRateLimit(ip: string): boolean {
   const now = Date.now()
@@ -122,43 +90,23 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
 }
 
 // Verificar se já existe mensagem igual enviada recentemente (evitar duplicatas de webhook)
-async function verificarDuplicataRecente(telefone: string, conteudo: string): Promise<boolean> {
+async function verificarDuplicataRecente(conversaId: string, conteudo: string): Promise<boolean> {
   try {
-    // Buscar mensagens de saída com mesmo conteúdo nos últimos 30 segundos
+    // Buscar mensagens de saída com mesmo conteúdo nos últimos 30 segundos NA MESMA CONVERSA
     const trintaSegundosAtras = new Date(Date.now() - 30000).toISOString()
     
     const { data } = await getSupabase()
       .from('mensagens_whatsapp')
-      .select('id, conversa_id')
+      .select('id')
+      .eq('conversa_id', conversaId)
       .eq('direcao', 'saida')
       .eq('conteudo', conteudo)
       .gte('created_at', trintaSegundosAtras)
       .limit(1)
 
     if (data && data.length > 0) {
-      // Verificar se a conversa é do mesmo telefone
-      const { data: conversa } = await getSupabase()
-        .from('conversas_whatsapp')
-        .select('telefone')
-        .eq('id', data[0].conversa_id)
-        .single()
-
-      if (conversa) {
-        // Normalizar telefones para comparação
-        const telConversa = conversa.telefone.replace(/\D/g, '')
-        const telWebhook = telefone.replace(/\D/g, '')
-        
-        // Comparar os últimos 8-11 dígitos (ignorando código do país)
-        const sufixoConversa = telConversa.slice(-11)
-        const sufixoWebhook = telWebhook.slice(-11)
-        
-        if (sufixoConversa === sufixoWebhook || 
-            sufixoConversa.endsWith(sufixoWebhook) || 
-            sufixoWebhook.endsWith(sufixoConversa)) {
-          console.log(`🔄 Duplicata detectada: mensagem de saída já existe para ${telefone}`)
-          return true
-        }
-      }
+      console.log(`🔄 Duplicata detectada: mensagem de saída já existe na conversa ${conversaId}`)
+      return true
     }
     
     return false
@@ -528,7 +476,7 @@ interface WebhookBody {
   ack?: number | string
   status?: string
   fromMe?: boolean
-  sessionId?: string // Campo de autenticação do WaSender
+  sessionId?: string
   data?: {
     messages?: {
       key?: {
@@ -566,14 +514,12 @@ interface WebhookBody {
     notifyName?: string
     name?: string
     ack?: number | string
-    // Campos adicionais do WaSender para detectar mensagens enviadas
     isFromMe?: boolean
     self?: boolean | string
     isSelf?: boolean
     direction?: string
     outgoing?: boolean
   }
-  // Campos no nível raiz para detectar mensagens enviadas
   isFromMe?: boolean
   self?: boolean | string
   isSelf?: boolean
@@ -732,22 +678,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
     }
 
-    // ==========================================
-    // VALIDAÇÃO DE SEGURANÇA: Verificar sessionId
-    // O WaSender envia o sessionId em cada webhook
-    // Comparamos com a api_key configurada no banco
-    // ==========================================
-    const sessionIdValido = await verificarSessionId(body.sessionId)
-    if (!sessionIdValido) {
-      console.warn('❌ SessionId inválido ou não configurado')
-      await salvarLogWebhook({ 
-        motivo: 'SessionId inválido',
-        sessionId_recebido: body.sessionId?.substring(0, 20) + '...'
-      }, 'sessionid_invalido', ip)
-      return NextResponse.json({ error: 'SessionId inválido' }, { status: 401 })
-    }
-
-    // Salvar log (webhook autenticado com sucesso)
+    // Salvar log de todos os webhooks recebidos (para debug)
     await salvarLogWebhook(body, 'webhook_recebido', ip)
 
     // Verificar se é evento de mensagem
@@ -780,6 +711,7 @@ export async function POST(request: Request) {
     // ==========================================
     if (fromMe) {
       console.log(`📤 Ignorando mensagem de saída (fromMe=true): ${mensagem.substring(0, 50)}...`)
+      await salvarLogWebhook({ mensagem, fromMe, motivo: 'fromMe=true' }, 'ignorado_fromme', ip)
       return NextResponse.json({ 
         success: true, 
         message: 'Mensagem de saída ignorada (fromMe=true)',
@@ -792,22 +724,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
-    // ==========================================
-    // VERIFICAÇÃO ADICIONAL: Duplicata recente
-    // Se existe uma mensagem de saída idêntica nos últimos 30 segundos,
-    // é provavelmente o webhook de confirmação da nossa própria mensagem
-    // ==========================================
-    const isDuplicata = await verificarDuplicataRecente(telefone, mensagem)
-    if (isDuplicata) {
-      console.log(`🔄 Ignorando webhook duplicado para mensagem de saída recente`)
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Duplicata de mensagem de saída ignorada',
-        ignored: true
-      })
-    }
-
-    // Usar function do banco para evitar duplicatas
+    // Usar function do banco para evitar duplicatas e criar conversa se necessário
     const { data: resultado, error: erroProcessamento } = await getSupabase()
       .rpc('processar_mensagem_whatsapp', {
         p_telefone: telefone,
@@ -829,6 +746,28 @@ export async function POST(request: Request) {
 
     // Extrair dados do resultado da function
     const { conversa_id: conversaId, mensagem_id: mensagemId, is_nova_conversa: isPrimeiraMsg } = resultado[0]
+
+    // ==========================================
+    // VERIFICAÇÃO ADICIONAL: Duplicata recente (após saber o conversaId)
+    // Se existe uma mensagem de saída idêntica nos últimos 30 segundos,
+    // é provavelmente o webhook de confirmação da nossa própria mensagem
+    // ==========================================
+    const isDuplicata = await verificarDuplicataRecente(conversaId, mensagem)
+    if (isDuplicata) {
+      console.log(`🔄 Detectada duplicata de mensagem de saída, removendo mensagem de entrada duplicada`)
+      // Remover a mensagem de entrada que acabamos de criar (é duplicata)
+      await getSupabase()
+        .from('mensagens_whatsapp')
+        .delete()
+        .eq('id', mensagemId)
+      
+      await salvarLogWebhook({ mensagem, motivo: 'duplicata de saída' }, 'ignorado_duplicata', ip)
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Duplicata de mensagem de saída ignorada',
+        ignored: true
+      })
+    }
 
     // Buscar foto de perfil em background
     atualizarFotoPerfilConversa(conversaId, telefone)
