@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Folder, MessageSquare, AlertTriangle } from 'lucide-react'
+import { Folder, AlertTriangle } from 'lucide-react'
 import { ConversaPorSetor, getConversasPorSetor } from '@/lib/supabase-views'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Progress } from '@/components/ui/progress'
 
 export function ConversasPorSetor() {
   const [setores, setSetores] = useState<ConversaPorSetor[]>([])
@@ -74,12 +73,12 @@ export function ConversasPorSetor() {
                   <span className="text-lg font-bold">{setor.total}</span>
                 </div>
                 
-                <div className="relative">
-                  <Progress 
-                    value={(setor.total / maxTotal) * 100} 
-                    className="h-2"
+                <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+                  <div 
+                    className="h-full transition-all"
                     style={{ 
-                      ['--progress-color' as any]: setor.setor_cor || '#3B82F6' 
+                      width: `${(setor.total / maxTotal) * 100}%`,
+                      backgroundColor: setor.setor_cor || '#3B82F6'
                     }}
                   />
                 </div>
