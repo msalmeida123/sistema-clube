@@ -15,7 +15,8 @@ import {
   Bot,
   Sparkles,
   Columns3,
-  Building2
+  Building2,
+  UserCog
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -29,6 +30,7 @@ const menuItems = [
   { href: '/dashboard/crm', label: 'WhatsApp CRM', icon: MessageSquare, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'atendimento'] },
   { href: '/dashboard/kanban', label: 'Kanban', icon: Columns3, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'atendimento'] },
   { href: '/dashboard/setores', label: 'Setores', icon: Building2, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
+  { href: '/dashboard/setores-usuarios', label: 'Setores Usuários', icon: UserCog, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'atendimento'] },
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
   { href: '/configuracoes', label: 'Configurações', icon: Settings, roles: ['admin'] },
