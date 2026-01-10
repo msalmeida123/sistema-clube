@@ -1,10 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, UserCheck, MessageSquare, AlertCircle, DollarSign, Clock, Home, Key } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
-import { KPIs, getKPIs } from '@/lib/supabase-views'
 import { KPICards } from '@/components/dashboard/KPICards'
 import { AlertasConversas } from '@/components/dashboard/AlertasConversas'
 import { ConversasPorSetor } from '@/components/dashboard/ConversasPorSetor'
