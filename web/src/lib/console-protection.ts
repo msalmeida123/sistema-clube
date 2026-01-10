@@ -23,62 +23,23 @@ export function initClientProtection() {
   
   protectionInitialized = true
 
-  // 1. Detectar DevTools aberto
-  detectDevTools()
-  
-  // 2. Bloquear atalhos de DevTools
+  // 1. Bloquear atalhos de DevTools
   blockDevToolsShortcuts()
   
-  // 3. Sobrescrever console (dificulta debug)
+  // 2. Sobrescrever console (dificulta debug)
   disableConsole()
   
-  // 4. Detectar manipulação do DOM
+  // 3. Detectar manipulação do DOM
   protectDOM()
   
-  // 5. Bloquear drag de scripts
+  // 4. Bloquear drag de scripts
   blockDragDrop()
   
-  // 6. Detectar iframes maliciosos
+  // 5. Detectar iframes maliciosos
   detectIframeEmbedding()
   
-  // 7. Monitorar alterações suspeitas
+  // 6. Monitorar alterações suspeitas
   monitorSuspiciousActivity()
-}
-
-/**
- * Detecta se o DevTools está aberto
- */
-function detectDevTools() {
-  const threshold = 160
-  
-  const checkDevTools = () => {
-    const widthThreshold = window.outerWidth - window.innerWidth > threshold
-    const heightThreshold = window.outerHeight - window.innerHeight > threshold
-    
-    if (widthThreshold || heightThreshold) {
-      handleSecurityViolation('devtools_open')
-    }
-  }
-  
-  // Verifica periodicamente
-  setInterval(checkDevTools, 1000)
-  
-  // Método alternativo usando debugger
-  const detectDebugger = () => {
-    const start = performance.now()
-    // debugger é pausado quando DevTools está aberto
-    // eslint-disable-next-line no-debugger
-    debugger
-    const end = performance.now()
-    
-    // Se demorou mais de 100ms, provavelmente DevTools está aberto
-    if (end - start > 100) {
-      handleSecurityViolation('debugger_detected')
-    }
-  }
-  
-  // Verifica a cada 5 segundos (não muito frequente para não impactar performance)
-  setInterval(detectDebugger, 5000)
 }
 
 /**
@@ -126,6 +87,8 @@ function blockDevToolsShortcuts() {
       e.preventDefault()
       return false
     }
+    
+    return true
   })
   
   // Bloquear menu de contexto (clique direito)
@@ -139,27 +102,37 @@ function blockDevToolsShortcuts() {
  * Desabilita/sobrescreve funções do console
  */
 function disableConsole() {
-  const noop = () => {}
-  
   // Aviso antes de desabilitar
-  console.log('%c⚠️ ATENÇÃO', 'color: red; font-size: 40px; font-weight: bold;')
-  console.log('%cEste é um recurso do navegador destinado a desenvolvedores.', 'font-size: 16px;')
-  console.log('%cSe alguém pediu para você colar algo aqui, isso é uma fraude.', 'font-size: 16px; color: red;')
-  console.log('%cNão cole nenhum código aqui!', 'font-size: 20px; color: red; font-weight: bold;')
+  try {
+    console.log('%c⚠️ ATENÇÃO', 'color: red; font-size: 40px; font-weight: bold;')
+    console.log('%cEste é um recurso do navegador destinado a desenvolvedores.', 'font-size: 16px;')
+    console.log('%cSe alguém pediu para você colar algo aqui, isso é uma fraude.', 'font-size: 16px; color: red;')
+    console.log('%cNão cole nenhum código aqui!', 'font-size: 20px; color: red; font-weight: bold;')
+  } catch {
+    // Ignora erros
+  }
+  
+  const noop = () => { /* empty */ }
   
   // Sobrescrever métodos do console
-  const methods = ['log', 'debug', 'info', 'warn', 'error', 'table', 'trace', 'dir', 'dirxml', 'group', 'groupCollapsed', 'groupEnd', 'clear', 'count', 'countReset', 'assert', 'profile', 'profileEnd', 'time', 'timeLog', 'timeEnd', 'timeStamp', 'memory']
+  const methods = ['log', 'debug', 'info', 'warn', 'error', 'table', 'trace', 'dir', 'dirxml', 'group', 'groupCollapsed', 'groupEnd', 'clear', 'count', 'countReset', 'assert', 'profile', 'profileEnd', 'time', 'timeLog', 'timeEnd', 'timeStamp']
   
   methods.forEach(method => {
-    if ((console as any)[method]) {
-      (console as any)[method] = noop
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((console as any)[method]) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (console as any)[method] = noop
+      }
+    } catch {
+      // Ignora erros
     }
   })
   
   // Congelar o objeto console para impedir restauração
   try {
     Object.freeze(console)
-  } catch (e) {
+  } catch {
     // Alguns navegadores não permitem
   }
 }
@@ -220,8 +193,7 @@ function isTrustedScriptSource(src: string): boolean {
   const trustedDomains = [
     window.location.origin,
     'https://cdnjs.cloudflare.com',
-    'https://unpkg.com',
-    'https://_next' // Next.js
+    'https://unpkg.com'
   ]
   
   return trustedDomains.some(domain => src.startsWith(domain))
@@ -247,17 +219,24 @@ function blockDragDrop() {
  * Detecta se a página está sendo carregada em um iframe
  */
 function detectIframeEmbedding() {
-  if (window.self !== window.top) {
-    // Página está em um iframe - possível clickjacking
-    handleSecurityViolation('iframe_embedding_detected')
-    
-    // Tenta escapar do iframe
-    try {
-      window.top!.location = window.self.location
-    } catch (e) {
-      // Se não conseguir, esconde o conteúdo
-      document.body.innerHTML = '<h1>Acesso não permitido</h1>'
+  try {
+    if (window.self !== window.top) {
+      // Página está em um iframe - possível clickjacking
+      handleSecurityViolation('iframe_embedding_detected')
+      
+      // Tenta escapar do iframe
+      if (window.top) {
+        window.top.location = window.self.location
+      }
     }
+  } catch {
+    // Se não conseguir acessar window.top, estamos em um iframe cross-origin
+    handleSecurityViolation('cross_origin_iframe_detected')
+    const warningDiv = document.createElement('div')
+    warningDiv.style.cssText = 'padding:20px;text-align:center;'
+    warningDiv.innerHTML = '<h1>Acesso não permitido</h1>'
+    document.body.innerHTML = ''
+    document.body.appendChild(warningDiv)
   }
 }
 
@@ -287,25 +266,25 @@ function monitorSuspiciousActivity() {
     }
   })
   
-  // Bloquear eval e Function constructor
-  const originalEval = window.eval
-  ;(window as any).eval = function() {
-    handleSecurityViolation('eval_blocked')
-    throw new Error('eval() is disabled for security reasons')
-  }
-  
-  // Tentar preservar a referência original bloqueada
+  // Bloquear eval
   try {
     Object.defineProperty(window, 'eval', {
+      value: function() {
+        handleSecurityViolation('eval_blocked')
+        throw new Error('eval() is disabled for security reasons')
+      },
       configurable: false,
       writable: false
     })
-  } catch (e) {}
+  } catch {
+    // Ignora se não conseguir
+  }
 }
 
 /**
  * Registra e trata violações de segurança
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function handleSecurityViolation(type: string, details?: any) {
   // Log no servidor (pode enviar para API de monitoramento)
   const violation = {
@@ -323,22 +302,9 @@ function handleSecurityViolation(type: string, details?: any) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(violation),
       keepalive: true
-    }).catch(() => {})
-  } catch (e) {}
-  
-  // Ações baseadas no tipo de violação
-  switch (type) {
-    case 'devtools_open':
-    case 'debugger_detected':
-      // Pode redirecionar ou mostrar aviso
-      // showSecurityWarning()
-      break
-      
-    case 'script_injection_blocked':
-    case 'eval_blocked':
-      // Violação grave - pode fazer logout
-      // window.location.href = '/login?security=violation'
-      break
+    }).catch(() => { /* silent */ })
+  } catch {
+    // Ignora erros de rede
   }
 }
 
@@ -348,39 +314,51 @@ function handleSecurityViolation(type: string, details?: any) {
 export function showSecurityWarning() {
   const warning = document.createElement('div')
   warning.id = 'security-warning'
-  warning.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.9);
-      z-index: 999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      color: white;
-      font-family: system-ui, sans-serif;
-    ">
-      <h1 style="color: #ef4444; font-size: 2rem;">⚠️ Atenção</h1>
-      <p style="font-size: 1.2rem; max-width: 500px; text-align: center;">
-        Ferramentas de desenvolvedor detectadas.<br>
-        Se você não é um desenvolvedor autorizado,<br>
-        feche esta janela imediatamente.
-      </p>
-      <button onclick="document.getElementById('security-warning').remove()" style="
-        margin-top: 20px;
-        padding: 10px 30px;
-        background: #3b82f6;
-        border: none;
-        border-radius: 5px;
-        color: white;
-        cursor: pointer;
-        font-size: 1rem;
-      ">Entendi</button>
-    </div>
+  
+  const overlay = document.createElement('div')
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: white;
+    font-family: system-ui, sans-serif;
   `
+  
+  const title = document.createElement('h1')
+  title.style.cssText = 'color: #ef4444; font-size: 2rem;'
+  title.textContent = '⚠️ Atenção'
+  
+  const message = document.createElement('p')
+  message.style.cssText = 'font-size: 1.2rem; max-width: 500px; text-align: center;'
+  message.innerHTML = 'Ferramentas de desenvolvedor detectadas.<br>Se você não é um desenvolvedor autorizado,<br>feche esta janela imediatamente.'
+  
+  const button = document.createElement('button')
+  button.style.cssText = `
+    margin-top: 20px;
+    padding: 10px 30px;
+    background: #3b82f6;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+  `
+  button.textContent = 'Entendi'
+  button.addEventListener('click', () => {
+    warning.remove()
+  })
+  
+  overlay.appendChild(title)
+  overlay.appendChild(message)
+  overlay.appendChild(button)
+  warning.appendChild(overlay)
   document.body.appendChild(warning)
 }
