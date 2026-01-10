@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MessageSquare, TrendingUp, Users, Clock } from 'lucide-react'
+import { MessageSquare, TrendingUp, Clock } from 'lucide-react'
 import { DashboardConversas, getDashboardConversas, getMetricasPorHora, MetricaPorHora } from '@/lib/supabase-views'
 import { Skeleton } from '@/components/ui/skeleton'
 
