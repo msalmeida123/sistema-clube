@@ -34,3 +34,6 @@ coverage/
 # Cache
 .cache/
 *.tsbuildinfo
+
+# Docker (contém chaves sensíveis)
+docker-compose.yml
