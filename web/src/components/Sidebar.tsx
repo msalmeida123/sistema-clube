@@ -20,10 +20,14 @@ import {
   UserCog,
   ChevronDown,
   ChevronRight,
-  Cog
+  Cog,
+  History
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+
+// Versão atual
+const VERSION = '1.5.0'
 
 // Itens principais do menu
 const menuItems = [
@@ -232,7 +236,19 @@ export default function Sidebar({ userRole = 'admin' }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-800">
+      {/* Footer com versão e logout */}
+      <div className="p-4 border-t border-gray-800 space-y-2">
+        <Link
+          href="/dashboard/versao"
+          className={`flex items-center gap-3 px-4 py-2 rounded-lg transition text-sm ${
+            pathname === '/dashboard/versao'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+          }`}
+        >
+          <History size={18} />
+          <span>Versão {VERSION}</span>
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 w-full text-gray-300 hover:bg-gray-800 rounded-lg transition"
