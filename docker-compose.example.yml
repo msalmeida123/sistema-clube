@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  sistema-clube:
+    image: ghcr.io/msalmeida123/sistema-clube:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.sistema-clube.rule=Host(`clube.seudominio.com.br`)"
+        - "traefik.http.routers.sistema-clube.entrypoints=websecure"
+        - "traefik.http.routers.sistema-clube.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
+        - "traefik.docker.network=network_swarm_public"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key-aqui
+      - SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-aqui
+      - WASENDER_WEBHOOK_SECRET=seu-webhook-secret-aqui
+    networks:
+      - network_swarm_public
+
+  app-associado:
+    image: ghcr.io/msalmeida123/clube-associado:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.app-associado.rule=Host(`app.seudominio.com.br`)"
+        - "traefik.http.routers.app-associado.entrypoints=websecure"
+        - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
+        - "traefik.docker.network=network_swarm_public"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key-aqui
+    networks:
+      - network_swarm_public
+
+networks:
+  network_swarm_public:
+    external: true
