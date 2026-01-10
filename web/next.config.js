@@ -44,9 +44,9 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js precisa
               "style-src 'self' 'unsafe-inline'", // Para CSS inline
-              "img-src 'self' data: blob: https://*.supabase.co",
+              "img-src 'self' data: blob: https://*.supabase.co https://pps.whatsapp.net https://*.whatsapp.net",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.wasenderapi.com https://api.openai.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.wasenderapi.com https://www.wasenderapi.com https://api.openai.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
@@ -72,7 +72,15 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'gkwwmigflhyntdwyqpip.supabase.co', // Apenas seu projeto
+        hostname: 'gkwwmigflhyntdwyqpip.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pps.whatsapp.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.whatsapp.net',
       },
     ],
   },
