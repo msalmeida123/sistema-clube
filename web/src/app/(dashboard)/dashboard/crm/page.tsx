@@ -5,13 +5,14 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   Send, Search, Phone, User, MessageSquare, Plus, RefreshCw, 
   Check, CheckCheck, Clock, Download, Image, Paperclip, Mic, 
-  X, FileText, Video, Loader2, FileType, Settings, Bot
+  X, FileText, Video, Loader2, FileType, Settings, Bot,
+  ArrowRightLeft, Inbox, ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -24,6 +25,8 @@ type Conversa = {
   status: string
   associado_id: string | null
   nao_lidas: number
+  setor_id: string | null
+  foto_perfil_url: string | null
 }
 
 type Mensagem = {
@@ -45,6 +48,26 @@ type Template = {
   variaveis: string[] | null
   ativo: boolean
   uso_count: number
+}
+
+type Setor = {
+  id: string
+  nome: string
+  descricao: string | null
+  cor: string
+  icone: string
+  ativo: boolean
+  ordem: number
+}
+
+// Mapeamento de ícones para os setores
+const iconesSetor: Record<string, React.ReactNode> = {
+  'inbox': <Inbox className="h-4 w-4" />,
+  'shopping-cart': <ShoppingCart className="h-4 w-4" />,
+  'life-buoy': <LifeBuoy className="h-4 w-4" />,
+  'dollar-sign': <DollarSign className="h-4 w-4" />,
+  'briefcase': <Briefcase className="h-4 w-4" />,
+  'folder': <Folder className="h-4 w-4" />,
 }
 
 export default function CRMPage() {
@@ -75,10 +98,26 @@ export default function CRMPage() {
   const [showGerenciarTemplates, setShowGerenciarTemplates] = useState(false)
   const [templateEditando, setTemplateEditando] = useState<Template | null>(null)
   const [novoTemplate, setNovoTemplate] = useState({ titulo: '', categoria: '', conteudo: '' })
+
+  // Estados para setores/transferência
+  const [setores, setSetores] = useState<Setor[]>([])
+  const [showTransferir, setShowTransferir] = useState(false)
+  const [loadingTransferencia, setLoadingTransferencia] = useState(false)
+  const [filtroSetor, setFiltroSetor] = useState<string | null>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClientComponentClient()
+
+  // Carregar setores
+  const carregarSetores = useCallback(async () => {
+    const { data } = await supabase
+      .from('setores_whatsapp')
+      .select('*')
+      .eq('ativo', true)
+      .order('ordem', { ascending: true })
+    setSetores(data || [])
+  }, [supabase])
 
   // Carregar conversas
   const carregarConversas = useCallback(async () => {
@@ -91,16 +130,21 @@ export default function CRMPage() {
     if (busca) {
       query = query.or(`nome_contato.ilike.%${busca}%,telefone.ilike.%${busca}%`)
     }
+
+    if (filtroSetor) {
+      query = query.eq('setor_id', filtroSetor)
+    }
     
     const { data } = await query
     setConversas(data || [])
     setLoadingConversas(false)
-  }, [busca, supabase])
+  }, [busca, filtroSetor, supabase])
 
   // Efeito inicial + Realtime para conversas
   useEffect(() => {
     carregarConversas()
     carregarTemplates()
+    carregarSetores()
 
     // Realtime para atualizações de conversas (novas mensagens, etc)
     const channel = supabase
@@ -122,7 +166,7 @@ export default function CRMPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [busca, supabase, carregarConversas])
+  }, [busca, filtroSetor, supabase, carregarConversas, carregarSetores])
 
   // Carregar templates
   const carregarTemplates = async () => {
@@ -132,6 +176,46 @@ export default function CRMPage() {
       .eq('ativo', true)
       .order('uso_count', { ascending: false })
     setTemplates(data || [])
+  }
+
+  // Transferir conversa para setor
+  const transferirConversa = async (setorId: string) => {
+    if (!conversaAtiva) return
+
+    setLoadingTransferencia(true)
+    try {
+      const response = await fetch('/api/wasender/transferir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversa_id: conversaAtiva.id,
+          setor_id: setorId
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao transferir')
+      }
+
+      // Atualizar conversa ativa com novo setor
+      setConversaAtiva(prev => prev ? { ...prev, setor_id: setorId } : null)
+      
+      toast.success(result.message)
+      setShowTransferir(false)
+      carregarConversas()
+    } catch (error: any) {
+      toast.error('Erro: ' + error.message)
+    } finally {
+      setLoadingTransferencia(false)
+    }
+  }
+
+  // Obter setor da conversa
+  const getSetorConversa = (setorId: string | null) => {
+    if (!setorId) return null
+    return setores.find(s => s.id === setorId)
   }
 
   // Usar template
@@ -506,7 +590,6 @@ export default function CRMPage() {
     setUploadingMedia(true)
     try {
       // Primeiro fazer upload do arquivo
-      const fileInput = document.createElement('input')
       const response = await fetch(mediaPreview.url)
       const blob = await response.blob()
       
@@ -690,6 +773,34 @@ export default function CRMPage() {
               className="pl-9"
             />
           </div>
+          
+          {/* Filtro por Setor */}
+          <div className="flex flex-wrap gap-1">
+            <Button
+              variant={filtroSetor === null ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFiltroSetor(null)}
+              className="text-xs h-7"
+            >
+              Todos
+            </Button>
+            {setores.map((setor) => (
+              <Button
+                key={setor.id}
+                variant={filtroSetor === setor.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFiltroSetor(setor.id)}
+                className="text-xs h-7"
+                style={{ 
+                  backgroundColor: filtroSetor === setor.id ? setor.cor : undefined,
+                  borderColor: setor.cor
+                }}
+              >
+                {iconesSetor[setor.icone] || <Folder className="h-3 w-3" />}
+                <span className="ml-1">{setor.nome}</span>
+              </Button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -702,45 +813,61 @@ export default function CRMPage() {
               <p>Nenhuma conversa</p>
             </div>
           ) : (
-            conversas.map((conversa) => (
-              <div
-                key={conversa.id}
-                onClick={() => setConversaAtiva(conversa)}
-                className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                  conversaAtiva?.id === conversa.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className="bg-green-100 text-green-700">
-                      {conversa.nome_contato?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium truncate">
-                        {conversa.nome_contato || conversa.telefone}
-                      </p>
-                      {conversa.ultimo_contato && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatarData(conversa.ultimo_contato)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conversa.ultima_mensagem || 'Sem mensagens'}
-                      </p>
-                      {conversa.nao_lidas > 0 && (
-                        <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                          {conversa.nao_lidas}
+            conversas.map((conversa) => {
+              const setorConversa = getSetorConversa(conversa.setor_id)
+              return (
+                <div
+                  key={conversa.id}
+                  onClick={() => setConversaAtiva(conversa)}
+                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                    conversaAtiva?.id === conversa.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      {conversa.foto_perfil_url ? (
+                        <AvatarImage src={conversa.foto_perfil_url} alt={conversa.nome_contato || 'Contato'} />
+                      ) : null}
+                      <AvatarFallback className="bg-green-100 text-green-700">
+                        {conversa.nome_contato?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium truncate">
+                          {conversa.nome_contato || conversa.telefone}
+                        </p>
+                        {conversa.ultimo_contato && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatarData(conversa.ultimo_contato)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground truncate">
+                          {conversa.ultima_mensagem || 'Sem mensagens'}
+                        </p>
+                        {conversa.nao_lidas > 0 && (
+                          <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {conversa.nao_lidas}
+                          </span>
+                        )}
+                      </div>
+                      {/* Badge do setor */}
+                      {setorConversa && (
+                        <span 
+                          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1"
+                          style={{ backgroundColor: setorConversa.cor + '20', color: setorConversa.cor }}
+                        >
+                          {iconesSetor[setorConversa.icone]}
+                          {setorConversa.nome}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </Card>
@@ -753,17 +880,87 @@ export default function CRMPage() {
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
+                  {conversaAtiva.foto_perfil_url ? (
+                    <AvatarImage src={conversaAtiva.foto_perfil_url} alt={conversaAtiva.nome_contato || 'Contato'} />
+                  ) : null}
                   <AvatarFallback className="bg-green-100 text-green-700">
                     {conversaAtiva.nome_contato?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-medium">{conversaAtiva.nome_contato || conversaAtiva.telefone}</p>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {conversaAtiva.telefone}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {conversaAtiva.telefone}
+                    </p>
+                    {/* Setor atual */}
+                    {getSetorConversa(conversaAtiva.setor_id) && (
+                      <span 
+                        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                        style={{ 
+                          backgroundColor: getSetorConversa(conversaAtiva.setor_id)!.cor + '20', 
+                          color: getSetorConversa(conversaAtiva.setor_id)!.cor 
+                        }}
+                      >
+                        {iconesSetor[getSetorConversa(conversaAtiva.setor_id)!.icone]}
+                        {getSetorConversa(conversaAtiva.setor_id)!.nome}
+                      </span>
+                    )}
+                  </div>
                 </div>
+              </div>
+              
+              {/* Botão Transferir */}
+              <div className="relative">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowTransferir(!showTransferir)}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Transferir
+                </Button>
+                
+                {/* Menu de Transferência */}
+                {showTransferir && (
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border p-2 min-w-[220px] z-50">
+                    <p className="text-sm font-medium px-3 py-2 border-b mb-2">Transferir para:</p>
+                    {loadingTransferencia ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
+                    ) : (
+                      setores.map((setor) => (
+                        <button
+                          key={setor.id}
+                          onClick={() => transferirConversa(setor.id)}
+                          disabled={conversaAtiva.setor_id === setor.id}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-gray-100 transition-colors ${
+                            conversaAtiva.setor_id === setor.id ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+                          }`}
+                        >
+                          <span 
+                            className="w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: setor.cor + '20', color: setor.cor }}
+                          >
+                            {iconesSetor[setor.icone] || <Folder className="h-4 w-4" />}
+                          </span>
+                          <div className="text-left">
+                            <p className="font-medium">{setor.nome}</p>
+                            {setor.descricao && (
+                              <p className="text-xs text-muted-foreground">{setor.descricao}</p>
+                            )}
+                          </div>
+                          {conversaAtiva.setor_id === setor.id && (
+                            <Check className="h-4 w-4 ml-auto text-green-500" />
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
