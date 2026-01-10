@@ -22,6 +22,52 @@ function getSupabase() {
 // FUNÇÕES DE SEGURANÇA
 // ==========================================
 
+// Verificar autenticação do webhook
+// O WaSender envia o sessionId que deve corresponder à api_key configurada
+async function verificarAutenticacao(body: any): Promise<{ valido: boolean; metodo: string }> {
+  try {
+    // Buscar api_key configurada no banco
+    const { data: config } = await getSupabase()
+      .from('config_wasender')
+      .select('api_key')
+      .single()
+
+    if (!config?.api_key) {
+      console.warn('⚠️ Nenhuma api_key configurada no banco - aceitando webhook')
+      return { valido: true, metodo: 'sem_config' }
+    }
+
+    // Verificar sessionId em vários lugares possíveis do payload
+    const sessionId = body.sessionId || 
+                      body.session_id || 
+                      body.apiKey || 
+                      body.api_key ||
+                      body.data?.sessionId ||
+                      body.data?.session_id
+
+    if (sessionId && sessionId === config.api_key) {
+      return { valido: true, metodo: 'session_id' }
+    }
+
+    // Verificar se o deviceId corresponde ao configurado
+    const { data: configFull } = await getSupabase()
+      .from('config_wasender')
+      .select('device_id')
+      .single()
+    
+    const deviceId = body.deviceId || body.device_id || body.data?.deviceId || body.data?.device_id
+    if (deviceId && configFull?.device_id && String(deviceId) === String(configFull.device_id)) {
+      return { valido: true, metodo: 'device_id' }
+    }
+
+    // Se não encontrou credenciais válidas
+    return { valido: false, metodo: 'nenhum' }
+  } catch (error) {
+    console.error('Erro ao verificar autenticação:', error)
+    return { valido: false, metodo: 'erro' }
+  }
+}
+
 // Rate limiting por IP
 function verificarRateLimit(ip: string): boolean {
   const now = Date.now()
@@ -38,22 +84,6 @@ function verificarRateLimit(ip: string): boolean {
 
   record.count++
   return true
-}
-
-// Validar origem da requisição
-function validarOrigem(): { valido: boolean; motivo?: string } {
-  const headersList = headers()
-  
-  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-             headersList.get('x-real-ip') ||
-             'unknown'
-
-  // Rate limiting
-  if (!verificarRateLimit(ip)) {
-    return { valido: false, motivo: 'Rate limit excedido' }
-  }
-
-  return { valido: true }
 }
 
 // Sanitizar entrada para prevenir injection
@@ -477,6 +507,11 @@ interface WebhookBody {
   status?: string
   fromMe?: boolean
   sessionId?: string
+  session_id?: string
+  apiKey?: string
+  api_key?: string
+  deviceId?: string | number
+  device_id?: string | number
   data?: {
     messages?: {
       key?: {
@@ -519,6 +554,10 @@ interface WebhookBody {
     isSelf?: boolean
     direction?: string
     outgoing?: boolean
+    sessionId?: string
+    session_id?: string
+    deviceId?: string | number
+    device_id?: string | number
   }
   isFromMe?: boolean
   self?: boolean | string
@@ -659,12 +698,10 @@ export async function POST(request: Request) {
              'unknown'
 
   try {
-    // Validar origem (rate limiting)
-    const validacao = validarOrigem()
-    if (!validacao.valido) {
-      console.warn(`Requisição bloqueada: ${validacao.motivo}`)
-      await salvarLogWebhook({ motivo: validacao.motivo }, 'bloqueado', ip)
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    // Rate limiting
+    if (!verificarRateLimit(ip)) {
+      console.warn(`Rate limit excedido para IP: ${ip}`)
+      return NextResponse.json({ error: 'Rate limit excedido' }, { status: 429 })
     }
 
     // Ler body
@@ -678,8 +715,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
     }
 
-    // Salvar log de todos os webhooks recebidos (para debug)
-    await salvarLogWebhook(body, 'webhook_recebido', ip)
+    // ==========================================
+    // SALVAR PAYLOAD ORIGINAL PARA DEBUG
+    // (sempre salvar antes de qualquer validação)
+    // ==========================================
+    await salvarLogWebhook({ 
+      _ip: ip,
+      _raw: body 
+    }, 'webhook_raw', ip)
+
+    // ==========================================
+    // VALIDAÇÃO DE SEGURANÇA
+    // Verifica sessionId ou deviceId do WaSender
+    // ==========================================
+    const auth = await verificarAutenticacao(body)
+    if (!auth.valido) {
+      console.warn(`❌ Autenticação falhou. IP: ${ip}, Método: ${auth.metodo}`)
+      await salvarLogWebhook({ 
+        motivo: 'Autenticação falhou',
+        ip,
+        metodo: auth.metodo,
+        payload_keys: Object.keys(body),
+        sessionId_recebido: body.sessionId || body.session_id || 'não enviado',
+        deviceId_recebido: body.deviceId || body.device_id || 'não enviado'
+      }, 'auth_falhou', ip)
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
+    // Salvar log de webhook autenticado
+    await salvarLogWebhook({ ...body, _auth_method: auth.metodo }, 'webhook_recebido', ip)
 
     // Verificar se é evento de mensagem
     if (!isEventoMensagem(body)) {
@@ -749,13 +813,10 @@ export async function POST(request: Request) {
 
     // ==========================================
     // VERIFICAÇÃO ADICIONAL: Duplicata recente (após saber o conversaId)
-    // Se existe uma mensagem de saída idêntica nos últimos 30 segundos,
-    // é provavelmente o webhook de confirmação da nossa própria mensagem
     // ==========================================
     const isDuplicata = await verificarDuplicataRecente(conversaId, mensagem)
     if (isDuplicata) {
       console.log(`🔄 Detectada duplicata de mensagem de saída, removendo mensagem de entrada duplicada`)
-      // Remover a mensagem de entrada que acabamos de criar (é duplicata)
       await getSupabase()
         .from('mensagens_whatsapp')
         .delete()
