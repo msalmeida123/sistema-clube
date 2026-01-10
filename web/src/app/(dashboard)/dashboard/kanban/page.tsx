@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -9,9 +9,9 @@ import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   MessageSquare, User, Phone, Clock, AlertCircle, CheckCircle2,
-  Filter, RefreshCw, Loader2, Building2, MoreVertical, Inbox,
+  Filter, RefreshCw, Loader2, MoreVertical, Inbox,
   ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder, PlayCircle,
-  PauseCircle, XCircle
+  PauseCircle, XCircle, GripVertical
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -41,19 +41,19 @@ type Conversa = {
 
 // Colunas do Kanban na ordem correta de um fluxo de atendimento
 const COLUNAS_KANBAN = [
-  { id: 'novo', nome: 'Novos', cor: 'bg-blue-500', icon: Inbox, descricao: 'Contatos novos aguardando primeiro atendimento' },
-  { id: 'em_atendimento', nome: 'Em Atendimento', cor: 'bg-purple-500', icon: PlayCircle, descricao: 'Conversas sendo atendidas atualmente' },
-  { id: 'aguardando_cliente', nome: 'Aguardando Cliente', cor: 'bg-yellow-500', icon: Clock, descricao: 'Aguardando resposta do cliente' },
-  { id: 'aguardando_interno', nome: 'Aguardando Interno', cor: 'bg-orange-500', icon: PauseCircle, descricao: 'Pendente de ação interna/aprovação' },
-  { id: 'resolvido', nome: 'Resolvido', cor: 'bg-green-500', icon: CheckCircle2, descricao: 'Atendimento concluído com sucesso' },
-  { id: 'cancelado', nome: 'Cancelado', cor: 'bg-gray-500', icon: XCircle, descricao: 'Atendimento cancelado ou sem resposta' },
+  { id: 'novo', nome: 'Novos', cor: 'bg-blue-500', icon: Inbox, descricao: 'Aguardando primeiro atendimento' },
+  { id: 'em_atendimento', nome: 'Em Atendimento', cor: 'bg-purple-500', icon: PlayCircle, descricao: 'Sendo atendido agora' },
+  { id: 'aguardando_cliente', nome: 'Aguardando Cliente', cor: 'bg-yellow-500', icon: Clock, descricao: 'Aguardando resposta' },
+  { id: 'aguardando_interno', nome: 'Aguardando Interno', cor: 'bg-orange-500', icon: PauseCircle, descricao: 'Pendente aprovação' },
+  { id: 'resolvido', nome: 'Resolvido', cor: 'bg-green-500', icon: CheckCircle2, descricao: 'Concluído com sucesso' },
+  { id: 'cancelado', nome: 'Cancelado', cor: 'bg-gray-500', icon: XCircle, descricao: 'Sem resposta/cancelado' },
 ]
 
 const PRIORIDADES = [
-  { id: 'baixa', nome: 'Baixa', cor: 'bg-gray-400', ordem: 4 },
-  { id: 'media', nome: 'Média', cor: 'bg-blue-400', ordem: 3 },
-  { id: 'alta', nome: 'Alta', cor: 'bg-orange-500', ordem: 2 },
-  { id: 'urgente', nome: 'Urgente', cor: 'bg-red-500', ordem: 1 },
+  { id: 'urgente', nome: 'Urgente', cor: 'bg-red-500', textCor: 'text-red-500', borderCor: 'border-red-500', ordem: 1 },
+  { id: 'alta', nome: 'Alta', cor: 'bg-orange-500', textCor: 'text-orange-500', borderCor: 'border-orange-500', ordem: 2 },
+  { id: 'media', nome: 'Média', cor: 'bg-blue-400', textCor: 'text-blue-400', borderCor: 'border-blue-400', ordem: 3 },
+  { id: 'baixa', nome: 'Baixa', cor: 'bg-gray-400', textCor: 'text-gray-400', borderCor: 'border-gray-400', ordem: 4 },
 ]
 
 // Mapeamento de ícones para os setores
@@ -72,9 +72,13 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true)
   const [setorFiltro, setSetorFiltro] = useState<string>('todos')
   const [prioridadeFiltro, setPrioridadeFiltro] = useState<string>('todas')
-  const [dragging, setDragging] = useState<string | null>(null)
   const [showFiltros, setShowFiltros] = useState(false)
   const [menuAberto, setMenuAberto] = useState<string | null>(null)
+  
+  // Estado do drag and drop
+  const [draggedItem, setDraggedItem] = useState<Conversa | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   
   const supabase = createClientComponentClient()
 
@@ -95,7 +99,6 @@ export default function KanbanPage() {
     let query = supabase
       .from('conversas_whatsapp')
       .select('*')
-      .order('ordem_kanban', { ascending: true })
 
     if (setorFiltro !== 'todos') {
       if (setorFiltro === 'sem_setor') {
@@ -114,6 +117,9 @@ export default function KanbanPage() {
     // Mapear setores às conversas
     const conversasComSetor = (conversasData || []).map(c => ({
       ...c,
+      status_kanban: c.status_kanban || 'novo',
+      prioridade: c.prioridade || 'media',
+      ordem_kanban: c.ordem_kanban || 0,
       setor: setoresData?.find(s => s.id === c.setor_id) || null
     }))
 
@@ -141,16 +147,22 @@ export default function KanbanPage() {
     }
   }, [carregarDados, supabase])
 
-  // Mover conversa para outra coluna com ordem
-  const moverConversa = async (conversaId: string, novoStatus: string, novaOrdem?: number) => {
-    // Calcular nova ordem se não fornecida (vai para o topo)
-    if (novaOrdem === undefined) {
-      const conversasColuna = conversas.filter(c => (c.status_kanban || 'novo') === novoStatus)
-      novaOrdem = conversasColuna.length > 0 
-        ? Math.min(...conversasColuna.map(c => c.ordem_kanban)) - 1 
-        : 0
-    }
+  // Obter conversas ordenadas de uma coluna
+  const getConversasColuna = useCallback((statusKanban: string) => {
+    return conversas
+      .filter(c => c.status_kanban === statusKanban)
+      .sort((a, b) => {
+        // Primeiro por prioridade (urgente primeiro)
+        const prioA = PRIORIDADES.find(p => p.id === a.prioridade)?.ordem || 3
+        const prioB = PRIORIDADES.find(p => p.id === b.prioridade)?.ordem || 3
+        if (prioA !== prioB) return prioA - prioB
+        // Depois por ordem manual
+        return (a.ordem_kanban || 0) - (b.ordem_kanban || 0)
+      })
+  }, [conversas])
 
+  // Atualizar ordem das conversas no banco
+  const atualizarOrdem = async (conversaId: string, novoStatus: string, novaOrdem: number) => {
     const { error } = await supabase
       .from('conversas_whatsapp')
       .update({ 
@@ -161,30 +173,125 @@ export default function KanbanPage() {
 
     if (error) {
       toast.error('Erro ao mover conversa')
-      return
+      console.error(error)
+      return false
     }
-
-    // Atualizar estado local imediatamente
-    setConversas(prev => prev.map(c => 
-      c.id === conversaId ? { ...c, status_kanban: novoStatus, ordem_kanban: novaOrdem! } : c
-    ))
+    return true
   }
 
-  // Reordenar dentro da mesma coluna
-  const reordenarConversa = async (conversaId: string, novaOrdem: number) => {
-    const { error } = await supabase
-      .from('conversas_whatsapp')
-      .update({ ordem_kanban: novaOrdem })
-      .eq('id', conversaId)
+  // Reordenar múltiplas conversas
+  const reordenarConversas = async (conversasParaAtualizar: { id: string, ordem_kanban: number }[]) => {
+    for (const conv of conversasParaAtualizar) {
+      await supabase
+        .from('conversas_whatsapp')
+        .update({ ordem_kanban: conv.ordem_kanban })
+        .eq('id', conv.id)
+    }
+  }
 
-    if (error) {
-      toast.error('Erro ao reordenar')
-      return
+  // Drag Start
+  const handleDragStart = (e: React.DragEvent, conversa: Conversa) => {
+    setDraggedItem(conversa)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', conversa.id)
+    
+    // Adicionar classe visual
+    const target = e.target as HTMLElement
+    setTimeout(() => {
+      target.style.opacity = '0.5'
+    }, 0)
+  }
+
+  // Drag End
+  const handleDragEnd = (e: React.DragEvent) => {
+    const target = e.target as HTMLElement
+    target.style.opacity = '1'
+    setDraggedItem(null)
+    setDragOverColumn(null)
+    setDragOverIndex(null)
+  }
+
+  // Drag Over na coluna
+  const handleDragOverColumn = (e: React.DragEvent, colunaId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverColumn(colunaId)
+  }
+
+  // Drag Over em um card específico (para inserir antes/depois)
+  const handleDragOverCard = (e: React.DragEvent, colunaId: string, index: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const insertIndex = e.clientY < midY ? index : index + 1
+    
+    setDragOverColumn(colunaId)
+    setDragOverIndex(insertIndex)
+  }
+
+  // Drop
+  const handleDrop = async (e: React.DragEvent, colunaId: string, dropIndex?: number) => {
+    e.preventDefault()
+    
+    if (!draggedItem) return
+
+    const conversasDestino = getConversasColuna(colunaId)
+    const indexDestino = dropIndex !== undefined ? dropIndex : conversasDestino.length
+
+    // Se está movendo para a mesma coluna
+    if (draggedItem.status_kanban === colunaId) {
+      const indexOrigem = conversasDestino.findIndex(c => c.id === draggedItem.id)
+      if (indexOrigem === indexDestino || indexOrigem === indexDestino - 1) {
+        // Não mudou de posição
+        setDraggedItem(null)
+        setDragOverColumn(null)
+        setDragOverIndex(null)
+        return
+      }
+
+      // Reordenar dentro da coluna
+      const novaLista = [...conversasDestino]
+      novaLista.splice(indexOrigem, 1)
+      const finalIndex = indexOrigem < indexDestino ? indexDestino - 1 : indexDestino
+      novaLista.splice(finalIndex, 0, draggedItem)
+
+      // Atualizar ordem de todas as conversas da coluna
+      const atualizacoes = novaLista.map((c, i) => ({ id: c.id, ordem_kanban: i * 10 }))
+      
+      // Atualizar estado local imediatamente
+      setConversas(prev => {
+        const outras = prev.filter(c => c.status_kanban !== colunaId)
+        const atualizadas = novaLista.map((c, i) => ({ ...c, ordem_kanban: i * 10 }))
+        return [...outras, ...atualizadas]
+      })
+
+      // Persistir no banco
+      await reordenarConversas(atualizacoes)
+      
+    } else {
+      // Movendo para outra coluna
+      const novaOrdem = indexDestino * 10
+
+      // Atualizar estado local imediatamente
+      setConversas(prev => prev.map(c => 
+        c.id === draggedItem.id 
+          ? { ...c, status_kanban: colunaId, ordem_kanban: novaOrdem }
+          : c
+      ))
+
+      // Persistir no banco
+      const sucesso = await atualizarOrdem(draggedItem.id, colunaId, novaOrdem)
+      
+      if (sucesso) {
+        toast.success(`Movido para ${COLUNAS_KANBAN.find(c => c.id === colunaId)?.nome}`)
+      }
     }
 
-    setConversas(prev => prev.map(c => 
-      c.id === conversaId ? { ...c, ordem_kanban: novaOrdem } : c
-    ))
+    setDraggedItem(null)
+    setDragOverColumn(null)
+    setDragOverIndex(null)
   }
 
   // Alterar prioridade
@@ -218,34 +325,37 @@ export default function KanbanPage() {
       return
     }
 
-    carregarDados()
+    const setor = setores.find(s => s.id === setorId)
+    setConversas(prev => prev.map(c => 
+      c.id === conversaId ? { ...c, setor_id: setorId, setor: setor || undefined } : c
+    ))
     setMenuAberto(null)
     toast.success('Setor atribuído!')
   }
 
-  // Drag and Drop
-  const handleDragStart = (e: React.DragEvent, conversaId: string) => {
-    setDragging(conversaId)
-    e.dataTransfer.setData('conversaId', conversaId)
-    e.dataTransfer.effectAllowed = 'move'
-  }
+  // Mover via menu
+  const moverParaColuna = async (conversaId: string, colunaId: string) => {
+    const conversasDestino = getConversasColuna(colunaId)
+    const novaOrdem = conversasDestino.length * 10
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
+    const { error } = await supabase
+      .from('conversas_whatsapp')
+      .update({ 
+        status_kanban: colunaId,
+        ordem_kanban: novaOrdem 
+      })
+      .eq('id', conversaId)
 
-  const handleDrop = (e: React.DragEvent, statusKanban: string) => {
-    e.preventDefault()
-    const conversaId = e.dataTransfer.getData('conversaId')
-    if (conversaId) {
-      moverConversa(conversaId, statusKanban)
+    if (error) {
+      toast.error('Erro ao mover')
+      return
     }
-    setDragging(null)
-  }
 
-  const handleDragEnd = () => {
-    setDragging(null)
+    setConversas(prev => prev.map(c => 
+      c.id === conversaId ? { ...c, status_kanban: colunaId, ordem_kanban: novaOrdem } : c
+    ))
+    setMenuAberto(null)
+    toast.success(`Movido para ${COLUNAS_KANBAN.find(c => c.id === colunaId)?.nome}`)
   }
 
   // Formatar data
@@ -264,36 +374,10 @@ export default function KanbanPage() {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
   }
 
-  // Obter cor da prioridade
-  const getCorPrioridade = (prioridade: string) => {
-    return PRIORIDADES.find(p => p.id === prioridade)?.cor || 'bg-gray-400'
+  // Obter info da prioridade
+  const getPrioridade = (prioridadeId: string) => {
+    return PRIORIDADES.find(p => p.id === prioridadeId) || PRIORIDADES[2]
   }
-
-  // Filtrar e ordenar conversas por coluna
-  const getConversasColuna = (statusKanban: string) => {
-    return conversas
-      .filter(c => (c.status_kanban || 'novo') === statusKanban)
-      .sort((a, b) => {
-        // Primeiro por prioridade (urgente primeiro)
-        const prioA = PRIORIDADES.find(p => p.id === a.prioridade)?.ordem || 3
-        const prioB = PRIORIDADES.find(p => p.id === b.prioridade)?.ordem || 3
-        if (prioA !== prioB) return prioA - prioB
-        
-        // Depois por ordem do kanban
-        return a.ordem_kanban - b.ordem_kanban
-      })
-  }
-
-  // Contagem total por status
-  const getContagem = () => {
-    const contagem: Record<string, number> = {}
-    COLUNAS_KANBAN.forEach(col => {
-      contagem[col.id] = conversas.filter(c => (c.status_kanban || 'novo') === col.id).length
-    })
-    return contagem
-  }
-
-  const contagem = getContagem()
 
   return (
     <PaginaProtegida codigoPagina="kanban">
@@ -303,8 +387,7 @@ export default function KanbanPage() {
         <div>
           <h1 className="text-2xl font-bold">Kanban de Atendimento</h1>
           <p className="text-muted-foreground">
-            Arraste os cards entre as colunas para atualizar o status • 
-            <span className="ml-2 font-medium">{conversas.length} conversas</span>
+            Arraste os cards para gerenciar o fluxo • {conversas.length} conversas
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -322,7 +405,7 @@ export default function KanbanPage() {
             Atualizar
           </Button>
           <Link href="/dashboard/crm">
-            <Button variant="outline">
+            <Button>
               <MessageSquare className="h-4 w-4 mr-2" />
               CRM
             </Button>
@@ -374,25 +457,6 @@ export default function KanbanPage() {
         </Card>
       )}
 
-      {/* Resumo das Colunas */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {COLUNAS_KANBAN.map((coluna) => {
-          const Icon = coluna.icon
-          return (
-            <div
-              key={coluna.id}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm ${coluna.cor}`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{coluna.nome}</span>
-              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">
-                {contagem[coluna.id] || 0}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
       {/* Kanban Board */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -403,14 +467,16 @@ export default function KanbanPage() {
           {COLUNAS_KANBAN.map((coluna) => {
             const conversasColuna = getConversasColuna(coluna.id)
             const Icon = coluna.icon
+            const isDropTarget = dragOverColumn === coluna.id
 
             return (
               <div
                 key={coluna.id}
-                className={`flex-shrink-0 w-72 flex flex-col rounded-lg border-2 transition-colors ${
-                  dragging ? 'border-dashed border-gray-300' : 'border-transparent'
+                className={`flex-shrink-0 w-72 flex flex-col rounded-lg transition-all ${
+                  isDropTarget ? 'ring-2 ring-blue-400 ring-offset-2' : ''
                 }`}
-                onDragOver={handleDragOver}
+                onDragOver={(e) => handleDragOverColumn(e, coluna.id)}
+                onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => handleDrop(e, coluna.id)}
               >
                 {/* Header da Coluna */}
@@ -428,182 +494,196 @@ export default function KanbanPage() {
                 </div>
 
                 {/* Cards */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50 rounded-b-lg min-h-[200px]">
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-100 rounded-b-lg min-h-[200px]">
                   {conversasColuna.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
+                    <div className={`text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg ${
+                      isDropTarget ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                    }`}>
                       <Icon className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       <p>Nenhuma conversa</p>
                       <p className="text-xs">Arraste para cá</p>
                     </div>
                   ) : (
-                    conversasColuna.map((conversa, index) => (
-                      <Card
-                        key={conversa.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, conversa.id)}
-                        onDragEnd={handleDragEnd}
-                        className={`p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all border-l-4 ${
-                          dragging === conversa.id ? 'opacity-50 scale-95' : ''
-                        }`}
-                        style={{ borderLeftColor: getCorPrioridade(conversa.prioridade || 'media').replace('bg-', '#') === 'bg-gray-400' ? '#9ca3af' : 
-                          conversa.prioridade === 'urgente' ? '#ef4444' : 
-                          conversa.prioridade === 'alta' ? '#f97316' : 
-                          conversa.prioridade === 'media' ? '#3b82f6' : '#9ca3af'
-                        }}
-                      >
-                        {/* Header do Card */}
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              {conversa.foto_perfil_url ? (
-                                <AvatarImage src={conversa.foto_perfil_url} />
-                              ) : null}
-                              <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                                {conversa.nome_contato?.charAt(0).toUpperCase() || <User className="h-3 w-3" />}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm truncate">
-                                {conversa.nome_contato || conversa.telefone}
-                              </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {conversa.telefone}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="relative">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setMenuAberto(menuAberto === conversa.id ? null : conversa.id)
-                              }}
-                            >
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                            
-                            {/* Menu Dropdown */}
-                            {menuAberto === conversa.id && (
-                              <div className="absolute right-0 top-6 bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
-                                <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
-                                  Prioridade
+                    conversasColuna.map((conversa, index) => {
+                      const prioridade = getPrioridade(conversa.prioridade)
+                      const isBeingDragged = draggedItem?.id === conversa.id
+                      const showDropIndicator = dragOverColumn === coluna.id && dragOverIndex === index
+
+                      return (
+                        <div key={conversa.id}>
+                          {/* Indicador de drop antes do card */}
+                          {showDropIndicator && (
+                            <div className="h-1 bg-blue-400 rounded-full mb-2 animate-pulse" />
+                          )}
+                          
+                          <Card
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, conversa)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => handleDragOverCard(e, coluna.id, index)}
+                            className={`p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-all border-l-4 ${prioridade.borderCor} ${
+                              isBeingDragged ? 'opacity-50 scale-95' : ''
+                            }`}
+                          >
+                            {/* Header do Card */}
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <GripVertical className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                <Avatar className="h-8 w-8 flex-shrink-0">
+                                  {conversa.foto_perfil_url && (
+                                    <AvatarImage src={conversa.foto_perfil_url} />
+                                  )}
+                                  <AvatarFallback className="bg-green-100 text-green-700 text-xs">
+                                    {conversa.nome_contato?.charAt(0).toUpperCase() || <User className="h-3 w-3" />}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm truncate">
+                                    {conversa.nome_contato || conversa.telefone}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {conversa.telefone}
+                                  </p>
                                 </div>
-                                {PRIORIDADES.map((p) => (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => alterarPrioridade(conversa.id, p.id)}
-                                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                                      conversa.prioridade === p.id ? 'bg-gray-50' : ''
-                                    }`}
-                                  >
-                                    <div className={`w-2 h-2 rounded-full ${p.cor}`} />
-                                    {p.nome}
-                                    {conversa.prioridade === p.id && <span className="ml-auto">✓</span>}
-                                  </button>
-                                ))}
-                                <div className="border-t my-1" />
-                                <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                                  Setor
-                                </div>
-                                <button
-                                  onClick={() => atribuirSetor(conversa.id, null)}
-                                  className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 ${
-                                    !conversa.setor_id ? 'bg-gray-50' : ''
-                                  }`}
-                                >
-                                  Sem setor
-                                </button>
-                                {setores.map((s) => (
-                                  <button
-                                    key={s.id}
-                                    onClick={() => atribuirSetor(conversa.id, s.id)}
-                                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                                      conversa.setor_id === s.id ? 'bg-gray-50' : ''
-                                    }`}
-                                  >
-                                    <span style={{ color: s.cor }}>{iconesSetor[s.icone]}</span>
-                                    {s.nome}
-                                    {conversa.setor_id === s.id && <span className="ml-auto">✓</span>}
-                                  </button>
-                                ))}
-                                <div className="border-t my-1" />
-                                <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                                  Mover para
-                                </div>
-                                {COLUNAS_KANBAN.filter(c => c.id !== (conversa.status_kanban || 'novo')).map((col) => {
-                                  const ColIcon = col.icon
-                                  return (
-                                    <button
-                                      key={col.id}
-                                      onClick={() => {
-                                        moverConversa(conversa.id, col.id)
-                                        setMenuAberto(null)
-                                      }}
-                                      className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <ColIcon className="h-3 w-3" />
-                                      {col.nome}
-                                    </button>
-                                  )
-                                })}
-                                <div className="border-t my-1" />
-                                <Link href={`/dashboard/crm`}>
-                                  <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-blue-600">
-                                    <MessageSquare className="h-3 w-3" />
-                                    Abrir no CRM
-                                  </button>
-                                </Link>
                               </div>
-                            )}
-                          </div>
-                        </div>
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setMenuAberto(menuAberto === conversa.id ? null : conversa.id)
+                                  }}
+                                >
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                                
+                                {/* Menu Dropdown */}
+                                {menuAberto === conversa.id && (
+                                  <div className="absolute right-0 top-6 bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[200px]">
+                                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                                      Prioridade
+                                    </div>
+                                    {PRIORIDADES.map((p) => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => alterarPrioridade(conversa.id, p.id)}
+                                        className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                          conversa.prioridade === p.id ? 'bg-gray-50' : ''
+                                        }`}
+                                      >
+                                        <div className={`w-3 h-3 rounded-full ${p.cor}`} />
+                                        {p.nome}
+                                        {conversa.prioridade === p.id && <span className="ml-auto">✓</span>}
+                                      </button>
+                                    ))}
+                                    
+                                    <div className="border-t my-1" />
+                                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                                      Setor
+                                    </div>
+                                    <button
+                                      onClick={() => atribuirSetor(conversa.id, null)}
+                                      className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 ${
+                                        !conversa.setor_id ? 'bg-gray-50' : ''
+                                      }`}
+                                    >
+                                      Sem setor
+                                      {!conversa.setor_id && <span className="ml-auto">✓</span>}
+                                    </button>
+                                    {setores.map((s) => (
+                                      <button
+                                        key={s.id}
+                                        onClick={() => atribuirSetor(conversa.id, s.id)}
+                                        className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                          conversa.setor_id === s.id ? 'bg-gray-50' : ''
+                                        }`}
+                                      >
+                                        <span style={{ color: s.cor }}>{iconesSetor[s.icone]}</span>
+                                        {s.nome}
+                                        {conversa.setor_id === s.id && <span className="ml-auto">✓</span>}
+                                      </button>
+                                    ))}
+                                    
+                                    <div className="border-t my-1" />
+                                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                                      Mover para
+                                    </div>
+                                    {COLUNAS_KANBAN.filter(c => c.id !== conversa.status_kanban).map((col) => {
+                                      const ColIcon = col.icon
+                                      return (
+                                        <button
+                                          key={col.id}
+                                          onClick={() => moverParaColuna(conversa.id, col.id)}
+                                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                                        >
+                                          <ColIcon className="h-3 w-3" />
+                                          {col.nome}
+                                        </button>
+                                      )
+                                    })}
+                                    
+                                    <div className="border-t my-1" />
+                                    <Link href="/dashboard/crm">
+                                      <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-blue-600">
+                                        <MessageSquare className="h-3 w-3" />
+                                        Abrir no CRM
+                                      </button>
+                                    </Link>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Última mensagem */}
-                        {conversa.ultima_mensagem && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 bg-gray-50 p-2 rounded">
-                            {conversa.ultima_mensagem}
-                          </p>
-                        )}
+                            {/* Última mensagem */}
+                            {conversa.ultima_mensagem && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-2 bg-gray-50 p-2 rounded">
+                                {conversa.ultima_mensagem}
+                              </p>
+                            )}
 
-                        {/* Footer do Card */}
-                        <div className="flex items-center justify-between pt-2 border-t">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {/* Badge de prioridade */}
-                            <span 
-                              className={`text-xs px-1.5 py-0.5 rounded text-white ${getCorPrioridade(conversa.prioridade || 'media')}`}
-                            >
-                              {PRIORIDADES.find(p => p.id === conversa.prioridade)?.nome || 'Média'}
-                            </span>
-                            {/* Badge de setor */}
-                            {conversa.setor && (
-                              <span 
-                                className="text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
-                                style={{ 
-                                  backgroundColor: conversa.setor.cor + '20',
-                                  color: conversa.setor.cor 
-                                }}
-                              >
-                                {iconesSetor[conversa.setor.icone]}
-                                {conversa.setor.nome}
+                            {/* Footer do Card */}
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {/* Badge de prioridade */}
+                                <span className={`text-xs px-1.5 py-0.5 rounded text-white ${prioridade.cor}`}>
+                                  {prioridade.nome}
+                                </span>
+                                {/* Badge de setor */}
+                                {conversa.setor && (
+                                  <span 
+                                    className="text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
+                                    style={{ 
+                                      backgroundColor: conversa.setor.cor + '20',
+                                      color: conversa.setor.cor 
+                                    }}
+                                  >
+                                    {iconesSetor[conversa.setor.icone]}
+                                    {conversa.setor.nome}
+                                  </span>
+                                )}
+                                {/* Badge não lidas */}
+                                {conversa.nao_lidas > 0 && (
+                                  <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
+                                    {conversa.nao_lidas}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatarData(conversa.ultimo_contato)}
                               </span>
-                            )}
-                            {/* Badge não lidas */}
-                            {conversa.nao_lidas > 0 && (
-                              <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
-                                {conversa.nao_lidas}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatarData(conversa.ultimo_contato)}
-                          </span>
+                            </div>
+                          </Card>
                         </div>
-                      </Card>
-                    ))
+                      )
+                    })
+                  )}
+                  
+                  {/* Indicador de drop no final da coluna */}
+                  {dragOverColumn === coluna.id && dragOverIndex === conversasColuna.length && conversasColuna.length > 0 && (
+                    <div className="h-1 bg-blue-400 rounded-full animate-pulse" />
                   )}
                 </div>
               </div>
