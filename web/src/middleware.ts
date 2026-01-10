@@ -2,82 +2,82 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Rotas que NÃO precisam de autenticação do middleware
-// (podem ter sua própria autenticação interna)
-const rotasPublicas = [
+// Rotas públicas que não precisam de autenticação
+const publicRoutes = [
   '/login',
-  '/cadastro',
-  '/recuperar-senha',
-  '/api/wasender/webhook', // Webhook tem sua própria autenticação
-  '/api/wasender/sync-contacts', // Sync tem autenticação via API key
+  '/forgot-password',
+  '/reset-password',
+  '/api/webhooks',
+  '/api/whatsapp-webhook',
+  '/api/health',
+  '/verificar-acesso'
 ]
 
-// Rotas de API que precisam de autenticação
-const rotasApiProtegidas = [
-  '/api/openai',
-  '/api/upload',
-  '/api/usuarios',
+// Rotas de API que usam autenticação própria
+const apiRoutesWithOwnAuth = [
+  '/api/webhooks',
+  '/api/whatsapp-webhook'
 ]
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Criar response para poder modificar cookies
+export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
+  const pathname = req.nextUrl.pathname
 
-  // Criar cliente Supabase
-  const supabase = createMiddlewareClient({ req: request, res })
+  // Headers de segurança
+  res.headers.set('X-Content-Type-Options', 'nosniff')
+  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('X-XSS-Protection', '1; mode=block')
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 
-  // Verificar sessão
-  const { data: { session } } = await supabase.auth.getSession()
-
-  // Se é rota pública, permitir acesso
-  if (rotasPublicas.some(rota => pathname.startsWith(rota))) {
+  // Permite rotas de API com autenticação própria
+  if (apiRoutesWithOwnAuth.some(route => pathname.startsWith(route))) {
     return res
   }
 
-  // Se é página do dashboard e não está autenticado, redirecionar para login
-  if (pathname.startsWith('/dashboard')) {
+  // Permite rotas públicas
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
+    return res
+  }
+
+  // Permite arquivos estáticos
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('.') // arquivos com extensão
+  ) {
+    return res
+  }
+
+  // Verifica autenticação para rotas protegidas
+  try {
+    const supabase = createMiddlewareClient({ req, res })
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Se não autenticado, redireciona para login
     if (!session) {
-      const loginUrl = new URL('/login', request.url)
+      const loginUrl = new URL('/login', req.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
     }
+
+    // Usuário autenticado, continua
+    return res
+  } catch (error) {
+    console.error('Erro no middleware de autenticação:', error)
+    return NextResponse.redirect(new URL('/login', req.url))
   }
-
-  // Se é API protegida e não está autenticado, retornar 401
-  if (rotasApiProtegidas.some(rota => pathname.startsWith(rota))) {
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Não autorizado. Faça login para continuar.' },
-        { status: 401 }
-      )
-    }
-  }
-
-  // Adicionar headers de segurança em todas as respostas
-  res.headers.set('X-Frame-Options', 'DENY')
-  res.headers.set('X-Content-Type-Options', 'nosniff')
-  res.headers.set('X-XSS-Protection', '1; mode=block')
-  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  res.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=()'
-  )
-
-  return res
 }
 
-// Configurar quais rotas o middleware deve processar
 export const config = {
   matcher: [
-    // Proteger todas as rotas do dashboard
-    '/dashboard/:path*',
-    // Proteger APIs específicas
-    '/api/openai/:path*',
-    '/api/upload/:path*',
-    '/api/usuarios/:path*',
-    // Não processar arquivos estáticos
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 }
