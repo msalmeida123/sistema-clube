@@ -39,7 +39,7 @@ type Convite = {
 
 export default function DashboardClubePage() {
   const [loading, setLoading] = useState(true)
-  const [periodo, setPeriodo] = useState<'hoje' | 'semana' | 'mes'>('mes')
+  const [periodo, setPeriodo] = useState<'hoje' | 'semana' | 'mes' | '90dias'>('mes')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   
@@ -75,6 +75,10 @@ export default function DashboardClubePage() {
       case 'semana':
         inicio = new Date(hoje)
         inicio.setDate(inicio.getDate() - 7)
+        break
+      case '90dias':
+        inicio = new Date(hoje)
+        inicio.setDate(inicio.getDate() - 90)
         break
       case 'mes':
       default:
@@ -162,10 +166,13 @@ export default function DashboardClubePage() {
       porDia[data] = (porDia[data] || 0) + 1
     })
 
+    // Ajustar quantidade de dias mostrados baseado no período
+    const diasMostrar = periodo === '90dias' ? 30 : 14
+
     const dados = Object.entries(porDia)
       .map(([data, quantidade]) => ({ data, quantidade }))
       .reverse()
-      .slice(-14) // Últimos 14 dias
+      .slice(-diasMostrar)
 
     setAcessosPorDia(dados)
   }
@@ -234,10 +241,13 @@ export default function DashboardClubePage() {
       }
     })
 
+    // Ajustar quantidade de dias mostrados baseado no período
+    const diasMostrar = periodo === '90dias' ? 30 : 14
+
     const dados = Object.entries(porDia)
       .map(([data, valores]) => ({ data, ...valores }))
       .reverse()
-      .slice(-14)
+      .slice(-diasMostrar)
 
     setConvitesPorDia(dados)
   }
@@ -779,14 +789,21 @@ export default function DashboardClubePage() {
                 size="sm"
                 onClick={() => setPeriodo('semana')}
               >
-                Última Semana
+                7 Dias
               </Button>
               <Button
                 variant={periodo === 'mes' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setPeriodo('mes')}
               >
-                Último Mês
+                30 Dias
+              </Button>
+              <Button
+                variant={periodo === '90dias' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPeriodo('90dias')}
+              >
+                90 Dias
               </Button>
             </div>
             <div className="flex gap-2 items-center">
