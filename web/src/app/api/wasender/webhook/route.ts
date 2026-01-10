@@ -1,17 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import crypto from 'crypto'
 
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA
 // ==========================================
-
-// IPs permitidos do WaSender (adicione os IPs oficiais se disponíveis)
-const IPS_PERMITIDOS: string[] = [
-  // Adicione aqui os IPs do WaSender quando disponíveis
-  // '1.2.3.4',
-]
 
 // Rate limiting simples (em memória - para produção use Redis)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -29,48 +22,36 @@ function getSupabase() {
 // FUNÇÕES DE SEGURANÇA
 // ==========================================
 
-// Verificar secret key do webhook
-function verificarWebhookSecret(request: Request, body: string): boolean {
-  const webhookSecret = process.env.WASENDER_WEBHOOK_SECRET
-  
-  // Se não tem secret configurado, permitir (mas logar warning)
-  if (!webhookSecret) {
-    console.warn('⚠️ WASENDER_WEBHOOK_SECRET não configurado! Webhook sem proteção.')
-    return true
-  }
-
-  // Verificar header de assinatura (WaSender pode usar diferentes headers)
-  const headersList = headers()
-  const signature = headersList.get('x-webhook-signature') || 
-                    headersList.get('x-wasender-signature') ||
-                    headersList.get('x-hub-signature-256') ||
-                    headersList.get('authorization')
-
-  if (!signature) {
-    console.warn('⚠️ Requisição sem assinatura de webhook')
+// Verificar se o sessionId do webhook corresponde à api_key configurada
+async function verificarSessionId(sessionId: string | undefined): Promise<boolean> {
+  if (!sessionId) {
+    console.warn('⚠️ Webhook sem sessionId')
     return false
   }
 
-  // Se for Bearer token simples
-  if (signature.startsWith('Bearer ')) {
-    return signature.replace('Bearer ', '') === webhookSecret
-  }
+  try {
+    const { data: config } = await getSupabase()
+      .from('config_wasender')
+      .select('api_key')
+      .single()
 
-  // Se for HMAC signature
-  if (signature.startsWith('sha256=')) {
-    const expectedSignature = 'sha256=' + crypto
-      .createHmac('sha256', webhookSecret)
-      .update(body)
-      .digest('hex')
+    if (!config?.api_key) {
+      console.warn('⚠️ Nenhuma api_key configurada no banco')
+      return false
+    }
+
+    // Comparar o sessionId do webhook com a api_key armazenada
+    const isValid = sessionId === config.api_key
     
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )
-  }
+    if (!isValid) {
+      console.warn(`⚠️ SessionId inválido. Recebido: ${sessionId.substring(0, 10)}...`)
+    }
 
-  // Comparação direta
-  return signature === webhookSecret
+    return isValid
+  } catch (error) {
+    console.error('Erro ao verificar sessionId:', error)
+    return false
+  }
 }
 
 // Rate limiting por IP
@@ -95,15 +76,9 @@ function verificarRateLimit(ip: string): boolean {
 function validarOrigem(): { valido: boolean; motivo?: string } {
   const headersList = headers()
   
-  // Verificar IP (se lista de IPs permitidos estiver configurada)
   const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
              headersList.get('x-real-ip') ||
              'unknown'
-
-  // Se temos IPs permitidos configurados, verificar
-  if (IPS_PERMITIDOS.length > 0 && !IPS_PERMITIDOS.includes(ip)) {
-    return { valido: false, motivo: `IP não permitido: ${ip}` }
-  }
 
   // Rate limiting
   if (!verificarRateLimit(ip)) {
@@ -117,10 +92,9 @@ function validarOrigem(): { valido: boolean; motivo?: string } {
 function sanitizarTexto(texto: string | undefined | null): string {
   if (!texto) return ''
   
-  // Remover caracteres de controle perigosos
   return texto
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Caracteres de controle
-    .substring(0, 10000) // Limitar tamanho
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .substring(0, 10000)
 }
 
 // Validar telefone (apenas números)
@@ -139,7 +113,7 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
       .from('webhook_logs')
       .insert({
         tipo,
-        payload: JSON.stringify(payload).substring(0, 50000), // Limitar tamanho
+        payload: JSON.stringify(payload).substring(0, 50000),
         created_at: new Date().toISOString()
       })
   } catch (e) {
@@ -160,15 +134,12 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     let numero = sanitizarTelefone(telefone)
     if (!numero.startsWith('55')) numero = '55' + numero
 
-    // API do WaSender para buscar foto de perfil
-    // Endpoint: GET https://www.wasenderapi.com/api/contacts/{contactPhoneNumber}/picture
-    // Response: { "success": true, "data": { "imgUrl": "https://..." } }
     const response = await fetch(`https://www.wasenderapi.com/api/contacts/${numero}/picture`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${config.api_key}`
       },
-      signal: AbortSignal.timeout(10000) // Timeout de 10s
+      signal: AbortSignal.timeout(10000)
     })
 
     if (!response.ok) {
@@ -178,7 +149,6 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
 
     const result = await response.json()
     
-    // A resposta vem em result.data.imgUrl conforme documentação
     if (result.success && result.data?.imgUrl) {
       console.log(`📷 Foto encontrada para ${numero}: ${result.data.imgUrl}`)
       return result.data.imgUrl
@@ -194,17 +164,14 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
 // Atualizar foto de perfil da conversa (executa em background)
 async function atualizarFotoPerfilConversa(conversaId: string, telefone: string) {
   try {
-    // Verificar se já tem foto
     const { data: conversa } = await getSupabase()
       .from('conversas_whatsapp')
       .select('foto_perfil_url')
       .eq('id', conversaId)
       .single()
 
-    // Se já tem foto, não buscar novamente (pode ser atualizada manualmente depois)
     if (conversa?.foto_perfil_url) return
 
-    // Buscar foto via API
     const fotoUrl = await buscarFotoPerfil(telefone)
     
     if (fotoUrl) {
@@ -222,17 +189,15 @@ async function atualizarFotoPerfilConversa(conversaId: string, telefone: string)
 
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
-    // Validar URL
     if (!audioUrl.startsWith('http')) return null
     
     const audioResponse = await fetch(audioUrl, { 
-      signal: AbortSignal.timeout(30000) // Timeout de 30s
+      signal: AbortSignal.timeout(30000)
     })
     if (!audioResponse.ok) return null
     
     const audioBlob = await audioResponse.blob()
     
-    // Validar tamanho (máx 25MB)
     if (audioBlob.size > 25 * 1024 * 1024) {
       console.warn('Áudio muito grande para transcrição')
       return null
@@ -247,7 +212,7 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}` },
       body: formData,
-      signal: AbortSignal.timeout(60000) // Timeout de 60s
+      signal: AbortSignal.timeout(60000)
     })
     
     if (!response.ok) return null
@@ -287,7 +252,7 @@ ${config.documento_contexto || ''}`
         model: config.modelo || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: mensagem.substring(0, 4000) } // Limitar input
+          { role: 'user', content: mensagem.substring(0, 4000) }
         ],
         temperature: Math.min(Math.max(config.temperatura || 0.7, 0), 2),
         max_tokens: Math.min(config.max_tokens || 500, 2000)
@@ -324,7 +289,7 @@ async function enviarMensagem(telefone: string, mensagem: string): Promise<strin
       },
       body: JSON.stringify({ 
         phone: numero, 
-        message: mensagem.substring(0, 4000) // Limitar tamanho
+        message: mensagem.substring(0, 4000)
       }),
       signal: AbortSignal.timeout(30000)
     })
@@ -492,7 +457,7 @@ interface DadosMensagem {
   tipo: string
   mediaUrl?: string
   nomeContato: string
-  fromMe: boolean // NOVO: indica se é mensagem enviada pelo próprio sistema
+  fromMe: boolean
 }
 
 interface WebhookBody {
@@ -516,11 +481,12 @@ interface WebhookBody {
   ack?: number | string
   status?: string
   fromMe?: boolean
+  sessionId?: string // Campo de autenticação do WaSender
   data?: {
     messages?: {
       key?: {
         id?: string
-        fromMe?: boolean // IMPORTANTE: campo que indica se a mensagem foi enviada pelo sistema
+        fromMe?: boolean
         cleanedSenderPn?: string
         cleanedParticipantPn?: string
         remoteJid?: string
@@ -580,7 +546,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
                 msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
       nomeContato: sanitizarTexto(msg.pushName || body.data.pushName),
-      fromMe: key.fromMe === true // Verificar se é mensagem enviada pelo sistema
+      fromMe: key.fromMe === true
     }
   }
   
@@ -648,7 +614,7 @@ export async function POST(request: Request) {
              'unknown'
 
   try {
-    // Validar origem
+    // Validar origem (rate limiting)
     const validacao = validarOrigem()
     if (!validacao.valido) {
       console.warn(`Requisição bloqueada: ${validacao.motivo}`)
@@ -656,16 +622,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
     }
 
-    // Ler body como texto para verificar assinatura
+    // Ler body
     const bodyText = await request.text()
     
-    // Verificar secret/assinatura do webhook
-    if (!verificarWebhookSecret(request, bodyText)) {
-      console.warn('Assinatura de webhook inválida')
-      await salvarLogWebhook({ motivo: 'Assinatura inválida' }, 'assinatura_invalida', ip)
-      return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 })
-    }
-
     // Parse do JSON
     let body: WebhookBody
     try {
@@ -674,7 +633,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
     }
 
-    // Salvar log
+    // ==========================================
+    // VALIDAÇÃO DE SEGURANÇA: Verificar sessionId
+    // O WaSender envia o sessionId em cada webhook
+    // Comparamos com a api_key configurada no banco
+    // ==========================================
+    const sessionIdValido = await verificarSessionId(body.sessionId)
+    if (!sessionIdValido) {
+      console.warn('❌ SessionId inválido ou não configurado')
+      await salvarLogWebhook({ 
+        motivo: 'SessionId inválido',
+        sessionId_recebido: body.sessionId?.substring(0, 20) + '...'
+      }, 'sessionid_invalido', ip)
+      return NextResponse.json({ error: 'SessionId inválido' }, { status: 401 })
+    }
+
+    // Salvar log (webhook autenticado com sucesso)
     await salvarLogWebhook(body, 'webhook_recebido', ip)
 
     // Verificar se é evento de mensagem
@@ -702,10 +676,7 @@ export async function POST(request: Request) {
     // Extrair e validar dados
     const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato, fromMe } = extrairDadosMensagem(body)
 
-    // ==========================================
-    // IMPORTANTE: Ignorar mensagens enviadas pelo próprio sistema
-    // Isso evita duplicação quando o WaSender envia webhook de mensagens de saída
-    // ==========================================
+    // Ignorar mensagens enviadas pelo próprio sistema
     if (fromMe) {
       console.log(`📤 Ignorando mensagem de saída (fromMe=true): ${mensagem.substring(0, 50)}...`)
       return NextResponse.json({ 
@@ -720,12 +691,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
-    // ==========================================
     // Usar function do banco para evitar duplicatas
-    // A function processar_mensagem_whatsapp garante atomicidade
-    // e busca/cria conversa de forma segura
-    // ==========================================
-    
     const { data: resultado, error: erroProcessamento } = await getSupabase()
       .rpc('processar_mensagem_whatsapp', {
         p_telefone: telefone,
@@ -736,7 +702,7 @@ export async function POST(request: Request) {
         p_message_id: messageId || null,
         p_media_url: mediaUrl || null,
         p_setor_id: null,
-        p_foto_perfil_url: null // Será buscada em background
+        p_foto_perfil_url: null
       })
 
     if (erroProcessamento || !resultado || resultado.length === 0) {
@@ -748,11 +714,11 @@ export async function POST(request: Request) {
     // Extrair dados do resultado da function
     const { conversa_id: conversaId, mensagem_id: mensagemId, is_nova_conversa: isPrimeiraMsg } = resultado[0]
 
-    // Buscar foto de perfil em background (não bloqueia resposta)
+    // Buscar foto de perfil em background
     atualizarFotoPerfilConversa(conversaId, telefone)
       .catch(err => console.error('Erro ao buscar foto:', err))
 
-    // Processar respostas automáticas e IA (async, não bloqueia resposta)
+    // Processar respostas automáticas e IA
     processarRespostasAutomaticas(conversaId, telefone, mensagem, isPrimeiraMsg)
       .then(respondeu => {
         if (!respondeu) {
