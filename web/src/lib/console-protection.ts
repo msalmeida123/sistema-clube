@@ -108,7 +108,7 @@ function disableConsole() {
     console.log('%cEste é um recurso do navegador destinado a desenvolvedores.', 'font-size: 16px;')
     console.log('%cSe alguém pediu para você colar algo aqui, isso é uma fraude.', 'font-size: 16px; color: red;')
     console.log('%cNão cole nenhum código aqui!', 'font-size: 20px; color: red; font-weight: bold;')
-  } catch {
+  } catch (_e) {
     // Ignora erros
   }
   
@@ -124,7 +124,7 @@ function disableConsole() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (console as any)[method] = noop
       }
-    } catch {
+    } catch (_e) {
       // Ignora erros
     }
   })
@@ -132,7 +132,7 @@ function disableConsole() {
   // Congelar o objeto console para impedir restauração
   try {
     Object.freeze(console)
-  } catch {
+  } catch (_e) {
     // Alguns navegadores não permitem
   }
 }
@@ -229,7 +229,7 @@ function detectIframeEmbedding() {
         window.top.location = window.self.location
       }
     }
-  } catch {
+  } catch (_e) {
     // Se não conseguir acessar window.top, estamos em um iframe cross-origin
     handleSecurityViolation('cross_origin_iframe_detected')
     const warningDiv = document.createElement('div')
@@ -276,7 +276,7 @@ function monitorSuspiciousActivity() {
       configurable: false,
       writable: false
     })
-  } catch {
+  } catch (_e) {
     // Ignora se não conseguir
   }
 }
@@ -303,7 +303,7 @@ function handleSecurityViolation(type: string, details?: any) {
       body: JSON.stringify(violation),
       keepalive: true
     }).catch(() => { /* silent */ })
-  } catch {
+  } catch (_e) {
     // Ignora erros de rede
   }
 }
