@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
+import { sanitizeForDatabase, escapeHtml, stripHtml } from '@/lib/security'
 
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA
@@ -86,13 +87,11 @@ function verificarRateLimit(ip: string): boolean {
   return true
 }
 
-// Sanitizar entrada para prevenir injection
+// Sanitizar entrada para prevenir XSS e injection
 function sanitizarTexto(texto: string | undefined | null): string {
   if (!texto) return ''
-  
-  return texto
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    .substring(0, 10000)
+  // Usa a função de segurança importada + limita tamanho
+  return sanitizeForDatabase(texto).substring(0, 10000)
 }
 
 // Validar telefone (apenas números)
@@ -107,11 +106,15 @@ function sanitizarTelefone(telefone: string | undefined | null): string {
 
 async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
   try {
+    // Sanitiza o payload antes de salvar
+    const payloadStr = JSON.stringify(payload)
+    const sanitizedPayload = sanitizeForDatabase(payloadStr).substring(0, 50000)
+    
     await getSupabase()
       .from('webhook_logs')
       .insert({
-        tipo,
-        payload: JSON.stringify(payload).substring(0, 50000),
+        tipo: sanitizeForDatabase(tipo),
+        payload: sanitizedPayload,
         created_at: new Date().toISOString()
       })
   } catch (e) {
