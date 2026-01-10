@@ -8,6 +8,7 @@ const rotasPublicas = [
   '/cadastro',
   '/recuperar-senha',
   '/api/wasender/webhook', // Webhook tem sua própria autenticação
+  '/api/wasender/sync-contacts', // Endpoint de sincronização de contatos
 ]
 
 // Rotas de API que precisam de autenticação
