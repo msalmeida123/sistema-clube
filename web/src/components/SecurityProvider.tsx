@@ -5,8 +5,7 @@ import { initClientProtection } from '@/lib/console-protection'
 
 interface SecurityProviderProps {
   children: React.ReactNode
-  enableConsoleProtection?: boolean
-  enableDevToolsDetection?: boolean
+  enableProtection?: boolean
 }
 
 /**
@@ -23,17 +22,17 @@ interface SecurityProviderProps {
  */
 export function SecurityProvider({ 
   children, 
-  enableConsoleProtection = true,
-  enableDevToolsDetection = true 
+  enableProtection = true
 }: SecurityProviderProps) {
   useEffect(() => {
-    // Só ativa em produção
-    if (process.env.NODE_ENV === 'production') {
-      if (enableConsoleProtection) {
-        initClientProtection()
-      }
+    // Sempre ativa as proteções (exceto em desenvolvimento local)
+    const isDev = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    
+    if (enableProtection && !isDev) {
+      initClientProtection()
     }
-  }, [enableConsoleProtection, enableDevToolsDetection])
+  }, [enableProtection])
 
   return <>{children}</>
 }
