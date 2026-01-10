@@ -13,8 +13,17 @@ interface SecurityProviderProps {
  */
 export function SecurityProvider({ children }: SecurityProviderProps) {
   useEffect(() => {
-    // Sempre ativa as proteções
-    initClientProtection()
+    // Debug log
+    console.log('[SecurityProvider] Iniciando proteções...')
+    
+    // Aguarda o DOM estar completamente carregado
+    if (document.readyState === 'complete') {
+      initClientProtection()
+    } else {
+      window.addEventListener('load', () => {
+        initClientProtection()
+      })
+    }
   }, [])
 
   return <>{children}</>
