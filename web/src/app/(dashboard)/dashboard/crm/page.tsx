@@ -8,11 +8,13 @@ import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
+import { useSetoresUsuario } from '@/hooks/useSetoresUsuario'
 import { 
   Send, Search, Phone, User, MessageSquare, Plus, RefreshCw, 
   Check, CheckCheck, Clock, Download, Image, Paperclip, Mic, 
   X, FileText, Video, Loader2, FileType, Settings, Bot,
-  ArrowRightLeft, Inbox, ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder
+  ArrowRightLeft, Inbox, ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder,
+  Lock, AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -105,6 +107,17 @@ export default function CRMPage() {
   const [loadingTransferencia, setLoadingTransferencia] = useState(false)
   const [filtroSetor, setFiltroSetor] = useState<string | null>(null)
   
+  // Hook de permissões de setor
+  const { 
+    setoresPermitidos, 
+    loading: loadingPermissoes, 
+    isAdmin,
+    podeVerSetor,
+    podeResponderSetor,
+    podeTransferirSetor,
+    getSetorIds
+  } = useSetoresUsuario()
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClientComponentClient()
@@ -119,30 +132,58 @@ export default function CRMPage() {
     setSetores(data || [])
   }, [supabase])
 
-  // Carregar conversas
+  // Carregar conversas - FILTRADO POR SETOR DO USUÁRIO
   const carregarConversas = useCallback(async () => {
+    if (loadingPermissoes) return
+    
     setLoadingConversas(true)
-    let query = supabase
-      .from('conversas_whatsapp')
-      .select('*')
-      .order('ultimo_contato', { ascending: false, nullsFirst: false })
     
-    if (busca) {
-      query = query.or(`nome_contato.ilike.%${busca}%,telefone.ilike.%${busca}%`)
-    }
+    try {
+      let query = supabase
+        .from('conversas_whatsapp')
+        .select('*')
+        .order('ultimo_contato', { ascending: false, nullsFirst: false })
+      
+      if (busca) {
+        query = query.or(`nome_contato.ilike.%${busca}%,telefone.ilike.%${busca}%`)
+      }
 
-    if (filtroSetor) {
-      query = query.eq('setor_id', filtroSetor)
+      // Se não é admin, filtrar por setores permitidos
+      if (!isAdmin && setoresPermitidos.length > 0) {
+        const setorIds = getSetorIds()
+        if (setorIds.length > 0) {
+          // Mostrar conversas dos setores do usuário OU conversas sem setor (para atribuição)
+          query = query.or(`setor_id.in.(${setorIds.join(',')}),setor_id.is.null`)
+        } else {
+          // Usuário sem setores só vê conversas sem setor atribuído
+          query = query.is('setor_id', null)
+        }
+      } else if (!isAdmin && setoresPermitidos.length === 0) {
+        // Usuário sem nenhum setor não vê nada
+        setConversas([])
+        setLoadingConversas(false)
+        return
+      }
+
+      // Filtro adicional por setor selecionado
+      if (filtroSetor) {
+        query = query.eq('setor_id', filtroSetor)
+      }
+      
+      const { data } = await query
+      setConversas(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar conversas:', error)
+    } finally {
+      setLoadingConversas(false)
     }
-    
-    const { data } = await query
-    setConversas(data || [])
-    setLoadingConversas(false)
-  }, [busca, filtroSetor, supabase])
+  }, [busca, filtroSetor, supabase, isAdmin, setoresPermitidos, getSetorIds, loadingPermissoes])
 
   // Efeito inicial + Realtime para conversas
   useEffect(() => {
-    carregarConversas()
+    if (!loadingPermissoes) {
+      carregarConversas()
+    }
     carregarTemplates()
     carregarSetores()
 
@@ -166,7 +207,7 @@ export default function CRMPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [busca, filtroSetor, supabase, carregarConversas, carregarSetores])
+  }, [busca, filtroSetor, supabase, carregarConversas, carregarSetores, loadingPermissoes])
 
   // Carregar templates
   const carregarTemplates = async () => {
@@ -181,6 +222,12 @@ export default function CRMPage() {
   // Transferir conversa para setor
   const transferirConversa = async (setorId: string) => {
     if (!conversaAtiva) return
+
+    // Verificar permissão
+    if (!podeTransferirSetor(conversaAtiva.setor_id)) {
+      toast.error('Você não tem permissão para transferir conversas deste setor')
+      return
+    }
 
     setLoadingTransferencia(true)
     try {
@@ -304,9 +351,24 @@ export default function CRMPage() {
     carregarTemplates()
   }
 
+  // Selecionar conversa - verificar permissão
+  const selecionarConversa = (conversa: Conversa) => {
+    if (!podeVerSetor(conversa.setor_id)) {
+      toast.error('Você não tem permissão para ver conversas deste setor')
+      return
+    }
+    setConversaAtiva(conversa)
+  }
+
   // Carregar mensagens da conversa ativa e marcar como lida
   useEffect(() => {
     if (!conversaAtiva) return
+
+    // Verificar permissão novamente
+    if (!podeVerSetor(conversaAtiva.setor_id)) {
+      setMensagens([])
+      return
+    }
 
     const fetchMensagens = async () => {
       const { data } = await supabase
@@ -361,7 +423,7 @@ export default function CRMPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversaAtiva, supabase])
+  }, [conversaAtiva, supabase, podeVerSetor])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -387,13 +449,20 @@ export default function CRMPage() {
       return
     }
 
+    // Se não é admin e tem apenas um setor, já atribui
+    let setorInicial = null
+    if (!isAdmin && setoresPermitidos.length === 1) {
+      setorInicial = setoresPermitidos[0].setor_id
+    }
+
     const { data, error } = await supabase
       .from('conversas_whatsapp')
       .insert({
         telefone: telefoneFormatado,
         nome_contato: novoNome || null,
         status: 'aberta',
-        nao_lidas: 0
+        nao_lidas: 0,
+        setor_id: setorInicial
       })
       .select()
       .single()
@@ -487,9 +556,15 @@ export default function CRMPage() {
     }
   }
 
-  // Enviar mensagem de texto
+  // Enviar mensagem de texto - COM VERIFICAÇÃO DE PERMISSÃO
   const enviarMensagem = async () => {
     if (!novaMensagem.trim() || !conversaAtiva) return
+    
+    // Verificar permissão
+    if (!podeResponderSetor(conversaAtiva.setor_id)) {
+      toast.error('Você não tem permissão para responder conversas deste setor')
+      return
+    }
     
     setLoading(true)
     try {
@@ -583,9 +658,15 @@ export default function CRMPage() {
     setCaption('')
   }
 
-  // Enviar mídia
+  // Enviar mídia - COM VERIFICAÇÃO DE PERMISSÃO
   const enviarMedia = async () => {
     if (!mediaPreview || !conversaAtiva) return
+
+    // Verificar permissão
+    if (!podeResponderSetor(conversaAtiva.setor_id)) {
+      toast.error('Você não tem permissão para responder conversas deste setor')
+      return
+    }
 
     setUploadingMedia(true)
     try {
@@ -722,6 +803,14 @@ export default function CRMPage() {
     return <p className="whitespace-pre-wrap break-words">{msg.conteudo}</p>
   }
 
+  // Obter setores que o usuário pode ver para o filtro
+  const setoresParaFiltro = isAdmin 
+    ? setores 
+    : setores.filter(s => setoresPermitidos.some(sp => sp.setor_id === s.id))
+
+  // Verificar se pode responder na conversa ativa
+  const podeResponder = conversaAtiva ? podeResponderSetor(conversaAtiva.setor_id) : false
+
   return (
     <PaginaProtegida codigoPagina="crm">
     <div className="flex h-[calc(100vh-120px)] gap-4 p-6">
@@ -774,7 +863,7 @@ export default function CRMPage() {
             />
           </div>
           
-          {/* Filtro por Setor */}
+          {/* Filtro por Setor - só mostra setores que o usuário tem acesso */}
           <div className="flex flex-wrap gap-1">
             <Button
               variant={filtroSetor === null ? "default" : "outline"}
@@ -784,7 +873,7 @@ export default function CRMPage() {
             >
               Todos
             </Button>
-            {setores.map((setor) => (
+            {setoresParaFiltro.map((setor) => (
               <Button
                 key={setor.id}
                 variant={filtroSetor === setor.id ? "default" : "outline"}
@@ -801,16 +890,29 @@ export default function CRMPage() {
               </Button>
             ))}
           </div>
+
+          {/* Aviso se usuário não tem setores */}
+          {!isAdmin && setoresPermitidos.length === 0 && !loadingPermissoes && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span>Você não está associado a nenhum setor. Peça ao administrador para configurar seu acesso.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loadingConversas ? (
+          {loadingConversas || loadingPermissoes ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : conversas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>Nenhuma conversa</p>
+              {!isAdmin && setoresPermitidos.length === 0 && (
+                <p className="text-sm mt-2">Configure seus setores para ver conversas</p>
+              )}
             </div>
           ) : (
             conversas.map((conversa) => {
@@ -818,7 +920,7 @@ export default function CRMPage() {
               return (
                 <div
                   key={conversa.id}
-                  onClick={() => setConversaAtiva(conversa)}
+                  onClick={() => selecionarConversa(conversa)}
                   className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
                     conversaAtiva?.id === conversa.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''
                   }`}
@@ -911,57 +1013,59 @@ export default function CRMPage() {
                 </div>
               </div>
               
-              {/* Botão Transferir */}
-              <div className="relative">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowTransferir(!showTransferir)}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowRightLeft className="h-4 w-4" />
-                  Transferir
-                </Button>
-                
-                {/* Menu de Transferência */}
-                {showTransferir && (
-                  <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border p-2 min-w-[220px] z-50">
-                    <p className="text-sm font-medium px-3 py-2 border-b mb-2">Transferir para:</p>
-                    {loadingTransferencia ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      </div>
-                    ) : (
-                      setores.map((setor) => (
-                        <button
-                          key={setor.id}
-                          onClick={() => transferirConversa(setor.id)}
-                          disabled={conversaAtiva.setor_id === setor.id}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-gray-100 transition-colors ${
-                            conversaAtiva.setor_id === setor.id ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
-                          }`}
-                        >
-                          <span 
-                            className="w-8 h-8 rounded-full flex items-center justify-center"
-                            style={{ backgroundColor: setor.cor + '20', color: setor.cor }}
+              {/* Botão Transferir - só mostra se tem permissão */}
+              {podeTransferirSetor(conversaAtiva.setor_id) && (
+                <div className="relative">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowTransferir(!showTransferir)}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transferir
+                  </Button>
+                  
+                  {/* Menu de Transferência */}
+                  {showTransferir && (
+                    <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border p-2 min-w-[220px] z-50">
+                      <p className="text-sm font-medium px-3 py-2 border-b mb-2">Transferir para:</p>
+                      {loadingTransferencia ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        </div>
+                      ) : (
+                        setores.map((setor) => (
+                          <button
+                            key={setor.id}
+                            onClick={() => transferirConversa(setor.id)}
+                            disabled={conversaAtiva.setor_id === setor.id}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-gray-100 transition-colors ${
+                              conversaAtiva.setor_id === setor.id ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+                            }`}
                           >
-                            {iconesSetor[setor.icone] || <Folder className="h-4 w-4" />}
-                          </span>
-                          <div className="text-left">
-                            <p className="font-medium">{setor.nome}</p>
-                            {setor.descricao && (
-                              <p className="text-xs text-muted-foreground">{setor.descricao}</p>
+                            <span 
+                              className="w-8 h-8 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: setor.cor + '20', color: setor.cor }}
+                            >
+                              {iconesSetor[setor.icone] || <Folder className="h-4 w-4" />}
+                            </span>
+                            <div className="text-left">
+                              <p className="font-medium">{setor.nome}</p>
+                              {setor.descricao && (
+                                <p className="text-xs text-muted-foreground">{setor.descricao}</p>
+                              )}
+                            </div>
+                            {conversaAtiva.setor_id === setor.id && (
+                              <Check className="h-4 w-4 ml-auto text-green-500" />
                             )}
-                          </div>
-                          {conversaAtiva.setor_id === setor.id && (
-                            <Check className="h-4 w-4 ml-auto text-green-500" />
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Mensagens */}
@@ -999,7 +1103,7 @@ export default function CRMPage() {
             </div>
 
             {/* Preview de mídia */}
-            {mediaPreview && (
+            {mediaPreview && podeResponder && (
               <div className="p-4 border-t bg-gray-100">
                 <div className="flex items-start gap-3">
                   <div className="relative">
@@ -1039,114 +1143,121 @@ export default function CRMPage() {
               </div>
             )}
 
-            {/* Input de Mensagem */}
+            {/* Input de Mensagem - Bloqueado se não tem permissão */}
             {!mediaPreview && (
               <div className="p-4 border-t">
-                <div className="flex gap-2 items-center">
-                  {/* Botão de anexo */}
-                  <div className="relative">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => { setShowAnexo(!showAnexo); setShowTemplates(false) }}
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
-                    
-                    {/* Menu de anexos */}
-                    {showAnexo && (
-                      <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 flex flex-col gap-1 min-w-[140px]">
-                        <button
-                          onClick={() => selecionarArquivo('image')}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
-                        >
-                          <Image className="h-4 w-4 text-blue-500" />
-                          Imagem
-                        </button>
-                        <button
-                          onClick={() => selecionarArquivo('video')}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
-                        >
-                          <Video className="h-4 w-4 text-purple-500" />
-                          Vídeo
-                        </button>
-                        <button
-                          onClick={() => selecionarArquivo('document')}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
-                        >
-                          <FileText className="h-4 w-4 text-orange-500" />
-                          Documento
-                        </button>
-                        <button
-                          onClick={() => selecionarArquivo('audio')}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
-                        >
-                          <Mic className="h-4 w-4 text-green-500" />
-                          Áudio
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Botão de Templates */}
-                  <div className="relative">
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => { setShowTemplates(!showTemplates); setShowAnexo(false) }}
-                      title="Templates de mensagens"
-                    >
-                      <FileType className="h-5 w-5" />
-                    </Button>
-                    
-                    {/* Menu de templates */}
-                    {showTemplates && (
-                      <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 min-w-[280px] max-h-[300px] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-2 pb-2 border-b">
-                          <span className="text-sm font-medium">Templates</span>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => { setShowTemplates(false); setShowGerenciarTemplates(true) }}
+                {podeResponder ? (
+                  <div className="flex gap-2 items-center">
+                    {/* Botão de anexo */}
+                    <div className="relative">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => { setShowAnexo(!showAnexo); setShowTemplates(false) }}
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                      
+                      {/* Menu de anexos */}
+                      {showAnexo && (
+                        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 flex flex-col gap-1 min-w-[140px]">
+                          <button
+                            onClick={() => selecionarArquivo('image')}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
                           >
-                            <Settings className="h-3 w-3 mr-1" />
-                            Gerenciar
-                          </Button>
+                            <Image className="h-4 w-4 text-blue-500" />
+                            Imagem
+                          </button>
+                          <button
+                            onClick={() => selecionarArquivo('video')}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
+                          >
+                            <Video className="h-4 w-4 text-purple-500" />
+                            Vídeo
+                          </button>
+                          <button
+                            onClick={() => selecionarArquivo('document')}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
+                          >
+                            <FileText className="h-4 w-4 text-orange-500" />
+                            Documento
+                          </button>
+                          <button
+                            onClick={() => selecionarArquivo('audio')}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded text-sm"
+                          >
+                            <Mic className="h-4 w-4 text-green-500" />
+                            Áudio
+                          </button>
                         </div>
-                        {templates.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-2">Nenhum template</p>
-                        ) : (
-                          templates.map((t) => (
-                            <button
-                              key={t.id}
-                              onClick={() => usarTemplate(t)}
-                              className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm"
+                      )}
+                    </div>
+
+                    {/* Botão de Templates */}
+                    <div className="relative">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => { setShowTemplates(!showTemplates); setShowAnexo(false) }}
+                        title="Templates de mensagens"
+                      >
+                        <FileType className="h-5 w-5" />
+                      </Button>
+                      
+                      {/* Menu de templates */}
+                      {showTemplates && (
+                        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 min-w-[280px] max-h-[300px] overflow-y-auto">
+                          <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                            <span className="text-sm font-medium">Templates</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => { setShowTemplates(false); setShowGerenciarTemplates(true) }}
                             >
-                              <p className="font-medium">{t.titulo}</p>
-                              <p className="text-xs text-muted-foreground truncate">{t.conteudo.substring(0, 50)}...</p>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
+                              <Settings className="h-3 w-3 mr-1" />
+                              Gerenciar
+                            </Button>
+                          </div>
+                          {templates.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-2">Nenhum template</p>
+                          ) : (
+                            templates.map((t) => (
+                              <button
+                                key={t.id}
+                                onClick={() => usarTemplate(t)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded text-sm"
+                              >
+                                <p className="font-medium">{t.titulo}</p>
+                                <p className="text-xs text-muted-foreground truncate">{t.conteudo.substring(0, 50)}...</p>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <Input
+                      placeholder="Digite sua mensagem..."
+                      value={novaMensagem}
+                      onChange={(e) => setNovaMensagem(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && enviarMensagem()}
+                      disabled={loading}
+                      className="flex-1"
+                    />
+                    <Button onClick={enviarMensagem} disabled={loading || !novaMensagem.trim()}>
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  
-                  <Input
-                    placeholder="Digite sua mensagem..."
-                    value={novaMensagem}
-                    onChange={(e) => setNovaMensagem(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && enviarMensagem()}
-                    disabled={loading}
-                    className="flex-1"
-                  />
-                  <Button onClick={enviarMensagem} disabled={loading || !novaMensagem.trim()}>
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground bg-gray-100 rounded-lg p-4">
+                    <Lock className="h-5 w-5" />
+                    <span>Você não tem permissão para responder neste setor</span>
+                  </div>
+                )}
               </div>
             )}
           </>
