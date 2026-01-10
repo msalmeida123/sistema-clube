@@ -1,0 +1,77 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-bash.sh \"$CLAUDE_TOOL_INPUT\""
+          }
+        ]
+      },
+      {
+        "matcher": "write_file|str_replace|create_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-edit.sh \"$CLAUDE_FILE_PATH\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_file|str_replace|create_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit.sh \"$CLAUDE_FILE_PATH\""
+          }
+        ]
+      },
+      {
+        "matcher": "bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-bash.sh \"$CLAUDE_TOOL_INPUT\" \"$CLAUDE_TOOL_OUTPUT\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/notification.sh \"$CLAUDE_NOTIFICATION\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "bash(npm run *)",
+      "bash(npx *)",
+      "bash(git *)",
+      "bash(docker *)",
+      "bash(cd *)",
+      "bash(ls *)",
+      "bash(cat *)",
+      "bash(echo *)",
+      "bash(mkdir *)",
+      "bash(cp *)",
+      "bash(mv *)"
+    ],
+    "deny": [
+      "bash(rm -rf /)",
+      "bash(rm -rf /*)",
+      "bash(chmod 777 *)",
+      "bash(curl * | bash)",
+      "bash(wget * | bash)"
+    ]
+  }
+}
