@@ -121,6 +121,53 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
   }
 }
 
+// Verificar se já existe mensagem igual enviada recentemente (evitar duplicatas de webhook)
+async function verificarDuplicataRecente(telefone: string, conteudo: string): Promise<boolean> {
+  try {
+    // Buscar mensagens de saída com mesmo conteúdo nos últimos 30 segundos
+    const trintaSegundosAtras = new Date(Date.now() - 30000).toISOString()
+    
+    const { data } = await getSupabase()
+      .from('mensagens_whatsapp')
+      .select('id, conversa_id')
+      .eq('direcao', 'saida')
+      .eq('conteudo', conteudo)
+      .gte('created_at', trintaSegundosAtras)
+      .limit(1)
+
+    if (data && data.length > 0) {
+      // Verificar se a conversa é do mesmo telefone
+      const { data: conversa } = await getSupabase()
+        .from('conversas_whatsapp')
+        .select('telefone')
+        .eq('id', data[0].conversa_id)
+        .single()
+
+      if (conversa) {
+        // Normalizar telefones para comparação
+        const telConversa = conversa.telefone.replace(/\D/g, '')
+        const telWebhook = telefone.replace(/\D/g, '')
+        
+        // Comparar os últimos 8-11 dígitos (ignorando código do país)
+        const sufixoConversa = telConversa.slice(-11)
+        const sufixoWebhook = telWebhook.slice(-11)
+        
+        if (sufixoConversa === sufixoWebhook || 
+            sufixoConversa.endsWith(sufixoWebhook) || 
+            sufixoWebhook.endsWith(sufixoConversa)) {
+          console.log(`🔄 Duplicata detectada: mensagem de saída já existe para ${telefone}`)
+          return true
+        }
+      }
+    }
+    
+    return false
+  } catch (error) {
+    console.error('Erro ao verificar duplicata:', error)
+    return false
+  }
+}
+
 // Buscar foto de perfil do contato via API do WaSender
 async function buscarFotoPerfil(telefone: string): Promise<string | null> {
   try {
@@ -519,10 +566,62 @@ interface WebhookBody {
     notifyName?: string
     name?: string
     ack?: number | string
+    // Campos adicionais do WaSender para detectar mensagens enviadas
+    isFromMe?: boolean
+    self?: boolean | string
+    isSelf?: boolean
+    direction?: string
+    outgoing?: boolean
   }
+  // Campos no nível raiz para detectar mensagens enviadas
+  isFromMe?: boolean
+  self?: boolean | string
+  isSelf?: boolean
+  direction?: string
+  outgoing?: boolean
 }
 
 function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
+  // Função auxiliar para detectar se é mensagem enviada por nós
+  const detectarFromMe = (): boolean => {
+    // Verificar em múltiplos lugares onde o WaSender pode indicar que somos o remetente
+    
+    // 1. Campo fromMe direto
+    if (body.fromMe === true) return true
+    if (body.data?.fromMe === true) return true
+    if (body.data?.messages?.key?.fromMe === true) return true
+    
+    // 2. Campos alternativos
+    if (body.isFromMe === true) return true
+    if (body.data?.isFromMe === true) return true
+    
+    // 3. Campo self (alguns webhooks usam isso)
+    if (body.self === true || body.self === 'true') return true
+    if (body.data?.self === true || body.data?.self === 'true') return true
+    if (body.isSelf === true) return true
+    if (body.data?.isSelf === true) return true
+    
+    // 4. Campo direction/outgoing
+    if (body.direction === 'outgoing' || body.direction === 'out') return true
+    if (body.data?.direction === 'outgoing' || body.data?.direction === 'out') return true
+    if (body.outgoing === true) return true
+    if (body.data?.outgoing === true) return true
+    
+    // 5. Verificar pelo evento - alguns eventos indicam mensagem enviada
+    const event = body.event || body.type || body.action || ''
+    const eventosEnviados = [
+      'message.sent', 
+      'messages.sent',
+      'message_sent', 
+      'outgoing_message',
+      'message.create',
+      'messages.create'
+    ]
+    if (eventosEnviados.includes(event.toLowerCase())) return true
+    
+    return false
+  }
+
   // Formato WaSender messages.received / messages.upsert
   if (body.data?.messages) {
     const msg = body.data.messages
@@ -546,7 +645,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
                 msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
       nomeContato: sanitizarTexto(msg.pushName || body.data.pushName),
-      fromMe: key.fromMe === true
+      fromMe: detectarFromMe()
     }
   }
   
@@ -564,7 +663,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       tipo: data.type || 'texto',
       mediaUrl: data.mediaUrl || data.media?.url,
       nomeContato: sanitizarTexto(data.pushName || data.notifyName || data.name),
-      fromMe: data.fromMe === true || body.fromMe === true
+      fromMe: detectarFromMe()
     }
   }
   
@@ -580,7 +679,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
     tipo: body.type || 'texto',
     mediaUrl: body.mediaUrl || body.media?.url,
     nomeContato: sanitizarTexto(body.pushName || body.notifyName || body.name),
-    fromMe: body.fromMe === true
+    fromMe: detectarFromMe()
   }
 }
 
@@ -676,7 +775,9 @@ export async function POST(request: Request) {
     // Extrair e validar dados
     const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato, fromMe } = extrairDadosMensagem(body)
 
-    // Ignorar mensagens enviadas pelo próprio sistema
+    // ==========================================
+    // IGNORAR MENSAGENS ENVIADAS POR NÓS
+    // ==========================================
     if (fromMe) {
       console.log(`📤 Ignorando mensagem de saída (fromMe=true): ${mensagem.substring(0, 50)}...`)
       return NextResponse.json({ 
@@ -689,6 +790,21 @@ export async function POST(request: Request) {
     if (!telefone || !mensagem) {
       await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro', ip)
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
+    }
+
+    // ==========================================
+    // VERIFICAÇÃO ADICIONAL: Duplicata recente
+    // Se existe uma mensagem de saída idêntica nos últimos 30 segundos,
+    // é provavelmente o webhook de confirmação da nossa própria mensagem
+    // ==========================================
+    const isDuplicata = await verificarDuplicataRecente(telefone, mensagem)
+    if (isDuplicata) {
+      console.log(`🔄 Ignorando webhook duplicado para mensagem de saída recente`)
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Duplicata de mensagem de saída ignorada',
+        ignored: true
+      })
     }
 
     // Usar function do banco para evitar duplicatas
