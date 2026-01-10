@@ -140,7 +140,6 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
       .insert({
         tipo,
         payload: JSON.stringify(payload).substring(0, 50000), // Limitar tamanho
-        ip_origem: ip,
         created_at: new Date().toISOString()
       })
   } catch (e) {
@@ -162,7 +161,8 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     if (!numero.startsWith('55')) numero = '55' + numero
 
     // API do WaSender para buscar foto de perfil
-    // Endpoint correto: GET https://www.wasenderapi.com/api/contacts/{contactPhoneNumber}/picture
+    // Endpoint: GET https://www.wasenderapi.com/api/contacts/{contactPhoneNumber}/picture
+    // Response: { "success": true, "data": { "imgUrl": "https://..." } }
     const response = await fetch(`https://www.wasenderapi.com/api/contacts/${numero}/picture`, {
       method: 'GET',
       headers: {
@@ -177,8 +177,14 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     }
 
     const result = await response.json()
-    // A API pode retornar em diferentes formatos
-    return result.profilePictureUrl || result.url || result.picture || result.imgUrl || null
+    
+    // A resposta vem em result.data.imgUrl conforme documentação
+    if (result.success && result.data?.imgUrl) {
+      console.log(`📷 Foto encontrada para ${numero}: ${result.data.imgUrl}`)
+      return result.data.imgUrl
+    }
+    
+    return null
   } catch (error) {
     console.error('Erro ao buscar foto de perfil:', error)
     return null
@@ -207,7 +213,7 @@ async function atualizarFotoPerfilConversa(conversaId: string, telefone: string)
         .update({ foto_perfil_url: fotoUrl })
         .eq('id', conversaId)
       
-      console.log(`📷 Foto de perfil atualizada para conversa ${conversaId}`)
+      console.log(`📷 Foto de perfil salva para conversa ${conversaId}`)
     }
   } catch (error) {
     console.error('Erro ao atualizar foto de perfil:', error)
