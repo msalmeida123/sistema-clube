@@ -2,12 +2,14 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Rotas que NÃO precisam de autenticação
+// Rotas que NÃO precisam de autenticação do middleware
+// (podem ter sua própria autenticação interna)
 const rotasPublicas = [
   '/login',
   '/cadastro',
   '/recuperar-senha',
   '/api/wasender/webhook', // Webhook tem sua própria autenticação
+  '/api/wasender/sync-contacts', // Sync tem autenticação via API key
 ]
 
 // Rotas de API que precisam de autenticação
