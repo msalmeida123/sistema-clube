@@ -66,14 +66,8 @@ async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ no
 }
 
 // POST - Sincronizar todas as conversas
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    // Verificar autenticação básica (pode adicionar mais segurança depois)
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-    }
-
     // Pegar configuração da API
     const { data: config } = await getSupabase()
       .from('config_wasender')
@@ -101,18 +95,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ 
         success: true, 
         message: 'Nenhuma conversa para atualizar',
-        atualizadas: 0 
+        processados: 0,
+        com_foto: 0,
+        sem_foto: 0
       })
     }
 
     // Processar cada conversa com delay para não sobrecarregar a API
     const resultados = {
-      total: conversas.length,
-      atualizadas: 0,
-      fotos_atualizadas: 0,
-      nomes_atualizados: 0,
-      erros: 0,
-      detalhes: [] as { telefone: string; status: string; nome?: string; foto?: boolean }[]
+      processados: conversas.length,
+      com_foto: 0,
+      sem_foto: 0,
+      com_nome: 0,
+      sem_nome: 0,
+      atualizados: 0
     }
 
     for (const conversa of conversas) {
@@ -123,26 +119,27 @@ export async function POST(request: Request) {
         const info = await buscarInfoContato(conversa.telefone, config.api_key)
         
         if (!info) {
-          resultados.erros++
-          resultados.detalhes.push({ telefone: conversa.telefone, status: 'erro' })
+          resultados.sem_foto++
+          resultados.sem_nome++
           continue
         }
 
         const updates: { nome_contato?: string; foto_perfil_url?: string } = {}
-        let atualizado = false
 
         // Atualizar nome se encontrado e se o atual é nulo ou 'Desconhecido'
         if (info.nome && (!conversa.nome_contato || conversa.nome_contato === 'Desconhecido')) {
           updates.nome_contato = info.nome
-          resultados.nomes_atualizados++
-          atualizado = true
+          resultados.com_nome++
+        } else {
+          resultados.sem_nome++
         }
 
         // Atualizar foto se encontrada e se não tem
         if (info.foto && !conversa.foto_perfil_url) {
           updates.foto_perfil_url = info.foto
-          resultados.fotos_atualizadas++
-          atualizado = true
+          resultados.com_foto++
+        } else {
+          resultados.sem_foto++
         }
 
         if (Object.keys(updates).length > 0) {
@@ -151,26 +148,18 @@ export async function POST(request: Request) {
             .update(updates)
             .eq('id', conversa.id)
           
-          resultados.atualizadas++
+          resultados.atualizados++
         }
-
-        resultados.detalhes.push({ 
-          telefone: conversa.telefone, 
-          status: atualizado ? 'atualizado' : 'sem_alteracao',
-          nome: info.nome,
-          foto: !!info.foto
-        })
 
       } catch (err) {
         console.error(`Erro ao processar ${conversa.telefone}:`, err)
-        resultados.erros++
-        resultados.detalhes.push({ telefone: conversa.telefone, status: 'erro' })
+        resultados.sem_foto++
+        resultados.sem_nome++
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Sincronização concluída`,
       ...resultados
     })
 
