@@ -1,0 +1,5 @@
+# Backups criados pelos hooks
+backups/
+
+# Logs de eventos
+logs/
