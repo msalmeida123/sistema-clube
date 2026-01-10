@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { sanitizeForDatabase, escapeHtml, stripHtml } from '@/lib/security'
+import { sanitizeForDatabase } from '@/lib/security'
 
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA
@@ -496,6 +496,7 @@ interface WebhookBody {
   body?: string
   text?: string
   content?: string
+  caption?: string
   from?: string
   sender?: string
   phone?: string
@@ -528,10 +529,10 @@ interface WebhookBody {
       message?: {
         conversation?: string
         extendedTextMessage?: { text?: string }
-        imageMessage?: { url?: string }
-        videoMessage?: { url?: string }
+        imageMessage?: { url?: string; caption?: string }
+        videoMessage?: { url?: string; caption?: string }
         audioMessage?: { url?: string }
-        documentMessage?: { url?: string }
+        documentMessage?: { url?: string; fileName?: string }
       }
       pushName?: string
     }
@@ -544,6 +545,7 @@ interface WebhookBody {
     body?: string
     text?: string
     content?: string
+    caption?: string
     id?: string
     messageId?: string
     type?: string
@@ -614,24 +616,59 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
   if (body.data?.messages) {
     const msg = body.data.messages
     const key = msg.key || {}
+    const message = msg.message
+    
+    // Detectar tipo e extrair URL da mídia
+    let tipo = 'texto'
+    let mediaUrl: string | undefined
+    let caption = ''
+    
+    if (message?.imageMessage) {
+      tipo = 'imagem'
+      mediaUrl = message.imageMessage.url
+      caption = message.imageMessage.caption || ''
+    } else if (message?.videoMessage) {
+      tipo = 'video'
+      mediaUrl = message.videoMessage.url
+      caption = message.videoMessage.caption || ''
+    } else if (message?.audioMessage) {
+      tipo = 'audio'
+      mediaUrl = message.audioMessage.url
+    } else if (message?.documentMessage) {
+      tipo = 'documento'
+      mediaUrl = message.documentMessage.url
+      caption = message.documentMessage.fileName || ''
+    }
+    
+    // Para mídia, usar caption como mensagem ou indicador do tipo
+    let mensagemFinal = sanitizarTexto(
+      msg.messageBody || 
+      message?.conversation || 
+      message?.extendedTextMessage?.text ||
+      caption
+    )
+    
+    // Se é mídia e não tem texto, criar indicador
+    if (!mensagemFinal && tipo !== 'texto') {
+      const tipoLabels: Record<string, string> = {
+        'imagem': '📷 Imagem',
+        'video': '🎥 Vídeo',
+        'audio': '🎤 Áudio',
+        'documento': '📄 Documento'
+      }
+      mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
+    }
+    
     return {
       telefone: sanitizarTelefone(
         key.cleanedSenderPn ||
         key.cleanedParticipantPn ||
         key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@lid', '')
       ),
-      mensagem: sanitizarTexto(
-        msg.messageBody || 
-        msg.message?.conversation || 
-        msg.message?.extendedTextMessage?.text
-      ),
+      mensagem: mensagemFinal,
       messageId: msg.key?.id || '',
-      tipo: msg.message?.imageMessage ? 'imagem' : 
-            msg.message?.videoMessage ? 'video' :
-            msg.message?.audioMessage ? 'audio' :
-            msg.message?.documentMessage ? 'documento' : 'texto',
-      mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
-                msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
+      tipo,
+      mediaUrl,
       nomeContato: sanitizarTexto(msg.pushName || body.data.pushName),
       fromMe: detectarFromMe()
     }
@@ -640,32 +677,72 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
   // Formato padrão
   if (body.data) {
     const data = body.data
+    const tipo = data.type || 'texto'
+    const mediaUrl = data.mediaUrl || data.media?.url
+    
+    // Pegar mensagem ou caption
+    let mensagemFinal = sanitizarTexto(data.message || data.body || data.text || data.content || data.caption)
+    
+    // Se é mídia e não tem texto, criar indicador
+    if (!mensagemFinal && mediaUrl) {
+      const tipoLabels: Record<string, string> = {
+        'image': '📷 Imagem',
+        'imagem': '📷 Imagem',
+        'video': '🎥 Vídeo',
+        'audio': '🎤 Áudio',
+        'ptt': '🎤 Áudio',
+        'document': '📄 Documento',
+        'documento': '📄 Documento'
+      }
+      mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
+    }
+    
     return {
       telefone: sanitizarTelefone(
         data.from?.replace('@c.us', '') || 
         data.sender?.replace('@c.us', '') ||
         data.phone
       ),
-      mensagem: sanitizarTexto(data.message || data.body || data.text || data.content),
+      mensagem: mensagemFinal,
       messageId: data.id || data.messageId || '',
-      tipo: data.type || 'texto',
-      mediaUrl: data.mediaUrl || data.media?.url,
+      tipo: tipo === 'image' ? 'imagem' : tipo === 'ptt' ? 'audio' : tipo === 'document' ? 'documento' : tipo,
+      mediaUrl,
       nomeContato: sanitizarTexto(data.pushName || data.notifyName || data.name),
       fromMe: detectarFromMe()
     }
   }
   
   // Dados direto no body
+  const tipo = body.type || 'texto'
+  const mediaUrl = body.mediaUrl || body.media?.url
+  
+  // Pegar mensagem ou caption
+  let mensagemFinal = sanitizarTexto(body.message || body.body || body.text || body.content || body.caption)
+  
+  // Se é mídia e não tem texto, criar indicador
+  if (!mensagemFinal && mediaUrl) {
+    const tipoLabels: Record<string, string> = {
+      'image': '📷 Imagem',
+      'imagem': '📷 Imagem',
+      'video': '🎥 Vídeo',
+      'audio': '🎤 Áudio',
+      'ptt': '🎤 Áudio',
+      'document': '📄 Documento',
+      'documento': '📄 Documento'
+    }
+    mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
+  }
+  
   return {
     telefone: sanitizarTelefone(
       body.from?.replace('@c.us', '') || 
       body.sender?.replace('@c.us', '') ||
       body.phone
     ),
-    mensagem: sanitizarTexto(body.message || body.body || body.text || body.content),
+    mensagem: mensagemFinal,
     messageId: body.id || body.messageId || '',
-    tipo: body.type || 'texto',
-    mediaUrl: body.mediaUrl || body.media?.url,
+    tipo: tipo === 'image' ? 'imagem' : tipo === 'ptt' ? 'audio' : tipo === 'document' ? 'documento' : tipo,
+    mediaUrl,
     nomeContato: sanitizarTexto(body.pushName || body.notifyName || body.name),
     fromMe: detectarFromMe()
   }
@@ -683,7 +760,7 @@ function isEventoMensagem(body: WebhookBody): boolean {
     'new_message'
   ]
   
-  if (!event && (body.message || body.body || body.text || body.data?.message || body.data?.messages)) {
+  if (!event && (body.message || body.body || body.text || body.data?.message || body.data?.messages || body.mediaUrl || body.data?.mediaUrl)) {
     return true
   }
   
@@ -786,8 +863,14 @@ export async function POST(request: Request) {
       })
     }
 
-    if (!telefone || !mensagem) {
-      await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro', ip)
+    // Validar dados - agora aceita mensagem vazia se tiver mediaUrl
+    if (!telefone) {
+      await salvarLogWebhook({ erro: 'Telefone não encontrado', telefone, mensagem }, 'erro', ip)
+      return NextResponse.json({ error: 'Telefone não encontrado' }, { status: 400 })
+    }
+    
+    if (!mensagem && !mediaUrl) {
+      await salvarLogWebhook({ erro: 'Dados incompletos - sem mensagem ou mídia', telefone, mensagem, mediaUrl }, 'erro', ip)
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
     }
 
@@ -796,7 +879,7 @@ export async function POST(request: Request) {
       .rpc('processar_mensagem_whatsapp', {
         p_telefone: telefone,
         p_nome_contato: nomeContato || null,
-        p_conteudo: mensagem,
+        p_conteudo: mensagem || `📎 ${tipo}`,
         p_tipo: tipo,
         p_direcao: 'entrada',
         p_message_id: messageId || null,
@@ -813,6 +896,8 @@ export async function POST(request: Request) {
 
     // Extrair dados do resultado da function
     const { conversa_id: conversaId, mensagem_id: mensagemId, is_nova_conversa: isPrimeiraMsg } = resultado[0]
+
+    console.log(`📩 Mensagem processada: tipo=${tipo}, mediaUrl=${mediaUrl ? 'sim' : 'não'}, conversa=${conversaId}`)
 
     // ==========================================
     // VERIFICAÇÃO ADICIONAL: Duplicata recente (após saber o conversaId)
@@ -837,20 +922,24 @@ export async function POST(request: Request) {
     atualizarFotoPerfilConversa(conversaId, telefone)
       .catch(err => console.error('Erro ao buscar foto:', err))
 
-    // Processar respostas automáticas e IA
-    processarRespostasAutomaticas(conversaId, telefone, mensagem, isPrimeiraMsg)
-      .then(respondeu => {
-        if (!respondeu) {
-          processarComIA(conversaId, telefone, mensagem, tipo, mediaUrl)
-        }
-      })
-      .catch(err => console.error('Erro processamento:', err))
+    // Processar respostas automáticas e IA (apenas para mensagens de texto)
+    if (tipo === 'texto' || tipo === 'audio') {
+      processarRespostasAutomaticas(conversaId, telefone, mensagem, isPrimeiraMsg)
+        .then(respondeu => {
+          if (!respondeu) {
+            processarComIA(conversaId, telefone, mensagem, tipo, mediaUrl)
+          }
+        })
+        .catch(err => console.error('Erro processamento:', err))
+    }
 
     return NextResponse.json({ 
       success: true, 
       conversa_id: conversaId,
       mensagem_id: mensagemId,
-      is_nova_conversa: isPrimeiraMsg
+      is_nova_conversa: isPrimeiraMsg,
+      tipo,
+      has_media: !!mediaUrl
     })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
