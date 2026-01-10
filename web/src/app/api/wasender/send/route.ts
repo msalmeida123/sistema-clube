@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     console.log('Enviando mensagem WaSender:', { to, messageType, payload })
 
     // Enviar mensagem via WaSender API
-    const response = await fetch('https://api.wasenderapi.com/api/send-message', {
+    const response = await fetch('https://www.wasenderapi.com/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
