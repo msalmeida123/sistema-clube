@@ -17,8 +17,8 @@ ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
 COPY package*.json ./
 COPY yarn.lock* ./
 
-# Instalar dependências
-RUN npm ci
+# Instalar dependências (usando npm install para atualizar lock se necessário)
+RUN npm install --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
