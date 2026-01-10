@@ -226,7 +226,7 @@ function detectIframeEmbedding() {
       
       // Tenta escapar do iframe
       if (window.top) {
-        window.top.location = window.self.location
+        window.top.location.href = window.self.location.href
       }
     }
   } catch (_e) {
@@ -234,7 +234,9 @@ function detectIframeEmbedding() {
     handleSecurityViolation('cross_origin_iframe_detected')
     const warningDiv = document.createElement('div')
     warningDiv.style.cssText = 'padding:20px;text-align:center;'
-    warningDiv.innerHTML = '<h1>Acesso não permitido</h1>'
+    const h1 = document.createElement('h1')
+    h1.textContent = 'Acesso não permitido'
+    warningDiv.appendChild(h1)
     document.body.innerHTML = ''
     document.body.appendChild(warningDiv)
   }
@@ -338,7 +340,7 @@ export function showSecurityWarning() {
   
   const message = document.createElement('p')
   message.style.cssText = 'font-size: 1.2rem; max-width: 500px; text-align: center;'
-  message.innerHTML = 'Ferramentas de desenvolvedor detectadas.<br>Se você não é um desenvolvedor autorizado,<br>feche esta janela imediatamente.'
+  message.textContent = 'Ferramentas de desenvolvedor detectadas. Se você não é um desenvolvedor autorizado, feche esta janela imediatamente.'
   
   const button = document.createElement('button')
   button.style.cssText = `
