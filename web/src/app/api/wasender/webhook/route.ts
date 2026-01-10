@@ -492,6 +492,7 @@ interface DadosMensagem {
   tipo: string
   mediaUrl?: string
   nomeContato: string
+  fromMe: boolean // NOVO: indica se é mensagem enviada pelo próprio sistema
 }
 
 interface WebhookBody {
@@ -514,10 +515,12 @@ interface WebhookBody {
   name?: string
   ack?: number | string
   status?: string
+  fromMe?: boolean
   data?: {
     messages?: {
       key?: {
         id?: string
+        fromMe?: boolean // IMPORTANTE: campo que indica se a mensagem foi enviada pelo sistema
         cleanedSenderPn?: string
         cleanedParticipantPn?: string
         remoteJid?: string
@@ -533,6 +536,7 @@ interface WebhookBody {
       }
       pushName?: string
     }
+    fromMe?: boolean
     pushName?: string
     from?: string
     sender?: string
@@ -553,7 +557,7 @@ interface WebhookBody {
 }
 
 function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
-  // Formato WaSender messages.received
+  // Formato WaSender messages.received / messages.upsert
   if (body.data?.messages) {
     const msg = body.data.messages
     const key = msg.key || {}
@@ -561,7 +565,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       telefone: sanitizarTelefone(
         key.cleanedSenderPn ||
         key.cleanedParticipantPn ||
-        key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '')
+        key.remoteJid?.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@lid', '')
       ),
       mensagem: sanitizarTexto(
         msg.messageBody || 
@@ -575,7 +579,8 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
             msg.message?.documentMessage ? 'documento' : 'texto',
       mediaUrl: msg.message?.imageMessage?.url || msg.message?.videoMessage?.url || 
                 msg.message?.audioMessage?.url || msg.message?.documentMessage?.url,
-      nomeContato: sanitizarTexto(msg.pushName || body.data.pushName)
+      nomeContato: sanitizarTexto(msg.pushName || body.data.pushName),
+      fromMe: key.fromMe === true // Verificar se é mensagem enviada pelo sistema
     }
   }
   
@@ -592,7 +597,8 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       messageId: data.id || data.messageId || '',
       tipo: data.type || 'texto',
       mediaUrl: data.mediaUrl || data.media?.url,
-      nomeContato: sanitizarTexto(data.pushName || data.notifyName || data.name)
+      nomeContato: sanitizarTexto(data.pushName || data.notifyName || data.name),
+      fromMe: data.fromMe === true || body.fromMe === true
     }
   }
   
@@ -607,7 +613,8 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
     messageId: body.id || body.messageId || '',
     tipo: body.type || 'texto',
     mediaUrl: body.mediaUrl || body.media?.url,
-    nomeContato: sanitizarTexto(body.pushName || body.notifyName || body.name)
+    nomeContato: sanitizarTexto(body.pushName || body.notifyName || body.name),
+    fromMe: body.fromMe === true
   }
 }
 
@@ -693,7 +700,20 @@ export async function POST(request: Request) {
     }
 
     // Extrair e validar dados
-    const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato } = extrairDadosMensagem(body)
+    const { telefone, mensagem, messageId, tipo, mediaUrl, nomeContato, fromMe } = extrairDadosMensagem(body)
+
+    // ==========================================
+    // IMPORTANTE: Ignorar mensagens enviadas pelo próprio sistema
+    // Isso evita duplicação quando o WaSender envia webhook de mensagens de saída
+    // ==========================================
+    if (fromMe) {
+      console.log(`📤 Ignorando mensagem de saída (fromMe=true): ${mensagem.substring(0, 50)}...`)
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Mensagem de saída ignorada (fromMe=true)',
+        ignored: true
+      })
+    }
 
     if (!telefone || !mensagem) {
       await salvarLogWebhook({ erro: 'Dados incompletos', telefone, mensagem }, 'erro', ip)
