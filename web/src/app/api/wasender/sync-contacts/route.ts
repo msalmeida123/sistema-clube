@@ -14,6 +14,28 @@ function sanitizarTelefone(telefone: string | undefined | null): string {
   return telefone.replace(/\D/g, '').substring(0, 15)
 }
 
+// Verificar autenticação usando a API key do WaSender
+async function verificarAutenticacao(request: Request): Promise<boolean> {
+  const authHeader = request.headers.get('authorization')
+  const apiKeyHeader = request.headers.get('x-api-key')
+  
+  // Aceitar tanto Bearer token quanto x-api-key header
+  const tokenRecebido = authHeader?.replace('Bearer ', '') || apiKeyHeader
+  
+  if (!tokenRecebido) {
+    return false
+  }
+  
+  // Buscar a API key configurada no banco
+  const { data: config } = await getSupabase()
+    .from('config_wasender')
+    .select('api_key')
+    .single()
+  
+  // Verificar se o token corresponde à API key do WaSender
+  return config?.api_key === tokenRecebido
+}
+
 // Buscar informações do contato via API do WaSender
 async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ nome?: string; foto?: string } | null> {
   try {
@@ -21,7 +43,6 @@ async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ no
     if (!numero.startsWith('55')) numero = '55' + numero
 
     // Buscar informações do contato (inclui nome)
-    // GET /api/contacts/{contactPhoneNumber}
     const infoResponse = await fetch(`https://www.wasenderapi.com/api/contacts/${numero}`, {
       method: 'GET',
       headers: {
@@ -33,14 +54,12 @@ async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ no
     let nome: string | undefined
     if (infoResponse.ok) {
       const infoResult = await infoResponse.json()
-      // A API pode retornar: { success: true, data: { name, pushName, notify, ... } }
       if (infoResult.success && infoResult.data) {
         nome = infoResult.data.pushName || infoResult.data.name || infoResult.data.notify || infoResult.data.verifiedName
       }
     }
 
     // Buscar foto de perfil
-    // GET /api/contacts/{contactPhoneNumber}/picture
     const fotoResponse = await fetch(`https://www.wasenderapi.com/api/contacts/${numero}/picture`, {
       method: 'GET',
       headers: {
@@ -52,7 +71,6 @@ async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ no
     let foto: string | undefined
     if (fotoResponse.ok) {
       const fotoResult = await fotoResponse.json()
-      // Response: { "success": true, "data": { "imgUrl": "https://..." } }
       if (fotoResult.success && fotoResult.data?.imgUrl) {
         foto = fotoResult.data.imgUrl
       }
@@ -66,8 +84,17 @@ async function buscarInfoContato(telefone: string, apiKey: string): Promise<{ no
 }
 
 // POST - Sincronizar todas as conversas
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    // Verificar autenticação
+    const autenticado = await verificarAutenticacao(request)
+    if (!autenticado) {
+      return NextResponse.json(
+        { error: 'Não autorizado. Envie a API key no header Authorization ou x-api-key.' },
+        { status: 401 }
+      )
+    }
+
     // Pegar configuração da API
     const { data: config } = await getSupabase()
       .from('config_wasender')
@@ -79,13 +106,12 @@ export async function POST() {
     }
 
     // Buscar todas as conversas que precisam de atualização
-    // (sem foto OU sem nome OU nome é 'Desconhecido')
     const { data: conversas, error } = await getSupabase()
       .from('conversas_whatsapp')
       .select('id, telefone, nome_contato, foto_perfil_url')
       .or('foto_perfil_url.is.null,nome_contato.is.null,nome_contato.eq.Desconhecido')
       .order('ultimo_contato', { ascending: false })
-      .limit(100) // Limitar para não sobrecarregar
+      .limit(100)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -101,7 +127,7 @@ export async function POST() {
       })
     }
 
-    // Processar cada conversa com delay para não sobrecarregar a API
+    // Processar cada conversa com delay
     const resultados = {
       processados: conversas.length,
       com_foto: 0,
@@ -113,7 +139,6 @@ export async function POST() {
 
     for (const conversa of conversas) {
       try {
-        // Delay de 500ms entre requisições para não sobrecarregar
         await new Promise(r => setTimeout(r, 500))
 
         const info = await buscarInfoContato(conversa.telefone, config.api_key)
@@ -126,7 +151,6 @@ export async function POST() {
 
         const updates: { nome_contato?: string; foto_perfil_url?: string } = {}
 
-        // Atualizar nome se encontrado e se o atual é nulo ou 'Desconhecido'
         if (info.nome && (!conversa.nome_contato || conversa.nome_contato === 'Desconhecido')) {
           updates.nome_contato = info.nome
           resultados.com_nome++
@@ -134,7 +158,6 @@ export async function POST() {
           resultados.sem_nome++
         }
 
-        // Atualizar foto se encontrada e se não tem
         if (info.foto && !conversa.foto_perfil_url) {
           updates.foto_perfil_url = info.foto
           resultados.com_foto++
@@ -169,9 +192,18 @@ export async function POST() {
   }
 }
 
-// GET - Verificar status/estatísticas
-export async function GET() {
+// GET - Verificar status/estatísticas (também requer autenticação)
+export async function GET(request: Request) {
   try {
+    // Verificar autenticação
+    const autenticado = await verificarAutenticacao(request)
+    if (!autenticado) {
+      return NextResponse.json(
+        { error: 'Não autorizado. Envie a API key no header Authorization ou x-api-key.' },
+        { status: 401 }
+      )
+    }
+
     // Contar conversas por status
     const { data: stats } = await getSupabase()
       .from('conversas_whatsapp')
