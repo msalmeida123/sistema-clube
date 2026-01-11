@@ -142,14 +142,72 @@ async function verificarDuplicataRecente(conversaId: string, conteudo: string): 
 }
 
 // ==========================================
-// FUNÇÃO PARA DECRIPTAR MÍDIA DO WASENDER
+// FUNÇÃO PARA DECRIPTAR MÍDIA DO WASENDER - CORRIGIDA!
 // ==========================================
 async function decryptarMidia(messageData: any, apiKey: string): Promise<string | null> {
   try {
-    // Construir o payload para a API de decrypt
+    // Extrair informações da mídia do messageData
+    const message = messageData.message
+    if (!message) {
+      console.warn('⚠️ Nenhuma message encontrada no messageData')
+      return null
+    }
+
+    // Identificar o tipo de mídia e extrair dados
+    let mediaMessage: any = null
+    let mediaType = ''
+    
+    if (message.imageMessage) {
+      mediaMessage = message.imageMessage
+      mediaType = 'imageMessage'
+    } else if (message.videoMessage) {
+      mediaMessage = message.videoMessage
+      mediaType = 'videoMessage'
+    } else if (message.audioMessage) {
+      mediaMessage = message.audioMessage
+      mediaType = 'audioMessage'
+    } else if (message.documentMessage) {
+      mediaMessage = message.documentMessage
+      mediaType = 'documentMessage'
+    } else if (message.stickerMessage) {
+      mediaMessage = message.stickerMessage
+      mediaType = 'stickerMessage'
+    }
+
+    if (!mediaMessage) {
+      console.warn('⚠️ Nenhum tipo de mídia reconhecido')
+      return null
+    }
+
+    // Verificar se tem mediaKey (mídia criptografada)
+    if (!mediaMessage.mediaKey) {
+      // Se não tem mediaKey mas tem URL direta, retornar ela
+      if (mediaMessage.url) {
+        console.log('✅ URL direta encontrada (não criptografada)')
+        return mediaMessage.url
+      }
+      console.warn('⚠️ Mídia sem mediaKey e sem URL')
+      return null
+    }
+
+    // Construir o payload CORRETO para a API de decrypt
     const decryptPayload = {
       data: {
-        messages: messageData
+        messages: {
+          key: {
+            id: messageData.key?.id || `msg_${Date.now()}`
+          },
+          message: {
+            [mediaType]: {
+              url: mediaMessage.url,
+              mimetype: mediaMessage.mimetype,
+              mediaKey: mediaMessage.mediaKey,
+              fileSha256: mediaMessage.fileSha256,
+              fileLength: mediaMessage.fileLength,
+              fileName: mediaMessage.fileName
+            }
+          }
+        }
       }
     }
 
@@ -168,6 +226,12 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`❌ Erro ao decriptar mídia: ${response.status} - ${errorText}`)
+      
+      // Se falhou, tentar usar URL original se existir
+      if (mediaMessage.url) {
+        console.log('⚠️ Tentando usar URL original como fallback')
+        return mediaMessage.url
+      }
       return null
     }
 
@@ -179,6 +243,12 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
     }
 
     console.warn('⚠️ Resposta de decrypt sem URL:', result)
+    
+    // Fallback para URL original
+    if (mediaMessage.url) {
+      return mediaMessage.url
+    }
+    
     return null
   } catch (error) {
     console.error('Erro ao decriptar mídia:', error)
@@ -187,6 +257,7 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
 }
 
 // Buscar foto de perfil do contato via API do WaSender
+// MODIFICADO: Não atualiza automaticamente para evitar loops de realtime
 async function buscarFotoPerfil(telefone: string): Promise<string | null> {
   try {
     const { data: config } = await getSupabase()
@@ -226,31 +297,9 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
   }
 }
 
-// Atualizar foto de perfil da conversa (executa em background)
-async function atualizarFotoPerfilConversa(conversaId: string, telefone: string) {
-  try {
-    const { data: conversa } = await getSupabase()
-      .from('conversas_whatsapp')
-      .select('foto_perfil_url')
-      .eq('id', conversaId)
-      .single()
-
-    if (conversa?.foto_perfil_url) return
-
-    const fotoUrl = await buscarFotoPerfil(telefone)
-    
-    if (fotoUrl) {
-      await getSupabase()
-        .from('conversas_whatsapp')
-        .update({ foto_perfil_url: fotoUrl })
-        .eq('id', conversaId)
-      
-      console.log(`📷 Foto de perfil salva para conversa ${conversaId}`)
-    }
-  } catch (error) {
-    console.error('Erro ao atualizar foto de perfil:', error)
-  }
-}
+// REMOVIDO: A função atualizarFotoPerfilConversa foi removida para evitar 
+// atualizações em background que causam loops no Realtime.
+// A foto será atualizada apenas quando a conversa for criada.
 
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
@@ -913,10 +962,20 @@ export async function POST(request: Request) {
     }
 
     // ==========================================
-    // DECRIPTAR MÍDIA SE NECESSÁRIO
+    // DECRIPTAR MÍDIA SE NECESSÁRIO - CORRIGIDO!
     // ==========================================
     if (rawMessageData && !mediaUrl && tipo !== 'texto') {
       console.log(`🔐 Mídia criptografada detectada (${tipo}), tentando decriptar...`)
+      
+      // Log detalhado para debug
+      await salvarLogWebhook({
+        tipo,
+        rawMessageData: JSON.stringify(rawMessageData).substring(0, 2000),
+        hasMediaKey: !!rawMessageData.message?.imageMessage?.mediaKey ||
+                     !!rawMessageData.message?.videoMessage?.mediaKey ||
+                     !!rawMessageData.message?.audioMessage?.mediaKey ||
+                     !!rawMessageData.message?.documentMessage?.mediaKey
+      }, 'debug_media_decrypt', ip)
       
       const { data: config } = await getSupabase()
         .from('config_wasender')
@@ -957,6 +1016,21 @@ export async function POST(request: Request) {
       mensagem = tipoLabels[tipo] || '📎 Mídia'
     }
 
+    // Buscar foto de perfil ANTES de criar a conversa (só para novas conversas)
+    let fotoPerfilUrl: string | null = null
+    
+    // Verificar se conversa já existe
+    const { data: conversaExistente } = await getSupabase()
+      .from('conversas_whatsapp')
+      .select('id, foto_perfil_url')
+      .eq('telefone', telefone)
+      .single()
+    
+    // Só busca foto se for nova conversa ou se não tem foto ainda
+    if (!conversaExistente || !conversaExistente.foto_perfil_url) {
+      fotoPerfilUrl = await buscarFotoPerfil(telefone)
+    }
+
     // Usar function do banco para evitar duplicatas e criar conversa se necessário
     const { data: resultado, error: erroProcessamento } = await getSupabase()
       .rpc('processar_mensagem_whatsapp', {
@@ -968,7 +1042,7 @@ export async function POST(request: Request) {
         p_message_id: messageId || null,
         p_media_url: mediaUrl || null,
         p_setor_id: null,
-        p_foto_perfil_url: null
+        p_foto_perfil_url: fotoPerfilUrl // Passa a foto apenas na criação
       })
 
     if (erroProcessamento || !resultado || resultado.length === 0) {
@@ -999,9 +1073,7 @@ export async function POST(request: Request) {
       })
     }
 
-    // Buscar foto de perfil em background
-    atualizarFotoPerfilConversa(conversaId, telefone)
-      .catch(err => console.error('Erro ao buscar foto:', err))
+    // REMOVIDO: Não atualiza foto em background para evitar loops de realtime
 
     // Processar respostas automáticas e IA (apenas para mensagens de texto ou áudio)
     if (tipo === 'texto' || tipo === 'audio') {
