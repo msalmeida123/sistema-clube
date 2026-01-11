@@ -134,8 +134,12 @@ export default function CRMPage() {
 
   // Carregar conversas - FILTRADO POR SETOR DO USUÁRIO
   const carregarConversas = useCallback(async () => {
-    if (loadingPermissoes) return
+    if (loadingPermissoes) {
+      console.log('CRM: Aguardando permissões...')
+      return
+    }
     
+    console.log('CRM: Carregando conversas...', { isAdmin, setoresPermitidos: setoresPermitidos.length })
     setLoadingConversas(true)
     
     try {
@@ -160,6 +164,7 @@ export default function CRMPage() {
         }
       } else if (!isAdmin && setoresPermitidos.length === 0) {
         // Usuário sem nenhum setor não vê nada
+        console.log('CRM: Usuário sem setores, não mostrando conversas')
         setConversas([])
         setLoadingConversas(false)
         return
@@ -170,10 +175,17 @@ export default function CRMPage() {
         query = query.eq('setor_id', filtroSetor)
       }
       
-      const { data } = await query
-      setConversas(data || [])
+      const { data, error } = await query
+      
+      if (error) {
+        console.error('CRM: Erro ao carregar conversas:', error)
+        toast.error('Erro ao carregar conversas')
+      } else {
+        console.log('CRM: Conversas carregadas:', data?.length || 0)
+        setConversas(data || [])
+      }
     } catch (error) {
-      console.error('Erro ao carregar conversas:', error)
+      console.error('CRM: Erro ao carregar conversas:', error)
     } finally {
       setLoadingConversas(false)
     }
@@ -181,33 +193,61 @@ export default function CRMPage() {
 
   // Efeito inicial + Realtime para conversas
   useEffect(() => {
+    console.log('CRM: useEffect disparado', { loadingPermissoes, isAdmin })
+    
     if (!loadingPermissoes) {
       carregarConversas()
     }
     carregarTemplates()
     carregarSetores()
 
-    // Realtime para atualizações de conversas (novas mensagens, etc)
-    const channel = supabase
-      .channel('conversas-realtime')
+    // Realtime apenas para INSERT (novas conversas)
+    const conversasChannel = supabase
+      .channel('conversas-insert')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'conversas_whatsapp'
         },
         (payload) => {
-          console.log('Mudança em conversas:', payload)
+          console.log('CRM: Nova conversa:', payload)
+          setConversas(prev => [payload.new as Conversa, ...prev])
+        }
+      )
+      .subscribe()
+
+    // Realtime para INSERT em mensagens (atualizar conversas)
+    const mensagensChannel = supabase
+      .channel('mensagens-insert')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'mensagens_whatsapp'
+        },
+        (payload) => {
+          console.log('CRM: Nova mensagem recebida')
+          // Recarregar para atualizar ultima_mensagem e nao_lidas
           carregarConversas()
         }
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(conversasChannel)
+      supabase.removeChannel(mensagensChannel)
     }
-  }, [busca, filtroSetor, supabase, carregarConversas, carregarSetores, loadingPermissoes])
+  }, [supabase, carregarConversas, carregarSetores, loadingPermissoes, isAdmin])
+
+  // Efeito separado para busca (com debounce implícito)
+  useEffect(() => {
+    if (!loadingPermissoes) {
+      carregarConversas()
+    }
+  }, [busca, filtroSetor, loadingPermissoes])
 
   // Carregar templates
   const carregarTemplates = async () => {
@@ -779,11 +819,21 @@ export default function CRMPage() {
         </div>
       )
     }
+    if (msg.tipo === 'imagem' && msg.media_url) {
+      return (
+        <div>
+          <img src={msg.media_url} alt="Imagem" className="max-w-full rounded-lg mb-1" />
+          {msg.conteudo && !msg.conteudo.startsWith('📷') && (
+            <p className="whitespace-pre-wrap break-words">{msg.conteudo}</p>
+          )}
+        </div>
+      )
+    }
     if (msg.tipo === 'video' && msg.media_url) {
       return (
         <div>
           <video src={msg.media_url} controls className="max-w-full rounded-lg mb-1" />
-          {msg.conteudo && !msg.conteudo.startsWith('📎') && (
+          {msg.conteudo && !msg.conteudo.startsWith('📎') && !msg.conteudo.startsWith('🎥') && (
             <p className="whitespace-pre-wrap break-words">{msg.conteudo}</p>
           )}
         </div>
@@ -792,7 +842,7 @@ export default function CRMPage() {
     if (msg.tipo === 'audio' && msg.media_url) {
       return <audio src={msg.media_url} controls className="max-w-full" />
     }
-    if (msg.tipo === 'document' && msg.media_url) {
+    if ((msg.tipo === 'document' || msg.tipo === 'documento') && msg.media_url) {
       return (
         <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 underline">
           <FileText className="h-4 w-4" />
@@ -850,6 +900,9 @@ export default function CRMPage() {
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowNovaConversa(true)}>
                 <Plus className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={carregarConversas} title="Atualizar">
+                <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
           </div>
