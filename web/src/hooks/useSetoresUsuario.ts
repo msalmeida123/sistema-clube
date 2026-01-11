@@ -23,24 +23,39 @@ export function useSetoresUsuario() {
       // Buscar usuário atual
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
+        console.log('useSetoresUsuario: Nenhum usuário logado')
         setLoading(false)
         return
       }
 
+      console.log('useSetoresUsuario: Usuário logado:', user.email)
+
       // Verificar se é admin
-      const { data: usuario } = await supabase
+      const { data: usuario, error: erroUsuario } = await supabase
         .from('usuarios')
         .select('is_admin')
         .eq('auth_id', user.id)
         .single()
 
+      if (erroUsuario) {
+        console.error('useSetoresUsuario: Erro ao buscar usuário:', erroUsuario)
+      }
+
+      console.log('useSetoresUsuario: is_admin =', usuario?.is_admin)
+
       if (usuario?.is_admin) {
         setIsAdmin(true)
         // Admin vê todos os setores
-        const { data: todosSetores } = await supabase
+        const { data: todosSetores, error: erroSetores } = await supabase
           .from('setores_whatsapp')
           .select('id')
           .eq('ativo', true)
+
+        if (erroSetores) {
+          console.error('useSetoresUsuario: Erro ao buscar setores:', erroSetores)
+        }
+
+        console.log('useSetoresUsuario: Setores encontrados para admin:', todosSetores?.length || 0)
 
         setSetoresPermitidos(
           (todosSetores || []).map(s => ({
@@ -53,21 +68,30 @@ export function useSetoresUsuario() {
         )
       } else {
         setIsAdmin(false)
-        // Buscar setores associados ao usuário
-        const { data: setoresUsuario } = await supabase
-          .from('usuarios_setores_whatsapp')
-          .select('setor_id, pode_ver, pode_responder, pode_transferir')
-          .eq('user_id', user.id)
+        // Buscar setores associados ao usuário na tabela usuarios_setores
+        const { data: setoresUsuario, error: erroSetoresUsuario } = await supabase
+          .from('usuarios_setores')
+          .select('setor_id, is_responsavel')
+          .eq('usuario_id', usuario?.id || user.id)
+
+        if (erroSetoresUsuario) {
+          console.error('useSetoresUsuario: Erro ao buscar setores do usuário:', erroSetoresUsuario)
+        }
+
+        console.log('useSetoresUsuario: Setores do usuário não-admin:', setoresUsuario?.length || 0)
 
         setSetoresPermitidos(
           (setoresUsuario || []).map(s => ({
-            ...s,
+            setor_id: s.setor_id,
+            pode_ver: true,
+            pode_responder: true,
+            pode_transferir: s.is_responsavel || false,
             ve_todos: false
           }))
         )
       }
     } catch (error) {
-      console.error('Erro ao carregar setores do usuário:', error)
+      console.error('useSetoresUsuario: Erro ao carregar setores:', error)
     } finally {
       setLoading(false)
     }
