@@ -30,15 +30,17 @@ export function useSetoresUsuario() {
 
       console.log('useSetoresUsuario: Usuário logado:', user.email)
 
-      // Verificar se é admin
+      // Verificar se é admin - buscar id e is_admin
       const { data: usuario, error: erroUsuario } = await supabase
         .from('usuarios')
-        .select('is_admin')
+        .select('id, is_admin')
         .eq('auth_id', user.id)
         .single()
 
       if (erroUsuario) {
         console.error('useSetoresUsuario: Erro ao buscar usuário:', erroUsuario)
+        setLoading(false)
+        return
       }
 
       console.log('useSetoresUsuario: is_admin =', usuario?.is_admin)
@@ -72,7 +74,7 @@ export function useSetoresUsuario() {
         const { data: setoresUsuario, error: erroSetoresUsuario } = await supabase
           .from('usuarios_setores')
           .select('setor_id, is_responsavel')
-          .eq('usuario_id', usuario?.id || user.id)
+          .eq('usuario_id', usuario.id)
 
         if (erroSetoresUsuario) {
           console.error('useSetoresUsuario: Erro ao buscar setores do usuário:', erroSetoresUsuario)
