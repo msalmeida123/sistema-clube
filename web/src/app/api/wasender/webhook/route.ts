@@ -257,7 +257,6 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
 }
 
 // Buscar foto de perfil do contato via API do WaSender
-// MODIFICADO: Não atualiza automaticamente para evitar loops de realtime
 async function buscarFotoPerfil(telefone: string): Promise<string | null> {
   try {
     const { data: config } = await getSupabase()
@@ -297,9 +296,31 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
   }
 }
 
-// REMOVIDO: A função atualizarFotoPerfilConversa foi removida para evitar 
-// atualizações em background que causam loops no Realtime.
-// A foto será atualizada apenas quando a conversa for criada.
+// Atualizar foto de perfil da conversa (executa em background)
+async function atualizarFotoPerfilConversa(conversaId: string, telefone: string) {
+  try {
+    const { data: conversa } = await getSupabase()
+      .from('conversas_whatsapp')
+      .select('foto_perfil_url')
+      .eq('id', conversaId)
+      .single()
+
+    if (conversa?.foto_perfil_url) return
+
+    const fotoUrl = await buscarFotoPerfil(telefone)
+    
+    if (fotoUrl) {
+      await getSupabase()
+        .from('conversas_whatsapp')
+        .update({ foto_perfil_url: fotoUrl })
+        .eq('id', conversaId)
+      
+      console.log(`📷 Foto de perfil salva para conversa ${conversaId}`)
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar foto de perfil:', error)
+  }
+}
 
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
@@ -1016,21 +1037,6 @@ export async function POST(request: Request) {
       mensagem = tipoLabels[tipo] || '📎 Mídia'
     }
 
-    // Buscar foto de perfil ANTES de criar a conversa (só para novas conversas)
-    let fotoPerfilUrl: string | null = null
-    
-    // Verificar se conversa já existe
-    const { data: conversaExistente } = await getSupabase()
-      .from('conversas_whatsapp')
-      .select('id, foto_perfil_url')
-      .eq('telefone', telefone)
-      .single()
-    
-    // Só busca foto se for nova conversa ou se não tem foto ainda
-    if (!conversaExistente || !conversaExistente.foto_perfil_url) {
-      fotoPerfilUrl = await buscarFotoPerfil(telefone)
-    }
-
     // Usar function do banco para evitar duplicatas e criar conversa se necessário
     const { data: resultado, error: erroProcessamento } = await getSupabase()
       .rpc('processar_mensagem_whatsapp', {
@@ -1042,7 +1048,7 @@ export async function POST(request: Request) {
         p_message_id: messageId || null,
         p_media_url: mediaUrl || null,
         p_setor_id: null,
-        p_foto_perfil_url: fotoPerfilUrl // Passa a foto apenas na criação
+        p_foto_perfil_url: null
       })
 
     if (erroProcessamento || !resultado || resultado.length === 0) {
@@ -1073,7 +1079,11 @@ export async function POST(request: Request) {
       })
     }
 
-    // REMOVIDO: Não atualiza foto em background para evitar loops de realtime
+    // Buscar foto de perfil em background (só se for nova conversa)
+    if (isPrimeiraMsg) {
+      atualizarFotoPerfilConversa(conversaId, telefone)
+        .catch(err => console.error('Erro ao buscar foto:', err))
+    }
 
     // Processar respostas automáticas e IA (apenas para mensagens de texto ou áudio)
     if (tipo === 'texto' || tipo === 'audio') {
