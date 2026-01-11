@@ -79,7 +79,6 @@ export default function CRMPage() {
   const [novaMensagem, setNovaMensagem] = useState('')
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(false)
-  // CORREÇÃO: Iniciar como false - o loading será mostrado via loadingPermissoes
   const [loadingConversas, setLoadingConversas] = useState(false)
   const [showNovaConversa, setShowNovaConversa] = useState(false)
   const [showImportarContatos, setShowImportarContatos] = useState(false)
@@ -123,14 +122,39 @@ export default function CRMPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClientComponentClient()
 
-  // Carregar setores
-  const carregarSetores = useCallback(async () => {
-    const { data } = await supabase
-      .from('setores_whatsapp')
-      .select('*')
-      .eq('ativo', true)
-      .order('ordem', { ascending: true })
-    setSetores(data || [])
+  // Carregar setores - INDEPENDENTE
+  useEffect(() => {
+    const carregarSetores = async () => {
+      console.log('CRM: Carregando setores...')
+      const { data, error } = await supabase
+        .from('setores_whatsapp')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem', { ascending: true })
+      
+      if (error) {
+        console.error('CRM: Erro ao carregar setores:', error)
+      } else {
+        console.log('CRM: Setores carregados:', data?.length || 0)
+        setSetores(data || [])
+      }
+    }
+    
+    carregarSetores()
+  }, [supabase])
+
+  // Carregar templates - INDEPENDENTE
+  useEffect(() => {
+    const carregarTemplates = async () => {
+      const { data } = await supabase
+        .from('templates_mensagens')
+        .select('*')
+        .eq('ativo', true)
+        .order('uso_count', { ascending: false })
+      setTemplates(data || [])
+    }
+    
+    carregarTemplates()
   }, [supabase])
 
   // Carregar conversas - FILTRADO POR SETOR DO USUÁRIO
@@ -192,15 +216,13 @@ export default function CRMPage() {
     }
   }, [busca, filtroSetor, supabase, isAdmin, setoresPermitidos, getSetorIds, loadingPermissoes])
 
-  // Efeito inicial + Realtime para conversas
+  // Efeito para carregar conversas quando permissões estiverem prontas
   useEffect(() => {
-    console.log('CRM: useEffect disparado', { loadingPermissoes, isAdmin })
+    console.log('CRM: useEffect conversas disparado', { loadingPermissoes, isAdmin })
     
     if (!loadingPermissoes) {
       carregarConversas()
     }
-    carregarTemplates()
-    carregarSetores()
 
     // Realtime apenas para INSERT (novas conversas)
     const conversasChannel = supabase
@@ -241,24 +263,14 @@ export default function CRMPage() {
       supabase.removeChannel(conversasChannel)
       supabase.removeChannel(mensagensChannel)
     }
-  }, [supabase, carregarConversas, carregarSetores, loadingPermissoes, isAdmin])
+  }, [supabase, carregarConversas, loadingPermissoes, isAdmin])
 
-  // Efeito separado para busca (com debounce implícito)
+  // Efeito separado para busca e filtro
   useEffect(() => {
     if (!loadingPermissoes) {
       carregarConversas()
     }
   }, [busca, filtroSetor, loadingPermissoes])
-
-  // Carregar templates
-  const carregarTemplates = async () => {
-    const { data } = await supabase
-      .from('templates_mensagens')
-      .select('*')
-      .eq('ativo', true)
-      .order('uso_count', { ascending: false })
-    setTemplates(data || [])
-  }
 
   // Transferir conversa para setor
   const transferirConversa = async (setorId: string) => {
@@ -372,7 +384,14 @@ export default function CRMPage() {
 
     setNovoTemplate({ titulo: '', categoria: '', conteudo: '' })
     setTemplateEditando(null)
-    carregarTemplates()
+    
+    // Recarregar templates
+    const { data } = await supabase
+      .from('templates_mensagens')
+      .select('*')
+      .eq('ativo', true)
+      .order('uso_count', { ascending: false })
+    setTemplates(data || [])
   }
 
   // Excluir template
@@ -389,7 +408,14 @@ export default function CRMPage() {
       return
     }
     toast.success('Template excluído!')
-    carregarTemplates()
+    
+    // Recarregar templates
+    const { data } = await supabase
+      .from('templates_mensagens')
+      .select('*')
+      .eq('ativo', true)
+      .order('uso_count', { ascending: false })
+    setTemplates(data || [])
   }
 
   // Selecionar conversa - verificar permissão
