@@ -20,7 +20,6 @@ export function useSetoresUsuario() {
   const carregarSetores = useCallback(async () => {
     setLoading(true)
     try {
-      // Buscar usuário atual
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         console.log('useSetoresUsuario: Nenhum usuário logado')
@@ -30,34 +29,28 @@ export function useSetoresUsuario() {
 
       console.log('useSetoresUsuario: Usuário logado:', user.email)
 
-      // Verificar se é admin - buscar id e is_admin
-      const { data: usuario, error: erroUsuario } = await supabase
+      const { data: usuario } = await supabase
         .from('usuarios')
         .select('id, is_admin')
         .eq('auth_id', user.id)
         .single()
 
-      if (erroUsuario) {
-        console.error('useSetoresUsuario: Erro ao buscar usuário:', erroUsuario)
+      if (!usuario) {
+        console.error('useSetoresUsuario: Usuário não encontrado no banco')
         setLoading(false)
         return
       }
 
-      console.log('useSetoresUsuario: is_admin =', usuario?.is_admin)
+      console.log('useSetoresUsuario: is_admin =', usuario.is_admin)
 
-      if (usuario?.is_admin) {
+      if (usuario.is_admin) {
         setIsAdmin(true)
-        // Admin vê todos os setores
-        const { data: todosSetores, error: erroSetores } = await supabase
+        const { data: todosSetores } = await supabase
           .from('setores_whatsapp')
           .select('id')
           .eq('ativo', true)
 
-        if (erroSetores) {
-          console.error('useSetoresUsuario: Erro ao buscar setores:', erroSetores)
-        }
-
-        console.log('useSetoresUsuario: Setores encontrados para admin:', todosSetores?.length || 0)
+        console.log('useSetoresUsuario: Setores para admin:', todosSetores?.length || 0)
 
         setSetoresPermitidos(
           (todosSetores || []).map(s => ({
@@ -70,17 +63,12 @@ export function useSetoresUsuario() {
         )
       } else {
         setIsAdmin(false)
-        // Buscar setores associados ao usuário na tabela usuarios_setores
-        const { data: setoresUsuario, error: erroSetoresUsuario } = await supabase
+        const { data: setoresUsuario } = await supabase
           .from('usuarios_setores')
           .select('setor_id, is_responsavel')
           .eq('usuario_id', usuario.id)
 
-        if (erroSetoresUsuario) {
-          console.error('useSetoresUsuario: Erro ao buscar setores do usuário:', erroSetoresUsuario)
-        }
-
-        console.log('useSetoresUsuario: Setores do usuário não-admin:', setoresUsuario?.length || 0)
+        console.log('useSetoresUsuario: Setores do usuário:', setoresUsuario?.length || 0)
 
         setSetoresPermitidos(
           (setoresUsuario || []).map(s => ({
@@ -93,7 +81,7 @@ export function useSetoresUsuario() {
         )
       }
     } catch (error) {
-      console.error('useSetoresUsuario: Erro ao carregar setores:', error)
+      console.error('useSetoresUsuario: Erro:', error)
     } finally {
       setLoading(false)
     }
@@ -103,29 +91,24 @@ export function useSetoresUsuario() {
     carregarSetores()
   }, [carregarSetores])
 
-  // Verifica se pode ver um setor específico
   const podeVerSetor = (setorId: string | null): boolean => {
     if (isAdmin) return true
-    // Conversas sem setor (NULL) podem ser vistas por todos que têm pelo menos 1 setor
     if (setorId === null) return setoresPermitidos.length > 0
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_ver)
   }
 
-  // Verifica se pode responder em um setor
   const podeResponderSetor = (setorId: string | null): boolean => {
     if (isAdmin) return true
     if (setorId === null) return setoresPermitidos.some(s => s.pode_responder)
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_responder)
   }
 
-  // Verifica se pode transferir de um setor
   const podeTransferirSetor = (setorId: string | null): boolean => {
     if (isAdmin) return true
     if (setorId === null) return setoresPermitidos.some(s => s.pode_transferir)
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_transferir)
   }
 
-  // Retorna os IDs dos setores que o usuário pode ver
   const getSetorIds = (): string[] => {
     return setoresPermitidos.filter(s => s.pode_ver).map(s => s.setor_id)
   }
