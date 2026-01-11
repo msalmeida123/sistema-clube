@@ -79,7 +79,8 @@ export default function CRMPage() {
   const [novaMensagem, setNovaMensagem] = useState('')
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(false)
-  const [loadingConversas, setLoadingConversas] = useState(true)
+  // CORREÇÃO: Iniciar como false - o loading será mostrado via loadingPermissoes
+  const [loadingConversas, setLoadingConversas] = useState(false)
   const [showNovaConversa, setShowNovaConversa] = useState(false)
   const [showImportarContatos, setShowImportarContatos] = useState(false)
   const [contatosWhatsApp, setContatosWhatsApp] = useState<any[]>([])
