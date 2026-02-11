@@ -47,6 +47,7 @@ const whatsappItems = [
 
 // Configurações do WhatsApp CRM
 const whatsappConfigItems = [
+  { href: '/dashboard/whatsapp-providers', label: 'Providers', icon: Cog, roles: ['admin', 'presidente'] },
   { href: '/dashboard/setores', label: 'Setores', icon: Building2, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
   { href: '/dashboard/setores-usuarios', label: 'Setores Usuários', icon: UserCog, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'atendimento'] },

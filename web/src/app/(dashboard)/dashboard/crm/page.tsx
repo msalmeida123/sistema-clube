@@ -91,7 +91,7 @@ export default function CRMPage() {
   // Estados para mídia
   const [showAnexo, setShowAnexo] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
-  const [mediaPreview, setMediaPreview] = useState<{ url: string, type: string, name: string } | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<{ url: string, type: string, name: string, file: File } | null>(null)
   const [caption, setCaption] = useState('')
   
   // Estados para templates
@@ -121,6 +121,7 @@ export default function CRMPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClientComponentClient()
+  const carregarConversasRef = useRef<() => Promise<void>>(async () => {})
 
   // Carregar setores - INDEPENDENTE
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function CRMPage() {
         query = query.eq('setor_id', filtroSetor)
       }
       
-      const { data, error } = await query
+      const { data, error } = await query.limit(100)
       
       if (error) {
         console.error('CRM: Erro ao carregar conversas:', error)
@@ -216,12 +217,17 @@ export default function CRMPage() {
     }
   }, [busca, filtroSetor, supabase, isAdmin, setoresPermitidos, getSetorIds, loadingPermissoes])
 
+  // Manter ref atualizada
+  useEffect(() => {
+    carregarConversasRef.current = carregarConversas
+  }, [carregarConversas])
+
   // Efeito para carregar conversas quando permissões estiverem prontas
   useEffect(() => {
     console.log('CRM: useEffect conversas disparado', { loadingPermissoes, isAdmin })
     
     if (!loadingPermissoes) {
-      carregarConversas()
+      carregarConversasRef.current()
     }
 
     // Realtime apenas para INSERT (novas conversas)
@@ -254,7 +260,7 @@ export default function CRMPage() {
         (payload) => {
           console.log('CRM: Nova mensagem recebida')
           // Recarregar para atualizar ultima_mensagem e nao_lidas
-          carregarConversas()
+          carregarConversasRef.current()
         }
       )
       .subscribe()
@@ -263,7 +269,7 @@ export default function CRMPage() {
       supabase.removeChannel(conversasChannel)
       supabase.removeChannel(mensagensChannel)
     }
-  }, [supabase, carregarConversas, loadingPermissoes, isAdmin])
+  }, [supabase, loadingPermissoes, isAdmin])
 
   // Efeito separado para busca e filtro
   useEffect(() => {
@@ -640,12 +646,13 @@ export default function CRMPage() {
         numero = '55' + numero
       }
 
-      const response = await fetch('/api/wasender/send', {
+      const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: numero,
-          text: novaMensagem
+          text: novaMensagem,
+          conversaId: conversaAtiva.id
         })
       })
 
@@ -704,10 +711,10 @@ export default function CRMPage() {
       return
     }
 
-    // Preview
+    // Preview - guardar referência ao File diretamente
     const fileType = file.type.split('/')[0]
     const previewUrl = URL.createObjectURL(file)
-    setMediaPreview({ url: previewUrl, type: fileType, name: file.name })
+    setMediaPreview({ url: previewUrl, type: fileType, name: file.name, file })
     setCaption('')
 
     // Resetar input
@@ -736,24 +743,62 @@ export default function CRMPage() {
     }
 
     setUploadingMedia(true)
+    let etapa = 'autenticação'
     try {
-      // Primeiro fazer upload do arquivo
-      const response = await fetch(mediaPreview.url)
-      const blob = await response.blob()
-      
-      const formData = new FormData()
-      formData.append('file', blob, mediaPreview.name)
+      // Etapa 1: Buscar usuário
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
 
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      })
-
-      const uploadResult = await uploadResponse.json()
-
-      if (!uploadResponse.ok) {
-        throw new Error(uploadResult.error || 'Erro no upload')
+      // Etapa 2: Obter o arquivo (usar File diretamente ou fallback para blob URL)
+      etapa = 'leitura do arquivo'
+      let blob: Blob
+      if (mediaPreview.file) {
+        blob = mediaPreview.file
+      } else {
+        const response = await fetch(mediaPreview.url)
+        blob = await response.blob()
       }
+      
+      if (!blob || blob.size === 0) {
+        throw new Error('Arquivo vazio ou inválido')
+      }
+
+      console.log('[enviarMedia] Arquivo:', blob.size, 'bytes,', blob.type)
+
+      // Etapa 3: Upload ao Supabase Storage
+      etapa = 'upload do arquivo'
+      const timestamp = Date.now()
+      const randomStr = Math.random().toString(36).substring(2, 11)
+      const extensao = mediaPreview.name.split('.').pop()?.toLowerCase() || 'bin'
+      const nomeSeguro = mediaPreview.name
+        .replace(`.${extensao}`, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .substring(0, 80)
+      const fileName = `${timestamp}-${randomStr}-${nomeSeguro}.${extensao}`
+      const filePath = `whatsapp-media/${user.id}/${fileName}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, blob, {
+          contentType: blob.type || 'application/octet-stream',
+          upsert: false,
+          cacheControl: '3600'
+        })
+
+      if (uploadError) {
+        throw new Error('Falha no upload: ' + uploadError.message)
+      }
+
+      console.log('[enviarMedia] Upload OK:', uploadData?.path)
+
+      // Etapa 4: Obter URL pública
+      etapa = 'URL pública'
+      const { data: urlData } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath)
+
+      const mediaUrl = urlData.publicUrl
+      console.log('[enviarMedia] URL:', mediaUrl)
 
       // Determinar tipo de mensagem
       let messageType = 'document'
@@ -761,31 +806,41 @@ export default function CRMPage() {
       else if (mediaPreview.type === 'video') messageType = 'video'
       else if (mediaPreview.type === 'audio') messageType = 'audio'
 
-      // Enviar via WaSender
+      // Etapa 5: Enviar via WhatsApp provider
+      etapa = 'envio WhatsApp'
       let numero = conversaAtiva.telefone.replace(/\D/g, '')
       if (!numero.startsWith('55') && numero.length <= 11) {
         numero = '55' + numero
       }
 
-      const sendResponse = await fetch('/api/wasender/send', {
+      const sendResponse = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: numero,
           messageType,
-          mediaUrl: uploadResult.url,
+          mediaUrl,
           caption: caption || undefined,
-          fileName: mediaPreview.name
+          fileName: mediaPreview.name,
+          conversaId: conversaAtiva.id
         })
       })
 
-      const sendResult = await sendResponse.json()
+      let sendResult
+      try {
+        sendResult = await sendResponse.json()
+      } catch {
+        throw new Error(`Servidor retornou status ${sendResponse.status}`)
+      }
 
       if (!sendResponse.ok) {
         throw new Error(sendResult.error || 'Erro ao enviar')
       }
 
-      // Salvar no banco
+      console.log('[enviarMedia] Enviado OK:', sendResult)
+
+      // Etapa 6: Salvar no banco
+      etapa = 'salvar mensagem'
       const conteudo = caption || `📎 ${mediaPreview.name}`
       await supabase.from('mensagens_whatsapp').insert({
         conversa_id: conversaAtiva.id,
@@ -793,7 +848,7 @@ export default function CRMPage() {
         conteudo,
         tipo: messageType,
         status: 'enviada',
-        media_url: uploadResult.url
+        media_url: mediaUrl
       })
 
       await supabase.from('conversas_whatsapp').update({
@@ -805,7 +860,8 @@ export default function CRMPage() {
       toast.success('Mídia enviada!')
 
     } catch (error: any) {
-      toast.error('Erro: ' + error.message)
+      console.error(`[enviarMedia] Erro na etapa "${etapa}":`, error)
+      toast.error(`Erro (${etapa}): ${error.message}`)
     } finally {
       setUploadingMedia(false)
     }

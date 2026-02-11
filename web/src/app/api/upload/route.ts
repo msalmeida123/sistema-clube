@@ -2,6 +2,10 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+// Configuração de runtime para suportar uploads grandes
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 60 seconds timeout
+
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA DO UPLOAD
 // ==========================================
