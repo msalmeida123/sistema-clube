@@ -8,8 +8,10 @@ import { NextResponse } from 'next/server'
 import { getProviderForConversation, getDefaultProvider, getProviderById } from '@/lib/whatsapp/factory'
 
 export async function POST(request: Request) {
+  console.log('[whatsapp/send] POST recebido')
   try {
     const body = await request.json()
+    console.log('[whatsapp/send] Body:', { to: body.to, messageType: body.messageType, conversaId: body.conversaId })
     const { 
       to, text, messageType = 'text', mediaUrl, fileName, caption,
       conversaId, providerId,

@@ -33,22 +33,34 @@ export function createProvider(config: ProviderConfig): WhatsAppProvider {
  * Busca o provider padrão (is_default = true)
  */
 export async function getDefaultProvider(): Promise<WhatsAppProvider | null> {
-  const { data } = await getSupabase()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  console.log('[factory] getDefaultProvider chamado', { 
+    hasUrl: !!supabaseUrl, 
+    hasKey: !!serviceKey,
+    urlPrefix: supabaseUrl?.substring(0, 30)
+  })
+
+  const { data, error } = await getSupabase()
     .from('whatsapp_providers')
     .select('*')
     .eq('ativo', true)
     .eq('is_default', true)
     .single()
 
+  console.log('[factory] Query default provider:', { data: data?.id, error: error?.message })
+
   if (!data) {
     // Fallback: buscar qualquer provider ativo
-    const { data: fallback } = await getSupabase()
+    const { data: fallback, error: fallbackError } = await getSupabase()
       .from('whatsapp_providers')
       .select('*')
       .eq('ativo', true)
       .order('created_at', { ascending: true })
       .limit(1)
       .single()
+
+    console.log('[factory] Query fallback provider:', { data: fallback?.id, error: fallbackError?.message })
 
     if (!fallback) return null
     return createProvider(fallback as ProviderConfig)

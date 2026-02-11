@@ -11,7 +11,7 @@ services:
   # Sistema Web (Admin/Funcionários)
   # ========================================
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube-web:latest
+    image: ghcr.io/msalmeida123/sistema-clube:latest
     deploy:
       mode: replicated
       replicas: 1
@@ -34,6 +34,7 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_SUPABASE_URL=https://fkjjjpgxkjhqkhmdpmzk.supabase.co
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDI0NTYsImV4cCI6MjA4MjE3ODQ1Nn0.c0wUGT2Ah2RW5lPJ5EhS738349AdvXsnnsoQvNjM5PY
+      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjYwMjQ1NiwiZXhwIjoyMDgyMTc4NDU2fQ.M8gDx5ItENad448I4JZarYAOwH7oapHjiwyhJDnZD0A
     networks:
       - network_swarm_public
     healthcheck:
