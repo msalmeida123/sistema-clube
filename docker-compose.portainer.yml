@@ -1,49 +1,194 @@
 version: '3.8'
+
+# ==============================================================================
+# SISTEMA CLUBE v1.5.0 - Stack Portainer (Docker Swarm)
+# ==============================================================================
+# Deploy via Portainer: Stacks > Add Stack > Upload ou paste este arquivo
+# Preencha as Environment Variables no Portainer antes de deployar
+# Rede externa necessária: network_swarm_public (Traefik)
+# ==============================================================================
+
 services:
+  # ============================================================================
+  # SISTEMA WEB - Painel Administrativo (Next.js 14)
+  # ============================================================================
+  # Painel para funcionários e diretoria do clube
+  # Módulos: Associados, Dependentes, Financeiro, Portaria, CRM, Compras,
+  #          Eleições, Exames, Infrações, Configurações, Relatórios, Bot IA
+  # ============================================================================
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube:v1.2.2
+    image: ghcr.io/msalmeida123/sistema-clube:${TAG_WEB:-latest}
     deploy:
       mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        monitor: 60s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+        order: start-first
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
       labels:
+        # --- Traefik Routing ---
         - "traefik.enable=true"
-        - "traefik.http.routers.sistema-clube.rule=Host(`clube.mindforge.dev.br`)"
+        - "traefik.docker.network=network_swarm_public"
+
+        # Router HTTPS
+        - "traefik.http.routers.sistema-clube.rule=Host(`${DOMINIO_WEB:-clube.mindforge.dev.br}`)"
         - "traefik.http.routers.sistema-clube.entrypoints=websecure"
+        - "traefik.http.routers.sistema-clube.tls=true"
         - "traefik.http.routers.sistema-clube.tls.certresolver=letsencryptresolver"
+
+        # Router HTTP -> Redirect HTTPS
+        - "traefik.http.routers.sistema-clube-http.rule=Host(`${DOMINIO_WEB:-clube.mindforge.dev.br}`)"
+        - "traefik.http.routers.sistema-clube-http.entrypoints=web"
+        - "traefik.http.routers.sistema-clube-http.middlewares=redirect-to-https@docker"
+
+        # Service
         - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
-        - "traefik.docker.network=network_swarm_public"
+        - "traefik.http.services.sistema-clube.loadbalancer.sticky.cookie=true"
+        - "traefik.http.services.sistema-clube.loadbalancer.sticky.cookie.name=sistema_clube_sticky"
+        - "traefik.http.services.sistema-clube.loadbalancer.sticky.cookie.httpOnly=true"
+        - "traefik.http.services.sistema-clube.loadbalancer.sticky.cookie.secure=true"
+        - "traefik.http.services.sistema-clube.loadbalancer.healthcheck.path=/"
+        - "traefik.http.services.sistema-clube.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.sistema-clube.loadbalancer.healthcheck.timeout=5s"
+
+        # Middlewares
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+        # Rate Limiting (API protection)
+        - "traefik.http.middlewares.sistema-clube-ratelimit.ratelimit.average=100"
+        - "traefik.http.middlewares.sistema-clube-ratelimit.ratelimit.burst=50"
+        - "traefik.http.middlewares.sistema-clube-ratelimit.ratelimit.period=1m"
+        - "traefik.http.routers.sistema-clube.middlewares=sistema-clube-ratelimit@docker"
+
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - WASENDER_WEBHOOK_SECRET=${WASENDER_WEBHOOK_SECRET}
     networks:
       - network_swarm_public
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "sistema-clube"
+
+  # ============================================================================
+  # APP ASSOCIADO - Portal do Sócio (Next.js 14 / PWA)
+  # ============================================================================
+  # App web mobile para os associados do clube
+  # Funcionalidades: Carteirinha digital, QR Code, consulta de status,
+  #                  histórico financeiro, dados cadastrais
+  # ============================================================================
   app-associado:
-    image: ghcr.io/msalmeida123/clube-associado:latest
+    image: ghcr.io/msalmeida123/clube-associado:${TAG_APP:-latest}
     deploy:
       mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        monitor: 60s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+        order: start-first
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.75'
+        reservations:
+          memory: 128M
+          cpus: '0.15'
       labels:
+        # --- Traefik Routing ---
         - "traefik.enable=true"
-        - "traefik.http.routers.app-associado.rule=Host(`app.mindforge.dev.br`)"
-        - "traefik.http.routers.app-associado.entrypoints=websecure"
-        - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
         - "traefik.docker.network=network_swarm_public"
+
+        # Router HTTPS
+        - "traefik.http.routers.app-associado.rule=Host(`${DOMINIO_APP:-app.mindforge.dev.br}`)"
+        - "traefik.http.routers.app-associado.entrypoints=websecure"
+        - "traefik.http.routers.app-associado.tls=true"
+        - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
+
+        # Router HTTP -> Redirect HTTPS
+        - "traefik.http.routers.app-associado-http.rule=Host(`${DOMINIO_APP:-app.mindforge.dev.br}`)"
+        - "traefik.http.routers.app-associado-http.entrypoints=web"
+        - "traefik.http.routers.app-associado-http.middlewares=redirect-to-https@docker"
+
+        # Service
+        - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
+        - "traefik.http.services.app-associado.loadbalancer.healthcheck.path=/"
+        - "traefik.http.services.app-associado.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.app-associado.loadbalancer.healthcheck.timeout=5s"
+
+        # Rate Limiting
+        - "traefik.http.middlewares.app-associado-ratelimit.ratelimit.average=60"
+        - "traefik.http.middlewares.app-associado-ratelimit.ratelimit.burst=30"
+        - "traefik.http.middlewares.app-associado-ratelimit.ratelimit.period=1m"
+        - "traefik.http.routers.app-associado.middlewares=app-associado-ratelimit@docker"
+
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     networks:
       - network_swarm_public
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "app-associado"
+
+# ==============================================================================
+# REDE EXTERNA (Traefik)
+# ==============================================================================
+# Criar antes do deploy:
+#   docker network create --driver=overlay --attachable network_swarm_public
+# ==============================================================================
 networks:
   network_swarm_public:
     external: true
