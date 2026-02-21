@@ -1,24 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Folder, AlertTriangle } from 'lucide-react'
-import { ConversaPorSetor, getConversasPorSetor } from '@/lib/supabase-views'
+import { ConversaPorSetor } from '@/lib/supabase-views'
 import { Skeleton } from '@/components/ui/skeleton'
 
-export function ConversasPorSetor() {
-  const [setores, setSetores] = useState<ConversaPorSetor[]>([])
-  const [loading, setLoading] = useState(true)
+interface ConversasPorSetorProps {
+  setores: ConversaPorSetor[]
+  loading: boolean
+}
 
-  useEffect(() => {
-    async function load() {
-      const data = await getConversasPorSetor()
-      setSetores(data)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
+export function ConversasPorSetor({ setores, loading }: ConversasPorSetorProps) {
   if (loading) {
     return (
       <Card>

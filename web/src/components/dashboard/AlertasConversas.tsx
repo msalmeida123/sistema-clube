@@ -1,26 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, Clock, Phone } from 'lucide-react'
-import { AlertaConversa, getAlertasConversas } from '@/lib/supabase-views'
+import { AlertaConversa } from '@/lib/supabase-views'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 
-export function AlertasConversas() {
-  const [alertas, setAlertas] = useState<AlertaConversa[]>([])
-  const [loading, setLoading] = useState(true)
+interface AlertasConversasProps {
+  alertas: AlertaConversa[]
+  loading: boolean
+}
 
-  useEffect(() => {
-    async function load() {
-      const data = await getAlertasConversas(5)
-      setAlertas(data)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
+export function AlertasConversas({ alertas, loading }: AlertasConversasProps) {
   const getBadgeVariant = (nivel: string) => {
     switch (nivel) {
       case 'critico': return 'destructive'

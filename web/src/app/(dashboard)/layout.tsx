@@ -166,9 +166,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )
       .subscribe()
 
-    // Polling como fallback (a cada 30 segundos)
-    const interval = setInterval(fetchMensagensNaoLidas, 30000)
-
     // Solicitar permissão de notificação
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission()
@@ -176,7 +173,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => {
       supabase.removeChannel(channel)
-      clearInterval(interval)
     }
   }, [supabase, fetchMensagensNaoLidas])
 

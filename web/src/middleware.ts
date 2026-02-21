@@ -24,24 +24,7 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
 
-  // ==========================================
-  // HEADERS DE SEGURANÇA BÁSICOS
-  // ==========================================
-  
-  // Previne MIME type sniffing
-  res.headers.set('X-Content-Type-Options', 'nosniff')
-  
-  // Previne clickjacking
-  res.headers.set('X-Frame-Options', 'DENY')
-  
-  // Ativa proteção XSS do navegador
-  res.headers.set('X-XSS-Protection', '1; mode=block')
-  
-  // Controle de referrer
-  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  
-  // Força HTTPS
-  res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  // Headers de segurança estão no next.config.js (fonte única)
 
   // Permite rotas de API com autenticação própria
   if (apiRoutesWithOwnAuth.some(route => pathname.startsWith(route))) {

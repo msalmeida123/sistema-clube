@@ -1,29 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MessageSquare, TrendingUp, Clock } from 'lucide-react'
-import { DashboardConversas, getDashboardConversas, getMetricasPorHora, MetricaPorHora } from '@/lib/supabase-views'
+import { DashboardConversas, MetricaPorHora } from '@/lib/supabase-views'
 import { Skeleton } from '@/components/ui/skeleton'
 
-export function MetricasWhatsApp() {
-  const [conversas, setConversas] = useState<DashboardConversas | null>(null)
-  const [metricas, setMetricas] = useState<MetricaPorHora[]>([])
-  const [loading, setLoading] = useState(true)
+interface MetricasWhatsAppProps {
+  conversas: DashboardConversas | null
+  metricas: MetricaPorHora[]
+  loading: boolean
+}
 
-  useEffect(() => {
-    async function load() {
-      const [conv, met] = await Promise.all([
-        getDashboardConversas(),
-        getMetricasPorHora()
-      ])
-      setConversas(conv)
-      setMetricas(met)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
+export function MetricasWhatsApp({ conversas, metricas, loading }: MetricasWhatsAppProps) {
   if (loading) {
     return (
       <Card>
@@ -50,7 +38,6 @@ export function MetricasWhatsApp() {
     )
   }
 
-  // Encontrar horário de pico
   const horarioPico = metricas.reduce((max, m) => 
     m.total_mensagens > (max?.total_mensagens || 0) ? m : max, 
     metricas[0]
@@ -65,7 +52,6 @@ export function MetricasWhatsApp() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Resumo de status */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="text-center p-3 rounded-lg bg-blue-50">
             <p className="text-2xl font-bold text-blue-600">{conversas?.novos || 0}</p>
@@ -81,7 +67,6 @@ export function MetricasWhatsApp() {
           </div>
         </div>
 
-        {/* Gráfico simplificado de horários */}
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">Mensagens por hora (últimos 30 dias)</p>
           <div className="flex items-end gap-1 h-16">
@@ -111,7 +96,6 @@ export function MetricasWhatsApp() {
           </div>
         </div>
 
-        {/* Info adicional */}
         <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />

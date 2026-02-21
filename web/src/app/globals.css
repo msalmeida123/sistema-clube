@@ -57,3 +57,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===== Estilos de impressão ===== */
+@media print {
+  /* Esconder sidebar, header, overlays */
+  aside,
+  header,
+  nav,
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Remover margens do layout */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Conteúdo principal ocupa tudo */
+  main,
+  main > *,
+  [class*="lg:ml-"] {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Área imprimível da carteirinha */
+  .print-area {
+    display: block !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    break-inside: avoid;
+  }
+
+  /* Esconder botões e cards de instrução */
+  button,
+  .print-hide {
+    display: none !important;
+  }
+}

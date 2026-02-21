@@ -17,7 +17,8 @@ export default function CarteirinhaPage() {
   const [associado, setAssociado] = useState<Associado | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
   const [clubeConfig, setClubeConfig] = useState<any>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const cardFrenteRef = useRef<HTMLDivElement>(null)
+  const cardVersoRef = useRef<HTMLDivElement>(null)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
@@ -41,11 +42,20 @@ export default function CarteirinhaPage() {
   }
 
   const gerarPDF = async () => {
-    if (!cardRef.current) return
-    const canvas = await html2canvas(cardRef.current, { scale: 3 })
+    if (!cardFrenteRef.current) return
+    const canvas = await html2canvas(cardFrenteRef.current, { scale: 3 })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 54] })
     pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
+
+    // Adicionar verso se disponível
+    if (cardVersoRef.current) {
+      const canvasVerso = await html2canvas(cardVersoRef.current, { scale: 3 })
+      const imgVerso = canvasVerso.toDataURL('image/png')
+      pdf.addPage([85.6, 54], 'landscape')
+      pdf.addImage(imgVerso, 'PNG', 0, 0, 85.6, 54)
+    }
+
     pdf.save(`carteirinha-${associado?.numero_titulo}.pdf`)
   }
 
@@ -53,17 +63,21 @@ export default function CarteirinhaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href={`/dashboard/associados/${id}`}><Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
+      {/* Header - escondido na impressão */}
+      <div className="flex items-center gap-4 no-print">
+        <Link href={`/dashboard/associados/${id}`}>
+          <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+        </Link>
         <h2 className="text-2xl font-bold">Carteirinha do Associado</h2>
       </div>
 
-      <div className="flex gap-6">
+      {/* Área de impressão */}
+      <div className="flex gap-6 print-area">
         {/* Preview da Carteirinha - Frente */}
-        <Card>
-          <CardHeader><CardTitle>Frente</CardTitle></CardHeader>
-          <CardContent>
-            <div ref={cardRef} className="relative bg-white rounded-lg shadow-lg overflow-hidden" style={{ width: '342px', height: '216px' }}>
+        <Card className="print:shadow-none print:border-none">
+          <CardHeader className="no-print"><CardTitle>Frente</CardTitle></CardHeader>
+          <CardContent className="print:p-0">
+            <div ref={cardFrenteRef} className="relative bg-white rounded-lg shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ width: '342px', height: '216px' }}>
               {/* Barra de cor do plano */}
               <div className="absolute top-0 left-0 right-0 h-2" style={{ backgroundColor: getPlanoColor(associado.plano) }} />
               
@@ -104,10 +118,10 @@ export default function CarteirinhaPage() {
         </Card>
 
         {/* Preview - Verso */}
-        <Card>
-          <CardHeader><CardTitle>Verso</CardTitle></CardHeader>
-          <CardContent>
-            <div className="relative bg-gray-100 rounded-lg shadow-lg overflow-hidden" style={{ width: '342px', height: '216px' }}>
+        <Card className="print:shadow-none print:border-none">
+          <CardHeader className="no-print"><CardTitle>Verso</CardTitle></CardHeader>
+          <CardContent className="print:p-0">
+            <div ref={cardVersoRef} className="relative bg-gray-100 rounded-lg shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ width: '342px', height: '216px' }}>
               {clubeConfig?.foto_clube_url ? (
                 <img src={clubeConfig.foto_clube_url} alt="Clube" className="w-full h-full object-cover" />
               ) : (
@@ -120,12 +134,14 @@ export default function CarteirinhaPage() {
         </Card>
       </div>
 
-      <div className="flex gap-4">
+      {/* Botões - escondidos na impressão */}
+      <div className="flex gap-4 no-print">
         <Button onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
         <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
       </div>
 
-      <Card>
+      {/* Instruções - escondidas na impressão */}
+      <Card className="no-print">
         <CardContent className="pt-6">
           <p className="text-sm text-muted-foreground">
             <strong>Instruções para impressão em PVC:</strong><br />

@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 
 // Tipos das views
 export interface KPIs {
@@ -118,9 +118,9 @@ export interface MetricaPorHora {
   pct_recebidas: number
 }
 
-// Funções de acesso às views
+// Funções de acesso às views (usam singleton do supabase)
+
 export async function getKPIs(): Promise<KPIs | null> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_kpis_sistema')
     .select('*')
@@ -134,7 +134,6 @@ export async function getKPIs(): Promise<KPIs | null> {
 }
 
 export async function getDashboardConversas(): Promise<DashboardConversas | null> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_dashboard_conversas')
     .select('*')
@@ -148,7 +147,6 @@ export async function getDashboardConversas(): Promise<DashboardConversas | null
 }
 
 export async function getAlertasConversas(limite = 10): Promise<AlertaConversa[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_alertas_conversas')
     .select('*')
@@ -164,7 +162,6 @@ export async function getAlertasConversas(limite = 10): Promise<AlertaConversa[]
 }
 
 export async function getConversasPorSetor(): Promise<ConversaPorSetor[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_conversas_por_setor')
     .select('*')
@@ -177,7 +174,6 @@ export async function getConversasPorSetor(): Promise<ConversaPorSetor[]> {
 }
 
 export async function getDashboardAssociados(): Promise<DashboardAssociados | null> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_dashboard_associados')
     .select('*')
@@ -191,7 +187,6 @@ export async function getDashboardAssociados(): Promise<DashboardAssociados | nu
 }
 
 export async function getDashboardFinanceiro(): Promise<DashboardFinanceiro | null> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_dashboard_financeiro')
     .select('*')
@@ -205,7 +200,6 @@ export async function getDashboardFinanceiro(): Promise<DashboardFinanceiro | nu
 }
 
 export async function getInadimplentes(limite = 50): Promise<AssociadoInadimplente[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_associados_inadimplentes')
     .select('*')
@@ -220,7 +214,6 @@ export async function getInadimplentes(limite = 50): Promise<AssociadoInadimplen
 }
 
 export async function getRankingAtendentes(): Promise<RankingAtendente[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_ranking_atendentes')
     .select('*')
@@ -234,7 +227,6 @@ export async function getRankingAtendentes(): Promise<RankingAtendente[]> {
 }
 
 export async function getMetricasDiaSemana(): Promise<MetricaDiaSemana[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_metricas_dia_semana')
     .select('*')
@@ -248,7 +240,6 @@ export async function getMetricasDiaSemana(): Promise<MetricaDiaSemana[]> {
 }
 
 export async function getMetricasPorHora(): Promise<MetricaPorHora[]> {
-  const supabase = createClientComponentClient()
   const { data, error } = await supabase
     .from('vw_metricas_por_hora')
     .select('*')
