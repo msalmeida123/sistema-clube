@@ -12,7 +12,7 @@ import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -44,6 +44,7 @@ const menuItems = [
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
   { href: '/dashboard/relatorios', label: 'Relatórios', icon: FileText, permissao: 'relatorios' },
   { href: '/dashboard/relatorios-setores', label: 'Relatórios Setores', icon: FileText, permissao: 'relatorios' },
+  { href: '/dashboard/rh', label: 'Recursos Humanos', icon: Briefcase, permissao: 'configuracoes', apenasAdmin: true },
   { href: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/permissoes', label: 'Permissões', icon: Shield, permissao: 'usuarios', apenasAdmin: true },
   { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, permissao: 'configuracoes', apenasAdmin: true },

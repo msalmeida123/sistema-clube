@@ -21,13 +21,29 @@ import {
   ChevronDown,
   ChevronRight,
   Cog,
-  History
+  History,
+  UtensilsCrossed,
+  Wallet,
+  Package,
+  ClipboardList,
+  Landmark,
+  Receipt
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 // Versão atual
 const VERSION = '1.5.0'
+
+// Itens do Bar
+const barItems = [
+  { href: '/dashboard/bar', label: 'PDV', icon: UtensilsCrossed, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'bar'] },
+  { href: '/dashboard/bar/caixa', label: 'Caixa', icon: Landmark, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'bar'] },
+  { href: '/dashboard/bar/pedidos', label: 'Pedidos', icon: ClipboardList, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'bar', 'financeiro'] },
+  { href: '/dashboard/bar/produtos', label: 'Produtos', icon: Package, roles: ['admin', 'presidente', 'vice_presidente', 'diretor'] },
+  { href: '/dashboard/bar/carteirinha', label: 'Carteirinha', icon: Wallet, roles: ['admin', 'presidente', 'vice_presidente', 'diretor', 'bar', 'secretaria'] },
+  { href: '/dashboard/bar/configuracao-nfce', label: 'Config NFC-e', icon: Receipt, roles: ['admin', 'presidente'] },
+]
 
 // Itens principais do menu
 const menuItems = [
@@ -64,6 +80,7 @@ export default function Sidebar({ userRole = 'admin' }: SidebarProps) {
   const supabase = createClient()
   const [whatsappExpanded, setWhatsappExpanded] = useState(true)
   const [configExpanded, setConfigExpanded] = useState(false)
+  const [barExpanded, setBarExpanded] = useState(false)
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -73,6 +90,8 @@ export default function Sidebar({ userRole = 'admin' }: SidebarProps) {
   const filteredMenu = menuItems.filter(item => item.roles.includes(userRole))
   const filteredWhatsapp = whatsappItems.filter(item => item.roles.includes(userRole))
   const filteredWhatsappConfig = whatsappConfigItems.filter(item => item.roles.includes(userRole))
+  const filteredBar = barItems.filter(item => item.roles.includes(userRole))
+  const isBarActive = barItems.some(item => pathname === item.href || pathname.startsWith(item.href + '/'))
 
   // Verificar se algum item do WhatsApp está ativo
   const isWhatsappActive = [...whatsappItems, ...whatsappConfigItems].some(
@@ -113,6 +132,50 @@ export default function Sidebar({ userRole = 'admin' }: SidebarProps) {
               </li>
             )
           })}
+
+          {/* Seção Bar */}
+          {filteredBar.length > 0 && (
+            <li className="pt-2">
+              <button
+                onClick={() => setBarExpanded(!barExpanded)}
+                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition ${
+                  isBarActive && !barExpanded
+                    ? 'bg-amber-700 text-white'
+                    : 'text-gray-300 hover:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <UtensilsCrossed size={20} className="text-amber-400" />
+                  <span className="font-medium">Bar / Restaurante</span>
+                </div>
+                {barExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+              </button>
+
+              {barExpanded && (
+                <ul className="mt-1 ml-4 space-y-1 border-l border-gray-700 pl-2">
+                  {filteredBar.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                    const Icon = item.icon
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition text-sm ${
+                            isActive
+                              ? 'bg-amber-600 text-white'
+                              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </li>
+          )}
 
           {/* Seção WhatsApp CRM */}
           {(filteredWhatsapp.length > 0 || filteredWhatsappConfig.length > 0) && (
