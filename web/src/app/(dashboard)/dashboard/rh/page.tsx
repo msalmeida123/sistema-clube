@@ -25,7 +25,7 @@ export default function RHPage() {
   const { stats, loading: statsLoading } = useRHStats()
 
   return (
-    <PaginaProtegida setoresPermitidos={['admin']}>
+    <PaginaProtegida codigoPagina="rh">
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div>
