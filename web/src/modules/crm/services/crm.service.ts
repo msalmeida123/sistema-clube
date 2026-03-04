@@ -155,6 +155,11 @@ export class CRMService {
           break
         case 'regex':
           try {
+            // Limitar tamanho do padrão para prevenir ReDoS
+            if (resposta.gatilho.length > 200) {
+              match = false
+              break
+            }
             const regex = new RegExp(resposta.gatilho, 'i')
             match = regex.test(msgLower)
           } catch {

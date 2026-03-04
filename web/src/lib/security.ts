@@ -257,10 +257,9 @@ export function generateSecureToken(length: number = 32): string {
   if (typeof window !== 'undefined' && window.crypto) {
     window.crypto.getRandomValues(randomValues)
   } else {
-    // Fallback para Node.js
-    for (let i = 0; i < length; i++) {
-      randomValues[i] = Math.floor(Math.random() * chars.length)
-    }
+    // Node.js - usar crypto seguro
+    const { randomFillSync } = require('crypto')
+    randomFillSync(randomValues)
   }
   
   for (let i = 0; i < length; i++) {

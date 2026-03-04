@@ -33,8 +33,10 @@ export class AssociadosService {
   // Gerar número de título
   private async gerarNumeroTitulo(): Promise<string> {
     const ano = new Date().getFullYear()
-    const associados = await this.repository.findAll()
-    const ultimoNumero = associados.length + 1
+    const associados = await this.repository.findAll({ limit: 1 })
+    // Usar contagem em vez de carregar todos os registros
+    const total = await this.repository.count?.() ?? associados.length
+    const ultimoNumero = total + 1
     return `${ano}${String(ultimoNumero).padStart(5, '0')}`
   }
 
@@ -68,10 +70,11 @@ export class AssociadosService {
 
     // Criar com número de título
     const numeroTitulo = await this.gerarNumeroTitulo()
-    
+
     return this.repository.create({
       ...data,
       cpf: data.cpf.replace(/\D/g, ''),
+      numero_titulo: numeroTitulo,
       status: data.status || 'ativo',
     })
   }

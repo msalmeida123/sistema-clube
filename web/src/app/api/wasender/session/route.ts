@@ -7,7 +7,13 @@ import QRCode from 'qrcode'
 export async function GET() {
   try {
     const supabase = createRouteHandlerClient({ cookies })
-    
+
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
     const { data: config, error: configError } = await supabase
       .from('config_wasender')
       .select('*')
@@ -82,6 +88,13 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies })
+
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
     const { action } = await request.json()
     
     const { data: config } = await supabase

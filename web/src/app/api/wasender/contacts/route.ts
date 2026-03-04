@@ -5,7 +5,13 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const supabase = createRouteHandlerClient({ cookies })
-    
+
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
     // Buscar configuração do WaSender
     const { data: config } = await supabase
       .from('config_wasender')
@@ -44,13 +50,19 @@ export async function GET() {
 // POST para importar contatos para o banco
 export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
     const { contacts } = await request.json()
-    
+
     if (!contacts || !Array.isArray(contacts)) {
       return NextResponse.json({ error: 'Lista de contatos inválida' }, { status: 400 })
     }
-
-    const supabase = createRouteHandlerClient({ cookies })
     
     let importados = 0
     let existentes = 0

@@ -2,8 +2,18 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
 export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
@@ -11,8 +21,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Arquivo é obrigatório' }, { status: 400 })
     }
 
-    // Buscar configuração do WaSender
-    const supabase = createRouteHandlerClient({ cookies })
+    // Validar tamanho do arquivo
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'Arquivo muito grande (máximo 50MB)' }, { status: 413 })
+    }
     const { data: config } = await supabase
       .from('config_wasender')
       .select('api_key')
