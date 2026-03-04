@@ -1,80 +1,74 @@
 version: '3.8'
 
 # ==============================================
-# SISTEMA CLUBE v1.2.0 - Stack para Portainer
-# Deploy: Docker Swarm
-# Inclui: Web Admin + App Mobile Associado
+# SISTEMA CLUBE v1.3.0 - Docker Swarm Stack
+# Deploy CLI: docker stack deploy -c docker-compose.swarm.yml sistema-clube
 # ==============================================
 
+x-common-deploy: &common-deploy
+  mode: replicated
+  replicas: 1
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+  update_config:
+    parallelism: 1
+    delay: 10s
+    failure_action: rollback
+    order: start-first
+  rollback_config:
+    parallelism: 1
+    delay: 5s
+    order: stop-first
+
 services:
-  # ========================================
-  # Sistema Web (Admin/Funcionários)
-  # ========================================
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube:latest
+    image: ghcr.io/msalmeida123/sistema-clube:${VERSION:-v1.3.0}
     deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
+      <<: *common-deploy
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.sistema-clube.rule=Host(`clube.mindforge.dev.br`)"
+        - "traefik.http.routers.sistema-clube.rule=Host(`${DOMAIN_WEB:-clube.mindforge.dev.br}`)"
         - "traefik.http.routers.sistema-clube.entrypoints=websecure"
         - "traefik.http.routers.sistema-clube.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
         - "traefik.docker.network=network_swarm_public"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://fkjjjpgxkjhqkhmdpmzk.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDI0NTYsImV4cCI6MjA4MjE3ODQ1Nn0.c0wUGT2Ah2RW5lPJ5EhS738349AdvXsnnsoQvNjM5PY
-      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjYwMjQ1NiwiZXhwIjoyMDgyMTc4NDU2fQ.M8gDx5ItENad448I4JZarYAOwH7oapHjiwyhJDnZD0A
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - WASENDER_WEBHOOK_SECRET=${WASENDER_WEBHOOK_SECRET}
     networks:
       - network_swarm_public
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 120s
 
-  # ========================================
-  # App Mobile Associado (Next.js PWA)
-  # ========================================
   app-associado:
-    image: ghcr.io/msalmeida123/clube-associado:latest
+    image: ghcr.io/msalmeida123/clube-associado:${VERSION_MOBILE:-latest}
     deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
+      <<: *common-deploy
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.app-associado.rule=Host(`app.mindforge.dev.br`)"
+        - "traefik.http.routers.app-associado.rule=Host(`${DOMAIN_APP:-app.mindforge.dev.br}`)"
         - "traefik.http.routers.app-associado.entrypoints=websecure"
         - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
         - "traefik.docker.network=network_swarm_public"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://fkjjjpgxkjhqkhmdpmzk.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDI0NTYsImV4cCI6MjA4MjE3ODQ1Nn0.c0wUGT2Ah2RW5lPJ5EhS738349AdvXsnnsoQvNjM5PY
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     networks:
       - network_swarm_public
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5

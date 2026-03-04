@@ -1,49 +1,113 @@
 version: '3.8'
+
+# ==============================================
+# SISTEMA CLUBE v1.3.0 - Stack Portainer
+# Deploy: Docker Swarm via Portainer
+# Inclui: Web Admin + App Mobile Associado
+# ==============================================
+#
+# DEPLOY via Portainer:
+#   1. Stacks > Add stack
+#   2. Upload este arquivo
+#   3. Preencher as environment variables
+#   4. Deploy the stack
+#
+# DEPLOY via CLI:
+#   docker stack deploy -c docker-compose.portainer.yml sistema-clube
+#
+
+x-common-deploy: &common-deploy
+  mode: replicated
+  replicas: 1
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+  update_config:
+    parallelism: 1
+    delay: 10s
+    failure_action: rollback
+    order: start-first
+  rollback_config:
+    parallelism: 1
+    delay: 5s
+    order: stop-first
+
+x-common-healthcheck: &common-healthcheck
+  test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
 services:
+  # ========================================
+  # Sistema Web (Admin/Funcionarios)
+  # ========================================
   sistema-clube:
-    image: ghcr.io/msalmeida123/sistema-clube:v1.2.2
+    image: ghcr.io/msalmeida123/sistema-clube:${VERSION:-v1.3.0}
     deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
+      <<: *common-deploy
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.sistema-clube.rule=Host(`clube.mindforge.dev.br`)"
+        - "traefik.http.routers.sistema-clube.rule=Host(`${DOMAIN_WEB:-clube.mindforge.dev.br}`)"
         - "traefik.http.routers.sistema-clube.entrypoints=websecure"
         - "traefik.http.routers.sistema-clube.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.sistema-clube.loadbalancer.server.port=3000"
         - "traefik.docker.network=network_swarm_public"
+        # Headers de segurança via Traefik
+        - "traefik.http.middlewares.clube-headers.headers.stsSeconds=31536000"
+        - "traefik.http.middlewares.clube-headers.headers.stsIncludeSubdomains=true"
+        - "traefik.http.middlewares.clube-headers.headers.frameDeny=true"
+        - "traefik.http.middlewares.clube-headers.headers.contentTypeNosniff=true"
+        - "traefik.http.middlewares.clube-headers.headers.browserXssFilter=true"
+        - "traefik.http.routers.sistema-clube.middlewares=clube-headers"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - WASENDER_WEBHOOK_SECRET=${WASENDER_WEBHOOK_SECRET}
     networks:
       - network_swarm_public
+    healthcheck:
+      <<: *common-healthcheck
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ========================================
+  # App Mobile Associado (Next.js PWA)
+  # ========================================
   app-associado:
-    image: ghcr.io/msalmeida123/clube-associado:latest
+    image: ghcr.io/msalmeida123/clube-associado:${VERSION_MOBILE:-latest}
     deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
+      <<: *common-deploy
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.app-associado.rule=Host(`app.mindforge.dev.br`)"
+        - "traefik.http.routers.app-associado.rule=Host(`${DOMAIN_APP:-app.mindforge.dev.br}`)"
         - "traefik.http.routers.app-associado.entrypoints=websecure"
         - "traefik.http.routers.app-associado.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.app-associado.loadbalancer.server.port=3000"
         - "traefik.docker.network=network_swarm_public"
+        - "traefik.http.routers.app-associado.middlewares=clube-headers"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=https://gkwwmigflhyntdwyqpip.supabase.co
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3dtaWdmbGh5bnRkd3lxcGlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDM2NzYsImV4cCI6MjA1MDQ3OTY3Nn0.t3meGz_cT4TzjGMpXr_5DZpVm9gSjPw1fk-eR5Z2oo4
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     networks:
       - network_swarm_public
+    healthcheck:
+      <<: *common-healthcheck
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   network_swarm_public:
     external: true
