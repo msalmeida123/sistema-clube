@@ -101,6 +101,7 @@ export default function PortariaPage() {
 
   const handleScan = async (qrData: string) => {
     const resultado = await validarQRCode(qrData)
+    // Exibe resultado da validação
   }
 
   return (

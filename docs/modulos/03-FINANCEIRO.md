@@ -4,7 +4,7 @@
 
 ## Visão Geral
 
-O módulo Financeiro é responsável por toda a gestão financeira do clube, incluindo geração de mensalidades, controle de pagamentos, carnês, inadimplência e relatórios financeiros.
+O módulo Financeiro é responsável por toda a gestão financeira do clube, incluindo geração de mensalidades, controle de pagamentos, carnês, inadimplência e relatórios financeiros. Integra-se com o módulo de Associados para vinculação de cobranças.
 
 ## Funcionalidades
 
@@ -80,7 +80,12 @@ interface FinanceiroStats {
 ## Uso
 
 ```tsx
-import { useMensalidades, useFinanceiroStats, MensalidadesTable, FinanceiroStatsCards } from '@/modules/financeiro'
+import { 
+  useMensalidades, 
+  useFinanceiroStats, 
+  MensalidadesTable, 
+  FinanceiroStatsCards 
+} from '@/modules/financeiro'
 
 export default function FinanceiroPage() {
   const stats = useFinanceiroStats()
