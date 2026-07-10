@@ -121,9 +121,9 @@ export function PaginaProtegida({ codigoPagina, children }: PaginaProtegidaProps
   if (!podeVisualizar && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
-        <Lock className="h-16 w-16 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-700">Acesso Negado</h2>
-        <p className="text-gray-500 mt-2">Você não tem permissão para acessar esta página.</p>
+        <Lock className="h-16 w-16 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold text-foreground">Acesso Negado</h2>
+        <p className="text-muted-foreground mt-2">Você não tem permissão para acessar esta página.</p>
       </div>
     )
   }

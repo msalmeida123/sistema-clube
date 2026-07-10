@@ -4,22 +4,24 @@
 export * from './types'
 
 // Hooks
-export { 
-  useAuth, 
-  AuthProvider,
-  useLogin, 
-  useRegistro, 
-  useUsuarios, 
-  useUsuariosMutations 
+export {
+  useAuth,
+  useLogin,
+  useRegistro,
+  useUsuarios,
+  useUsuariosMutations
 } from './hooks/useAuth'
 
 // Hooks de Permissões CRUD
 export {
   usePermissoesCRUD,
   usePermissaoPagina,
-  useGerenciarPermissoes,
-  PermissoesProvider
+  useGerenciarPermissoes
 } from './hooks/usePermissoesCRUD'
+
+// Components (Providers de Context)
+export { AuthProvider } from './components/AuthProvider'
+export { PermissoesProvider } from './components/PermissoesProvider'
 
 // Repository e Service (para casos avançados)
 export { AuthRepository, createAuthRepository } from './repositories/auth.repository'

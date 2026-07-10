@@ -24,6 +24,8 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    /* Motion: confident deceleration, shared across interactive primitives */
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   }
 
   .dark {
@@ -55,6 +57,21 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ===== Reduced motion =====
+   Requisito de acessibilidade (WCAG / DESIGN.md): nenhuma animação é
+   essencial ao entendimento. Neutraliza toasts, tooltips, skeletons,
+   pulsos e transições para quem pede menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

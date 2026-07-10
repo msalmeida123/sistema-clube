@@ -1,21 +1,13 @@
-// Hook Auth - Responsável APENAS por gerenciar estado React
+// Hooks Auth - Responsáveis APENAS por gerenciar estado React (sem JSX)
 'use client'
 
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, useContext } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import { createAuthRepository } from '../repositories/auth.repository'
 import { createAuthService } from '../services/auth.service'
-import type { Usuario, LoginData, RegistroData, AuthState } from '../types'
-
-// Context para Auth global
-interface AuthContextType extends AuthState {
-  login: (data: LoginData) => Promise<void>
-  logout: () => Promise<void>
-  temPermissao: (permissao: string) => boolean
-}
-
-const AuthContext = createContext<AuthContextType | null>(null)
+import type { Usuario, LoginData, RegistroData } from '../types'
+import { AuthContext } from '../components/AuthProvider'
 
 export function useAuth() {
   const context = useContext(AuthContext)
@@ -23,124 +15,6 @@ export function useAuth() {
     throw new Error('useAuth deve ser usado dentro de AuthProvider')
   }
   return context
-}
-
-// Provider
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    loading: true,
-    error: null,
-    isAuthenticated: false,
-    isAdmin: false
-  })
-
-  const router = useRouter()
-  const supabase = createClientComponentClient()
-  const repository = createAuthRepository(supabase)
-  const service = createAuthService(repository)
-
-  // Carregar usuário ao iniciar
-  useEffect(() => {
-    const carregarUsuario = async () => {
-      try {
-        const usuario = await service.getUsuarioAtual()
-        setState({
-          user: usuario,
-          loading: false,
-          error: null,
-          isAuthenticated: !!usuario,
-          isAdmin: usuario?.is_admin || false
-        })
-      } catch (error) {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Erro ao carregar usuário'
-        }))
-      }
-    }
-
-    carregarUsuario()
-
-    // Listener para mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const usuario = await service.getUsuarioAtual()
-        setState({
-          user: usuario,
-          loading: false,
-          error: null,
-          isAuthenticated: !!usuario,
-          isAdmin: usuario?.is_admin || false
-        })
-      } else if (event === 'SIGNED_OUT') {
-        setState({
-          user: null,
-          loading: false,
-          error: null,
-          isAuthenticated: false,
-          isAdmin: false
-        })
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const login = useCallback(async (data: LoginData) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    try {
-      const usuario = await service.login(data)
-      setState({
-        user: usuario,
-        loading: false,
-        error: null,
-        isAuthenticated: true,
-        isAdmin: usuario.is_admin
-      })
-      router.push('/dashboard')
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erro ao fazer login'
-      }))
-      throw error
-    }
-  }, [router])
-
-  const logout = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true }))
-    try {
-      await service.logout()
-      setState({
-        user: null,
-        loading: false,
-        error: null,
-        isAuthenticated: false,
-        isAdmin: false
-      })
-      router.push('/login')
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erro ao fazer logout'
-      }))
-    }
-  }, [router])
-
-  const temPermissao = useCallback((permissao: string) => {
-    if (!state.user) return false
-    return service.temPermissao(state.user, permissao)
-  }, [state.user])
-
-  return (
-    <AuthContext.Provider value={{ ...state, login, logout, temPermissao }}>
-      {children}
-    </AuthContext.Provider>
-  )
 }
 
 // Hook para login (pode ser usado sem provider)
