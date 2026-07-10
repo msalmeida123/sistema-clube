@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-09T00:00:00Z",
+  "title": "Design System: Sistema Clube",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Azul de Confiança",
+        "canonical": "hsl(221 83% 53%)",
+        "tonalRamp": [
+          "oklch(0.20 0.09 264)",
+          "oklch(0.30 0.13 264)",
+          "oklch(0.40 0.17 264)",
+          "oklch(0.48 0.20 264)",
+          "oklch(0.55 0.22 264)",
+          "oklch(0.68 0.16 264)",
+          "oklch(0.80 0.10 264)",
+          "oklch(0.93 0.04 264)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "hsl(222 84% 5%)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 256)",
+          "oklch(0.22 0.02 256)",
+          "oklch(0.32 0.02 256)",
+          "oklch(0.42 0.03 256)",
+          "oklch(0.52 0.03 256)",
+          "oklch(0.66 0.02 256)",
+          "oklch(0.82 0.01 256)",
+          "oklch(0.97 0.005 256)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Cinza de Legenda",
+        "canonical": "hsl(215 16% 47%)",
+        "tonalRamp": [
+          "oklch(0.20 0.02 256)",
+          "oklch(0.30 0.02 256)",
+          "oklch(0.40 0.03 256)",
+          "oklch(0.50 0.03 256)",
+          "oklch(0.60 0.03 256)",
+          "oklch(0.75 0.02 256)",
+          "oklch(0.88 0.01 256)",
+          "oklch(0.97 0.005 256)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Superfície Suave",
+        "canonical": "hsl(210 40% 96%)",
+        "tonalRamp": [
+          "oklch(0.30 0.02 240)",
+          "oklch(0.40 0.02 240)",
+          "oklch(0.52 0.02 240)",
+          "oklch(0.64 0.02 240)",
+          "oklch(0.76 0.015 240)",
+          "oklch(0.86 0.01 240)",
+          "oklch(0.94 0.008 240)",
+          "oklch(0.98 0.004 240)"
+        ]
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Alerta",
+        "canonical": "hsl(0 84% 60%)",
+        "tonalRamp": [
+          "oklch(0.25 0.09 25)",
+          "oklch(0.35 0.13 25)",
+          "oklch(0.45 0.17 25)",
+          "oklch(0.55 0.20 25)",
+          "oklch(0.64 0.22 25)",
+          "oklch(0.75 0.15 25)",
+          "oklch(0.86 0.08 25)",
+          "oklch(0.94 0.03 25)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Títulos de card e de página (CardTitle)." },
+      "title": { "displayName": "Title", "purpose": "Título da barra superior e cabeçalhos de seção." },
+      "body": { "displayName": "Body", "purpose": "Texto corrente e conteúdo de formulário; prosa longa a 65–75ch." },
+      "label": { "displayName": "Label", "purpose": "Rótulos de campo, itens de navegação, texto de botão." },
+      "data": { "displayName": "Data", "purpose": "Metadados densos, badges, legendas de tabela." }
+    },
+    "shadows": [
+      { "name": "rest", "value": "0 1px 2px 0 rgba(0,0,0,0.05)", "purpose": "shadow-sm: cards e header fixo em repouso. Presença, não drama." },
+      { "name": "overlay", "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)", "purpose": "Menus, seletores e diálogos Radix sobrepostos." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Easing padrão para transições de estado." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Duração padrão de hover/foco/transição de cor. Usuário em fluxo, sem coreografia." }
+    ],
+    "breakpoints": [
+      { "name": "lg", "value": "1024px" },
+      { "name": "2xl", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação primária: única cor de ação do sistema.",
+      "html": "<button class=\"ds-btn-primary\">Salvar</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 8px 16px; border: none; border-radius: 6px; background: #2563EB; color: #F8FAFC; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: rgba(37,99,235,0.9); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #2563EB; } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária de mesmo peso visual do primário, sem preenchimento.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 8px 16px; border: 1px solid #E2E8F0; border-radius: 6px; background: #FFFFFF; color: #020817; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: #F1F5F9; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #2563EB; } .ds-btn-outline:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Exclusão ou ação irreversível. Sempre com confirmação a montante.",
+      "html": "<button class=\"ds-btn-destructive\">Excluir</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 8px 16px; border: none; border-radius: 6px; background: #EF4444; color: #F8FAFC; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-destructive:hover { background: rgba(239,68,68,0.9); } .ds-btn-destructive:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #EF4444; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de formulário padrão; mesmo vocabulário de altura e foco do botão.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Nome do associado\" />",
+      "css": ".ds-input { display: flex; height: 40px; width: 100%; border: 1px solid #E2E8F0; border-radius: 6px; background: #FFFFFF; padding: 8px 12px; font-family: Inter, system-ui, sans-serif; font-size: 0.875rem; color: #020817; } .ds-input::placeholder { color: #64748B; } .ds-input:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #2563EB; } .ds-input:disabled { cursor: not-allowed; opacity: 0.5; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contêiner de conteúdo. Plano em repouso, uma sombra mínima. Nunca aninhar cards.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Associados ativos</h3><p class=\"ds-card-desc\">1.284 no total</p></div>",
+      "css": ".ds-card { border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF; color: #020817; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); padding: 24px; font-family: Inter, system-ui, sans-serif; } .ds-card-title { margin: 0 0 6px; font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; } .ds-card-desc { margin: 0; font-size: 0.875rem; color: #64748B; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Rótulo de status compacto em pílula.",
+      "html": "<span class=\"ds-badge\">Ativo</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: 9999px; padding: 2px 10px; background: #2563EB; color: #F8FAFC; font-family: Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Item da barra lateral: ícone + rótulo. Estado ativo carrega a cor de ação.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg><span>Dashboard</span></a><a class=\"ds-nav-item\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg><span>Associados</span></a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; width: 256px; padding: 16px; background: #FFFFFF; font-family: Inter, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #4B5563; text-decoration: none; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-nav-item:hover { background: #F1F5F9; } .ds-nav-item--active { background: #2563EB; color: #F8FAFC; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Painel de Controle",
+    "overview": "O Sistema Clube é um instrumento de trabalho, não uma vitrine. Como um bom painel de controle, cada informação tem seu mostrador, a leitura é imediata e nada compete pela atenção sem motivo. A equipe do clube opera aqui o dia inteiro; a interface precisa ser confiável e eficiente antes de ser bonita, e é essa sobriedade disciplinada que a torna bonita. Construído sobre shadcn/ui + Tailwind, com um azul de confiança como única cor de ação e uma base neutra fria para tudo o mais. Profundidade discreta: superfícies planas em repouso, elevação só em resposta a interação. O sistema rejeita o visual de sistema público legado e o template genérico shadcn saído da caixa; a meta nº 1 é consistência visual, tela a tela.",
+    "keyCharacteristics": [
+      "Um azul de ação, uma base neutra fria — nada de cor decorativa.",
+      "Plano em repouso; elevação só como resposta a estado.",
+      "Tipografia única (Inter) em escala fixa, hierarquia por peso e tamanho.",
+      "Densidade responde à tarefa e ao papel, nunca ao acaso.",
+      "Consistência acima de novidade: dois jeitos de fazer a mesma coisa = um está errado."
+    ],
+    "rules": [
+      { "name": "A Regra da Voz Única", "body": "Existe uma cor de ação: o Azul de Confiança. Nenhuma seção do sistema ganha sua própria cor de marca (o âmbar do bar, o verde do WhatsApp, o roxo do admin). Consistência é a identidade.", "section": "colors" },
+      { "name": "A Regra da Escala Fixa", "body": "Tamanhos em rem fixos, nunca clamp() fluido. Densidade responde por breakpoint estrutural, não por tipografia elástica.", "section": "typography" },
+      { "name": "A Regra da Legenda Legível", "body": "O Cinza de Legenda é para texto secundário sobre branco, com contraste AA. Nunca rebaixar corpo de texto para cinza-claro por elegância.", "section": "typography" },
+      { "name": "A Regra do Plano em Repouso", "body": "Superfícies não têm sombra em descanso além do shadow-sm do card. Elevação aparece como resposta a estado, nunca como decoração de layout.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar o Azul de Confiança (#2563EB) como única cor de ação — botão primário, item ativo, foco, seleção.",
+      "Do manter Inter em escala rem fixa; hierarquia por peso e tamanho, não por família.",
+      "Do manter superfícies planas em repouso; elevar só em resposta a estado.",
+      "Do entregar todo componente com os sete estados (default, hover, focus-visible, active, disabled, loading, error).",
+      "Do usar skeletons para carregamento de conteúdo, não spinner solto no meio da tela.",
+      "Do escrever estados vazios que ensinam a tela, não 'Nada aqui'.",
+      "Do garantir contraste AA e alvos de toque ~44px na linha de frente; parear estado com ícone/texto, nunca só cor."
+    ],
+    "donts": [
+      "Don't parecer sistema público legado: cinza morto, tabelas sem respiro, sem hierarquia, sem estados de foco/hover.",
+      "Don't parecer template genérico shadcn azul saído da caixa, sem sistema próprio.",
+      "Don't dar a cada seção sua própria cor de marca (âmbar do Bar, verde do WhatsApp, roxo do Admin) — viola A Regra da Voz Única.",
+      "Don't manter dois sidebars/vocabulários divergentes (Sidebar.tsx legado vs. layout de dashboard atual). Convergir para um.",
+      "Don't rebaixar corpo de texto para cinza-claro por elegância — quebra o contraste para usuários não-técnicos.",
+      "Don't usar clamp() fluido em títulos de UI, border-left colorida como faixa, texto em gradiente, ou glassmorphism decorativo.",
+      "Don't aninhar cards, inventar afordância para tarefa padrão, ou tratar modal como primeira opção.",
+      "Don't adicionar animação decorativa que não comunica estado; respeitar prefers-reduced-motion."
+    ]
+  }
+}
