@@ -119,9 +119,7 @@ function disableConsole() {
   
   methods.forEach(method => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((console as any)[method]) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (console as any)[method] = noop
       }
     } catch (_e) {
@@ -286,7 +284,6 @@ function monitorSuspiciousActivity() {
 /**
  * Registra e trata violações de segurança
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function handleSecurityViolation(type: string, details?: any) {
   // Log no servidor (pode enviar para API de monitoramento)
   const violation = {
