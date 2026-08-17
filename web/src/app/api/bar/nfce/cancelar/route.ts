@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { verificarPermissao } from '@/lib/usuario-atual'
 import net from 'net'
 
 const supabase = createClient(
@@ -15,6 +18,23 @@ const supabase = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
+    // Este handler usa a service role key (ignora RLS) e cancela documento
+    // fiscal já autorizado — irreversível e com prazo legal. Exige admin, não
+    // apenas a permissão 'bar' que libera emitir/comprovante.
+    const auth = createRouteHandlerClient({ cookies })
+    const { data: { user } } = await auth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    }
+
+    const { isAdmin } = await verificarPermissao(auth, user.id, 'bar')
+    if (!isAdmin) {
+      return NextResponse.json(
+        { erro: 'Apenas administradores podem cancelar NFC-e' },
+        { status: 403 }
+      )
+    }
+
     const { nfce_id, justificativa } = await req.json()
 
     if (!nfce_id) {
@@ -54,10 +74,22 @@ export async function POST(req: NextRequest) {
     const acbrUrl = config.acbr_url || 'localhost:3434'
     const [host, portStr] = acbrUrl.replace('http://', '').replace('https://', '').split(':')
     const port = parseInt(portStr) || 3434
-    const cnpj = (config.cnpj_emitente || '').replace(/[.\-\/]/g, '')
+    const cnpj = (config.cnpj_emitente || '').replace(/\D/g, '')
+
+    // A justificativa entra entre aspas no comando do ACBrMonitor: aspas, quebras
+    // de linha e caracteres de controle romperiam o comando. Limite SEFAZ: 255.
+    const justificativaSegura = String(justificativa)
+      .replace(/["\r\n]/g, ' ')
+      .replace(/[\x00-\x1F\x7F]/g, '')
+      .trim()
+      .slice(0, 255)
+
+    if (justificativaSegura.length < 15) {
+      return NextResponse.json({ erro: 'Justificativa deve ter pelo menos 15 caracteres' }, { status: 400 })
+    }
 
     // Comando ACBr: NFe.Cancelar(chave, justificativa, CNPJ, lote)
-    const comando = `NFe.Cancelar("${nfce.chave_acesso}", "${justificativa}", "${cnpj}", 1)`
+    const comando = `NFe.Cancelar("${nfce.chave_acesso}", "${justificativaSegura}", "${cnpj}", 1)`
 
     const resposta = await enviarComandoACBr(host, port, comando)
 
@@ -67,7 +99,7 @@ export async function POST(req: NextRequest) {
         .from('bar_nfce')
         .update({
           status: 'cancelada',
-          mensagem_retorno: 'Cancelada: ' + justificativa,
+          mensagem_retorno: 'Cancelada: ' + justificativaSegura,
           updated_at: new Date().toISOString()
         })
         .eq('id', nfce_id)

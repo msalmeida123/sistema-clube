@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { escapeHtml } from '@/lib/security'
+import { verificarPermissao } from '@/lib/usuario-atual'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +12,19 @@ const supabase = createClient(
 
 export async function GET(req: NextRequest) {
   try {
+    // Este handler usa a service role key (ignora RLS): exige sessão válida e
+    // permissão do módulo, senão qualquer logado leria o pedido de qualquer um.
+    const auth = createRouteHandlerClient({ cookies })
+    const { data: { user } } = await auth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    }
+
+    const { autorizado } = await verificarPermissao(auth, user.id, 'bar')
+    if (!autorizado) {
+      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    }
+
     const pedidoId = req.nextUrl.searchParams.get('pedido_id')
     if (!pedidoId) return NextResponse.json({ error: 'pedido_id obrigatório' }, { status: 400 })
 
@@ -33,8 +50,12 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle()
 
-    const nomeEstabelecimento = configNfce?.nome_fantasia || configNfce?.razao_social || 'Bar / Restaurante'
-    const cnpj = configNfce?.cnpj_emitente || ''
+    // Todo texto vindo do banco é escapado antes de entrar no HTML (o comprovante
+    // é servido como text/html na própria origem da aplicação).
+    const nomeEstabelecimento = escapeHtml(
+      configNfce?.nome_fantasia || configNfce?.razao_social || 'Bar / Restaurante'
+    )
+    const cnpj = escapeHtml(configNfce?.cnpj_emitente || '')
 
     // Gera HTML do comprovante (formato térmico 80mm)
     const itens = (pedido.bar_itens_pedido || []) as any[]
@@ -54,7 +75,7 @@ export async function GET(req: NextRequest) {
 
     const itensHtml = itens.map(i => `
       <tr>
-        <td style="text-align:left">${i.quantidade}x ${i.nome_produto}</td>
+        <td style="text-align:left">${Number(i.quantidade)}x ${escapeHtml(i.nome_produto)}</td>
         <td style="text-align:right">${fmt(i.preco_unitario)}</td>
         <td style="text-align:right">${fmt(i.subtotal)}</td>
       </tr>
@@ -62,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     const pagamentosHtml = pagamentos.map((p: any) => `
       <tr>
-        <td>${formasLabel[p.forma_pagamento] || p.forma_pagamento}</td>
+        <td>${formasLabel[p.forma_pagamento] || escapeHtml(p.forma_pagamento)}</td>
         <td style="text-align:right">${fmt(p.valor)}</td>
       </tr>
       ${p.troco > 0 ? `<tr><td style="color:#666">  Troco</td><td style="text-align:right;color:#666">-${fmt(p.troco)}</td></tr>` : ''}
@@ -72,7 +93,7 @@ export async function GET(req: NextRequest) {
 <html>
 <head>
 <meta charset="utf-8">
-<title>Comprovante #${pedido.numero || pedido.id.slice(0, 8)}</title>
+<title>Comprovante #${escapeHtml(String(pedido.numero || pedido.id.slice(0, 8)))}</title>
 <style>
   @media print {
     @page { margin: 0; size: 80mm auto; }
@@ -131,13 +152,13 @@ export async function GET(req: NextRequest) {
   <table>
     <tr>
       <td>Pedido:</td>
-      <td style="text-align:right"><strong>#${pedido.numero || pedido.id.slice(0, 8).toUpperCase()}</strong></td>
+      <td style="text-align:right"><strong>#${escapeHtml(String(pedido.numero || pedido.id.slice(0, 8).toUpperCase()))}</strong></td>
     </tr>
     <tr>
       <td>Data:</td>
       <td style="text-align:right">${dataFormatada}</td>
     </tr>
-    ${pedido.associado_nome ? `<tr><td>Cliente:</td><td style="text-align:right">${pedido.associado_nome}</td></tr>` : ''}
+    ${pedido.associado_nome ? `<tr><td>Cliente:</td><td style="text-align:right">${escapeHtml(pedido.associado_nome)}</td></tr>` : ''}
   </table>
 
   <div class="divider"></div>

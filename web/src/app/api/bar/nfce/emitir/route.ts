@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { verificarPermissao } from '@/lib/usuario-atual'
 import net from 'net'
 
 const supabase = createClient(
@@ -22,6 +25,19 @@ const supabase = createClient(
  */
 export async function POST(req: NextRequest) {
   try {
+    // Este handler usa a service role key (ignora RLS) e emite documento fiscal
+    // real: exige sessão válida e permissão do módulo.
+    const auth = createRouteHandlerClient({ cookies })
+    const { data: { user } } = await auth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    }
+
+    const { autorizado } = await verificarPermissao(auth, user.id, 'bar')
+    if (!autorizado) {
+      return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
+    }
+
     const { pedido_id, cpf_cnpj, nfce_id } = await req.json()
 
     if (!pedido_id) {
@@ -259,15 +275,15 @@ function montarININFCe(
   ini += '[Emitente]\n'
   ini += `CRT=${config.crt || 1}\n`
   ini += `CNPJCPF=${limparDoc(config.cnpj_emitente || '')}\n`
-  ini += `xNome=${config.razao_social || ''}\n`
-  ini += `xFant=${config.nome_fantasia || config.razao_social || ''}\n`
-  ini += `IE=${config.inscricao_estadual || ''}\n`
-  if (config.endereco_logradouro) ini += `xLgr=${config.endereco_logradouro}\n`
-  if (config.endereco_numero) ini += `nro=${config.endereco_numero}\n`
-  if (config.endereco_complemento) ini += `xCpl=${config.endereco_complemento}\n`
-  if (config.endereco_bairro) ini += `xBairro=${config.endereco_bairro}\n`
-  if (config.codigo_municipio) ini += `cMun=${config.codigo_municipio}\n`
-  if (config.endereco_municipio) ini += `xMun=${config.endereco_municipio}\n`
+  ini += `xNome=${limparTextoINI(config.razao_social)}\n`
+  ini += `xFant=${limparTextoINI(config.nome_fantasia || config.razao_social)}\n`
+  ini += `IE=${limparTextoINI(config.inscricao_estadual)}\n`
+  if (config.endereco_logradouro) ini += `xLgr=${limparTextoINI(config.endereco_logradouro)}\n`
+  if (config.endereco_numero) ini += `nro=${limparTextoINI(config.endereco_numero, 60)}\n`
+  if (config.endereco_complemento) ini += `xCpl=${limparTextoINI(config.endereco_complemento)}\n`
+  if (config.endereco_bairro) ini += `xBairro=${limparTextoINI(config.endereco_bairro)}\n`
+  if (config.codigo_municipio) ini += `cMun=${limparTextoINI(config.codigo_municipio, 20)}\n`
+  if (config.endereco_municipio) ini += `xMun=${limparTextoINI(config.endereco_municipio)}\n`
   if (config.uf) {
     ini += `UF=${config.uf}\n`
     ini += `cUF=${getCodigoUF(config.uf)}\n`
@@ -294,17 +310,17 @@ function montarININFCe(
     vTotalProd += vProd
 
     ini += `[Produto${num}]\n`
-    ini += `cProd=${item.produto_id?.substring(0, 20) || String(idx + 1)}\n`
+    ini += `cProd=${limparTextoINI(item.produto_id, 20) || String(idx + 1)}\n`
     ini += 'cEAN=SEM GTIN\n'
-    ini += `xProd=${item.nome_produto || item.produto_nome || 'PRODUTO'}\n`
-    ini += `NCM=${item.produto_ncm || '22030000'}\n`    // Padrão: cerveja
-    ini += `CFOP=${item.produto_cfop || '5102'}\n`      // Padrão: venda mercadoria adquirida
-    ini += `uCom=${item.produto_unidade || 'UN'}\n`
+    ini += `xProd=${limparTextoINI(item.nome_produto || item.produto_nome) || 'PRODUTO'}\n`
+    ini += `NCM=${limparTextoINI(item.produto_ncm, 8) || '22030000'}\n`    // Padrão: cerveja
+    ini += `CFOP=${limparTextoINI(item.produto_cfop, 4) || '5102'}\n`      // Padrão: venda mercadoria adquirida
+    ini += `uCom=${limparTextoINI(item.produto_unidade, 6) || 'UN'}\n`
     ini += `qCom=${Number(item.quantidade).toFixed(4)}\n`
     ini += `vUnCom=${Number(item.preco_unitario).toFixed(4)}\n`
     ini += `vProd=${vProd.toFixed(2)}\n`
     ini += 'cEANTrib=SEM GTIN\n'
-    ini += `uTrib=${item.produto_unidade || 'UN'}\n`
+    ini += `uTrib=${limparTextoINI(item.produto_unidade, 6) || 'UN'}\n`
     ini += `qTrib=${Number(item.quantidade).toFixed(4)}\n`
     ini += `vUnTrib=${Number(item.preco_unitario).toFixed(4)}\n`
     ini += 'indTot=1\n'
@@ -436,9 +452,9 @@ function montarININFCe(
   if (config.resp_tec_cnpj) {
     ini += '[infRespTec]\n'
     ini += `CNPJ=${limparDoc(config.resp_tec_cnpj)}\n`
-    ini += `xContato=${config.resp_tec_contato || ''}\n`
-    ini += `email=${config.resp_tec_email || ''}\n`
-    ini += `fone=${config.resp_tec_fone || ''}\n\n`
+    ini += `xContato=${limparTextoINI(config.resp_tec_contato)}\n`
+    ini += `email=${limparTextoINI(config.resp_tec_email)}\n`
+    ini += `fone=${limparTextoINI(config.resp_tec_fone, 20)}\n\n`
   }
 
   return ini
@@ -523,6 +539,21 @@ function escapeINI(ini: string): string {
 }
 
 /**
+ * Limpa texto livre que vai para um valor do INI.
+ *
+ * Quebra de linha ou caractere de controle dentro de um valor criaria linhas
+ * novas no INI — um nome de produto como "Cerveja\nCFOP=9999" alteraria o
+ * documento fiscal. Colchete também é removido para não abrir seção.
+ */
+function limparTextoINI(texto: unknown, maxLen = 120): string {
+  return String(texto ?? '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/[\x00-\x1F\x7F\[\]]/g, '')
+    .trim()
+    .slice(0, maxLen)
+}
+
+/**
  * Remove pontuação de CNPJ/CPF.
  */
 function limparDoc(doc: string): string {
@@ -553,6 +584,18 @@ function getCodigoUF(uf: string): string {
  * Verifica status de conexão com ACBrMonitor
  */
 export async function GET(req: NextRequest) {
+  // Também usa a service role key e abre conexão TCP com o ACBrMonitor.
+  const auth = createRouteHandlerClient({ cookies })
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  }
+
+  const { autorizado } = await verificarPermissao(auth, user.id, 'bar')
+  if (!autorizado) {
+    return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
+  }
+
   const acao = req.nextUrl.searchParams.get('acao')
 
   if (acao === 'status') {
