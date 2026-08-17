@@ -3,6 +3,7 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Check, X, AlertTriangle, LogIn, LogOut } from 'lucide-react'
 import type { ValidacaoAcesso } from '../types'
@@ -25,15 +26,15 @@ export function ValidacaoCard({
   const { permitido, pessoa, motivo, alertas } = validacao
 
   return (
-    <Card className={`border-2 ${permitido ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+    <Card className={`border-2 ${permitido ? 'border-success/50 bg-success/5' : 'border-destructive/50 bg-destructive/5'}`}>
       <CardContent className="pt-6">
         <div className="flex flex-col items-center text-center space-y-4">
           {/* Ícone de status */}
-          <div className={`p-4 rounded-full ${permitido ? 'bg-green-100' : 'bg-red-100'}`}>
+          <div className={`p-4 rounded-full ${permitido ? 'bg-success/10' : 'bg-destructive/10'}`}>
             {permitido ? (
-              <Check className="h-12 w-12 text-green-600" />
+              <Check className="h-12 w-12 text-success" />
             ) : (
-              <X className="h-12 w-12 text-red-600" />
+              <X className="h-12 w-12 text-destructive" />
             )}
           </div>
 
@@ -48,14 +49,16 @@ export function ValidacaoCard({
               </Avatar>
               <h3 className="text-xl font-bold">{pessoa.nome}</h3>
               <div className="flex gap-2">
-                <span className={`px-2 py-1 rounded text-xs font-medium capitalize
-                  ${pessoa.tipo === 'associado' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                <Badge
+                  variant={pessoa.tipo === 'associado' ? 'default' : 'secondary'}
+                  className="capitalize"
+                >
                   {pessoa.tipo}
-                </span>
+                </Badge>
                 {pessoa.numero_titulo && (
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100">
+                  <Badge variant="secondary">
                     Título: {pessoa.numero_titulo}
-                  </span>
+                  </Badge>
                 )}
               </div>
               {pessoa.titular_nome && (
@@ -67,7 +70,7 @@ export function ValidacaoCard({
           )}
 
           {/* Mensagem de status */}
-          <p className={`text-lg font-medium ${permitido ? 'text-green-700' : 'text-red-700'}`}>
+          <p className={`text-lg font-medium ${permitido ? 'text-success' : 'text-destructive'}`}>
             {permitido ? '✓ Acesso Liberado' : `✗ ${motivo || 'Acesso Negado'}`}
           </p>
 
@@ -75,7 +78,7 @@ export function ValidacaoCard({
           {alertas && alertas.length > 0 && (
             <div className="w-full space-y-1">
               {alertas.map((alerta, i) => (
-                <div key={i} className="flex items-center gap-2 text-yellow-700 bg-yellow-100 px-3 py-1 rounded">
+                <div key={i} className="flex items-center gap-2 text-warning bg-warning/10 px-3 py-1 rounded">
                   <AlertTriangle className="h-4 w-4" />
                   <span className="text-sm">{alerta}</span>
                 </div>
@@ -87,10 +90,10 @@ export function ValidacaoCard({
           {permitido && pessoa && (
             <div className="flex gap-2 pt-4">
               {onRegistrarEntrada && (
-                <Button 
-                  onClick={onRegistrarEntrada} 
+                <Button
+                  onClick={onRegistrarEntrada}
                   disabled={loading}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   <LogIn className="h-4 w-4 mr-2" />
                   Registrar Entrada

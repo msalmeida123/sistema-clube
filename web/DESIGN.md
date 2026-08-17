@@ -11,6 +11,10 @@ colors:
   border: "#E2E8F0"
   destructive: "#EF4444"
   destructive-foreground: "#F8FAFC"
+  success: "#16A34A"
+  success-foreground: "#F8FAFC"
+  warning: "#B45309"
+  warning-foreground: "#F8FAFC"
   primary-dark: "#3B82F6"
 typography:
   headline:
@@ -128,7 +132,10 @@ Paleta de produto **Restrained**: uma base neutra fria carrega as superfícies, 
 - **Traço** (#E2E8F0 · `hsl(214 32% 91%)` · `--border`/`--input`): bordas, divisores e contorno de campos.
 
 ### Semantic
-- **Alerta** (#EF4444 · `hsl(0 84% 60%)` · `--destructive`): erro, exclusão, ação irreversível. Sempre pareado com ícone/texto — nunca cor sozinha comunicando estado.
+Três semânticos de **estado** (não de marca) para tarefas que os exigem — leitura semafórica na linha de frente (portaria, bar). Nenhum deles é cor de ação: continuam subordinados à Regra da Voz Única, sempre pareados com ícone/texto.
+- **Alerta** (#EF4444 · `hsl(0 84% 60%)` · `--destructive`): erro, exclusão, ação irreversível, acesso negado. Sempre pareado com ícone/texto — nunca cor sozinha comunicando estado.
+- **Sucesso** (#16A34A · `hsl(142 71% 40%)` · `--success`): confirmação, acesso liberado, operação concluída. Uso típico como tinta (`bg-success/10`, `text-success`, `border-success/50`); sólido (`bg-success text-success-foreground`) só em botão de ação positiva.
+- **Aviso** (#B45309 · `hsl(32 95% 34%)` · `--warning`): atenção **não-bloqueante** — titular em atraso, exame próximo do vencimento. Informa sem impedir. Tom escuro o bastante para AA em corpo de texto pequeno sobre tinta clara.
 
 ### Named Rules
 **A Regra da Voz Única.** Existe **uma** cor de ação: o Azul de Confiança. Sucesso, aviso e info podem usar semânticos padrão quando a tarefa exige, mas nenhuma seção do sistema ganha sua própria cor de marca (o âmbar do bar, o verde do WhatsApp, o roxo do admin). Consistência é a identidade.

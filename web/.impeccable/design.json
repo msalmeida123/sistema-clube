@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-09T00:00:00Z",
+  "generatedAt": "2026-07-16T00:00:00Z",
   "title": "Design System: Sistema Clube",
   "extensions": {
     "colorMeta": {
@@ -77,6 +77,36 @@
           "oklch(0.75 0.15 25)",
           "oklch(0.86 0.08 25)",
           "oklch(0.94 0.03 25)"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Sucesso",
+        "canonical": "hsl(142 71% 40%)",
+        "tonalRamp": [
+          "oklch(0.22 0.06 150)",
+          "oklch(0.32 0.09 150)",
+          "oklch(0.42 0.12 150)",
+          "oklch(0.52 0.14 150)",
+          "oklch(0.60 0.15 150)",
+          "oklch(0.72 0.11 150)",
+          "oklch(0.85 0.06 150)",
+          "oklch(0.94 0.03 150)"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Aviso",
+        "canonical": "hsl(32 95% 34%)",
+        "tonalRamp": [
+          "oklch(0.25 0.06 65)",
+          "oklch(0.35 0.09 65)",
+          "oklch(0.45 0.12 65)",
+          "oklch(0.52 0.13 65)",
+          "oklch(0.62 0.14 65)",
+          "oklch(0.74 0.11 65)",
+          "oklch(0.86 0.07 65)",
+          "oklch(0.94 0.03 65)"
         ]
       }
     },
@@ -156,6 +186,14 @@
       "description": "Item da barra lateral: ícone + rótulo. Estado ativo carrega a cor de ação.",
       "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg><span>Dashboard</span></a><a class=\"ds-nav-item\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg><span>Associados</span></a></nav>",
       "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; width: 256px; padding: 16px; background: #FFFFFF; font-family: Inter, system-ui, sans-serif; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #4B5563; text-decoration: none; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-nav-item:hover { background: #F1F5F9; } .ds-nav-item--active { background: #2563EB; color: #F8FAFC; }"
+    },
+    {
+      "name": "Validação de Acesso",
+      "kind": "custom",
+      "refersTo": "validacao-card",
+      "description": "Cartão semafórico da portaria: verde=liberado (success), vermelho=negado (destructive), faixa âmbar=aviso não-bloqueante como titular em atraso (warning). Estado sempre pareado com ícone+texto, nunca só cor; tints via opacidade de um único token.",
+      "html": "<div class=\"ds-validacao\"><div class=\"ds-validacao-icon\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></div><p class=\"ds-validacao-status\">✓ Acesso Liberado</p><div class=\"ds-validacao-alerta\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg><span>Titular com mensalidades em atraso</span></div></div>",
+      "css": ".ds-validacao { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; border: 2px solid rgba(22,163,74,0.5); border-radius: 8px; background: rgba(22,163,74,0.05); padding: 24px; font-family: Inter, system-ui, sans-serif; } .ds-validacao-icon { display: inline-flex; padding: 16px; border-radius: 9999px; background: rgba(22,163,74,0.1); color: #16A34A; } .ds-validacao-status { margin: 0; font-size: 1.125rem; font-weight: 500; color: #16A34A; } .ds-validacao-alerta { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 12px; border-radius: 6px; background: rgba(180,83,9,0.1); color: #B45309; font-size: 0.875rem; }"
     }
   ],
   "narrative": {
