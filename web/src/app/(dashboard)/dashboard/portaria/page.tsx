@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
   QrCode, Search, CheckCircle, XCircle, User, Usb, AlertTriangle,
@@ -71,12 +72,12 @@ export default function PortariaPage() {
     const carregarDados = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: userData } = await supabase
-          .from('usuarios')
-          .select('setor')
-          .eq('id', user.id)
-          .single()
-        
+        const userData = await buscarUsuarioAtual<{ setor: string | null }>(
+          supabase,
+          user.id,
+          'setor'
+        )
+
         if (userData) {
           const setor = userData.setor || 'admin'
           setUserSetor(setor)

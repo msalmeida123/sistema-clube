@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import {
   Shield, Users, Search, Check, X, ChevronDown, ChevronRight,
   Eye, Plus, Edit, Trash2, Save, UserCog, Loader2, Copy
 } from 'lucide-react'
@@ -71,11 +72,11 @@ export default function PermissoesPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data } = await supabase
-        .from('usuarios')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single()
+      const data = await buscarUsuarioAtual<{ is_admin: boolean | null }>(
+        supabase,
+        user.id,
+        'is_admin'
+      )
       setIsAdmin(data?.is_admin || false)
     }
   }

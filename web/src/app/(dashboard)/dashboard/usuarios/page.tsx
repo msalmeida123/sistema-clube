@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import {
   Users, Search, Plus, Edit, Trash2, Save, Loader2, X, 
   Shield, Mail, Phone, Building2, Eye, EyeOff, KeyRound,
   UserCog, Check
@@ -55,6 +56,7 @@ const permissoesDisponiveis = [
   { value: 'infracoes', label: 'Infrações', grupo: null },
   { value: 'eleicoes', label: 'Eleições', grupo: null },
   { value: 'relatorios', label: 'Relatórios', grupo: null },
+  { value: 'bar', label: 'Bar/Restaurante', grupo: null },
   { value: 'crm', label: 'CRM/WhatsApp', grupo: null },
   { value: 'configuracoes', label: 'Configurações', grupo: null },
   { value: 'usuarios', label: 'Usuários', grupo: null },
@@ -93,11 +95,11 @@ export default function UsuariosPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data } = await supabase
-        .from('usuarios')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single()
+      const data = await buscarUsuarioAtual<{ is_admin: boolean | null }>(
+        supabase,
+        user.id,
+        'is_admin'
+      )
       setIsAdmin(data?.is_admin || false)
     }
   }

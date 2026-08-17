@@ -37,18 +37,35 @@ export function formatCurrency(value: number): string {
   }).format(value)
 }
 
+/**
+ * Converte a entrada em Date tratando data sem hora como data local.
+ *
+ * `new Date('2024-12-25')` é interpretado como meia-noite em UTC; renderizado
+ * em UTC-3 isso vira 24/12/2024. Campos date-only do banco (vencimento,
+ * validade de exame, nascimento) apareciam um dia antes por causa disso.
+ */
+function paraDataLocal(date: string | Date): Date {
+  if (typeof date === 'string') {
+    const soData = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim())
+    if (soData) {
+      return new Date(Number(soData[1]), Number(soData[2]) - 1, Number(soData[3]))
+    }
+  }
+  return new Date(date)
+}
+
 export function formatDate(date: string | Date): string {
-  return new Date(date).toLocaleDateString('pt-BR')
+  return paraDataLocal(date).toLocaleDateString('pt-BR')
 }
 
 export function formatDateTime(date: string | Date): string {
-  return new Date(date).toLocaleString('pt-BR')
+  return paraDataLocal(date).toLocaleString('pt-BR')
 }
 
 export function formatTime(date: string | Date): string {
-  return new Date(date).toLocaleTimeString('pt-BR', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return paraDataLocal(date).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 

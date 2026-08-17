@@ -1,6 +1,7 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +14,11 @@ export async function POST(request: Request) {
     }
 
     // Verificar se é admin
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
+    const userData = await buscarUsuarioAtual<{ is_admin: boolean | null }>(
+      supabase,
+      user.id,
+      'is_admin'
+    )
 
     if (!userData?.is_admin) {
       return NextResponse.json({ error: 'Apenas administradores' }, { status: 403 })

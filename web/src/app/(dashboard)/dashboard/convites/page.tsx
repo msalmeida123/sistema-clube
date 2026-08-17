@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import {
   Ticket, Plus, Search, QrCode, Calendar, User, Phone,
   CheckCircle, XCircle, Clock, Settings, AlertTriangle, Printer
 } from 'lucide-react'
@@ -68,12 +69,12 @@ export default function ConvitesPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('setor')
-        .eq('id', user.id)
-        .single()
-      
+      const userData = await buscarUsuarioAtual<{ setor: string | null }>(
+        supabase,
+        user.id,
+        'setor'
+      )
+
       setIsAdmin(userData?.setor === 'admin')
     }
   }

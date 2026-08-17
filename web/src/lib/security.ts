@@ -55,7 +55,8 @@ export function stripHtml(str: string | null | undefined): string {
 export function sanitizeString(str: string | null | undefined): string {
   if (!str) return ''
   return String(str)
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove caracteres de controle
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ') // Controle vira espaço, não é removido:
+                                                       // remover juntaria tokens separados por ele
     .replace(/\s+/g, ' ')                              // Normaliza espaços
     .trim()
 }
@@ -145,7 +146,15 @@ export function validatePassword(password: string): {
     score = Math.max(0, score - 2)
   }
 
-  const strength = score < 3 ? 'fraca' : score < 5 ? 'media' : 'forte'
+  // Pontuação alta não basta para 'forte': 8 caracteres só alfanuméricos
+  // ('Abcdef12') continua sendo média. Exige caractere especial ou 12+ chars.
+  const temEspecial = /[^a-zA-Z0-9]/.test(password)
+  const strength =
+    score < 3
+      ? 'fraca'
+      : score >= 5 && (temEspecial || password.length >= 12)
+        ? 'forte'
+        : 'media'
 
   return {
     valid: errors.length === 0,

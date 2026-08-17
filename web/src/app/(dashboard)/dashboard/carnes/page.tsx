@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import {
   FileText, Plus, Search, Calendar, User, CreditCard, Printer,
   CheckCircle, XCircle, Clock, Settings, Eye, Banknote, Receipt, Users
 } from 'lucide-react'
@@ -96,7 +97,7 @@ export default function CarnesPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data } = await supabase.from('usuarios').select('setor').eq('id', user.id).single()
+      const data = await buscarUsuarioAtual<{ setor: string | null }>(supabase, user.id, 'setor')
       setIsAdmin(data?.setor === 'admin')
     }
   }

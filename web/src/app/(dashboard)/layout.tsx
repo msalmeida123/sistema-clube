@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { NotificationBadgeInline } from '@/components/ui/notification-badge'
@@ -12,7 +13,8 @@ import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
-  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase
+  Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase,
+  UtensilsCrossed
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -32,6 +34,7 @@ const menuItems = [
   { href: '/dashboard/financeiro', label: 'Financeiro', icon: Wallet, permissao: 'financeiro' },
   { href: '/dashboard/carnes', label: 'Carnês', icon: Receipt, permissao: 'financeiro' },
   { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, permissao: 'compras' },
+  { href: '/dashboard/bar', label: 'Bar/Restaurante', icon: UtensilsCrossed, permissao: 'bar' },
   { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
   { href: '/dashboard/portaria-sauna', label: 'Portaria Sauna', icon: Droplets, permissao: 'portaria_sauna' },
   { href: '/dashboard/configuracao-sauna', label: 'Config. Sauna', icon: Settings, permissao: 'configuracoes' },
@@ -89,12 +92,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setUser(user)
 
       // Buscar dados do usuário incluindo permissões
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('is_admin, nome, permissoes')
-        .eq('id', user.id)
-        .single()
-      
+      const userData = await buscarUsuarioAtual<{
+        is_admin: boolean | null
+        nome: string | null
+        permissoes: string[] | null
+      }>(supabase, user.id, 'is_admin, nome, permissoes')
+
       if (userData) {
         setIsAdmin(userData.is_admin || false)
         setUserName(userData.nome || user.email?.split('@')[0] || 'Usuário')
@@ -104,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           setPermissoes([
             'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
             'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
-            'crm', 'configuracoes', 'usuarios'
+            'crm', 'configuracoes', 'usuarios', 'bar'
           ])
         } else {
           // Usar array de permissões do usuário

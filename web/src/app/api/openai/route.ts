@@ -2,6 +2,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 // ==========================================
 // CONFIGURAÇÕES DE SEGURANÇA
@@ -249,11 +250,10 @@ export async function POST(request: Request) {
     }
 
     // Verificar se usuário tem permissão de CRM
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('is_admin, permissoes')
-      .eq('id', user.id)
-      .single()
+    const userData = await buscarUsuarioAtual<{
+      is_admin: boolean | null
+      permissoes: string[] | null
+    }>(supabase, user.id, 'is_admin, permissoes')
 
     const temPermissao = userData?.is_admin || 
                          userData?.permissoes?.includes('crm') ||

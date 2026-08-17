@@ -165,7 +165,7 @@ export class AuthService {
     const permissoesValidas = [
       'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
       'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
-      'crm', 'configuracoes', 'usuarios'
+      'crm', 'configuracoes', 'usuarios', 'bar'
     ]
 
     const permissoesInvalidas = permissoes.filter(p => !permissoesValidas.includes(p))

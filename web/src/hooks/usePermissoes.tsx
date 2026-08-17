@@ -2,6 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 type PermissoesContextType = {
   permissoes: string[]
@@ -57,11 +58,10 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       }
 
       // Buscar dados do usuário incluindo permissões
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('is_admin, permissoes')
-        .eq('id', user.id)
-        .single()
+      const userData = await buscarUsuarioAtual<{
+        is_admin: boolean | null
+        permissoes: string[] | null
+      }>(supabase, user.id, 'is_admin, permissoes')
 
       if (userData?.is_admin) {
         setIsAdmin(true)
@@ -69,7 +69,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         setPermissoes([
           'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
           'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
-          'crm', 'configuracoes', 'usuarios', 'academia'
+          'crm', 'configuracoes', 'usuarios', 'academia', 'bar'
         ])
       } else {
         setIsAdmin(false)

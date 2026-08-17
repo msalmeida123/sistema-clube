@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import {
   Tent, Plus, Calendar, Clock, User, Printer, Settings, Search,
   CheckCircle, XCircle, AlertTriangle, Trash2, Edit, Save, X,
   Users, Flame, Bath, Droplets, MapPin, Lock, Unlock
@@ -104,8 +105,15 @@ export default function QuiosquesPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data } = await supabase.from('usuarios').select('is_admin, setor').eq('id', user.id).single()
-      setIsAdmin(data?.is_admin || ['admin', 'presidente', 'vice_presidente', 'diretoria'].includes(data?.setor))
+      const data = await buscarUsuarioAtual<{ is_admin: boolean | null; setor: string | null }>(
+        supabase,
+        user.id,
+        'is_admin, setor'
+      )
+      setIsAdmin(
+        data?.is_admin ||
+          ['admin', 'presidente', 'vice_presidente', 'diretoria'].includes(data?.setor ?? '')
+      )
     }
   }
 
@@ -139,11 +147,11 @@ export default function QuiosquesPage() {
     // Carregar minhas reservas
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('associado_id')
-        .eq('id', user.id)
-        .single()
+      const userData = await buscarUsuarioAtual<{ associado_id: string | null }>(
+        supabase,
+        user.id,
+        'associado_id'
+      )
 
       if (userData?.associado_id) {
         const { data: minhasData } = await supabase
