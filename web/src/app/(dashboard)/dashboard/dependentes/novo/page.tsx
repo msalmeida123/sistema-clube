@@ -1,8 +1,11 @@
 'use client'
 
+import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
+import DocumentosDependente from '@/components/DocumentosDependente'
+import { DOCUMENTACAO_VAZIA, validarDocumentacao, hojeBrasil, idadeDependente } from '@/lib/documentos-dependente'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,13 +17,13 @@ import Link from 'next/link'
 // Regras do Art. 20 do Estatuto
 const PARENTESCOS = [
   { value: 'conjuge', label: 'Cônjuge', regra: 'Sem restrição de idade', idadeMax: null, idadeMin: null, docObrigatorio: 'Certidão de Casamento' },
-  { value: 'filho', label: 'Filho(a)', regra: 'Menores de 21 anos', idadeMax: 21, idadeMin: null, docObrigatorio: 'Certidão de Nascimento' },
-  { value: 'filho_universitario', label: 'Filho(a) Universitário', regra: 'Até 24 anos, com declaração da universidade', idadeMax: 24, idadeMin: null, docObrigatorio: 'Declaração de Matrícula ou Histórico Escolar' },
+  { value: 'filho', label: 'Filho(a)', regra: 'Até 21 anos; após isso, matrícula válida na faculdade', idadeMax: null, idadeMin: null, docObrigatorio: 'Certidão de Nascimento' },
+  { value: 'filho_universitario', label: 'Filho(a) Universitário', regra: 'Sem limite máximo de idade, com matrícula válida na faculdade', idadeMax: null, idadeMin: null, docObrigatorio: 'Declaração de Matrícula ou Histórico Escolar' },
   { value: 'pai', label: 'Pai', regra: 'Acima de 60 anos, dependência econômica, associado solteiro', idadeMax: null, idadeMin: 60, docObrigatorio: 'Certidão de Nascimento do Titular' },
   { value: 'mae', label: 'Mãe', regra: 'Acima de 60 anos, dependência econômica, associado solteiro', idadeMax: null, idadeMin: 60, docObrigatorio: 'Certidão de Nascimento do Titular' },
   { value: 'sogra', label: 'Sogra', regra: 'Viúva e com dependência econômica', idadeMax: null, idadeMin: null, docObrigatorio: 'Certidão de Óbito do Sogro + Certidão de Casamento' },
-  { value: 'enteado', label: 'Enteado(a)', regra: 'Menores de 21 anos', idadeMax: 21, idadeMin: null, docObrigatorio: 'Certidão de Nascimento + Certidão de Casamento' },
-  { value: 'adotado', label: 'Filho(a) Adotado', regra: 'Menores de 21 anos, com dependência', idadeMax: 21, idadeMin: null, docObrigatorio: 'Termo de Adoção' },
+  { value: 'enteado', label: 'Enteado(a)', regra: 'Até 21 anos; após isso, matrícula válida na faculdade', idadeMax: null, idadeMin: null, docObrigatorio: 'Certidão de Nascimento + Certidão de Casamento' },
+  { value: 'adotado', label: 'Filho(a) Adotado', regra: 'Até 21 anos; após isso, matrícula válida na faculdade, com dependência', idadeMax: null, idadeMin: null, docObrigatorio: 'Termo de Adoção' },
 ]
 
 export default function NovoDependentePage() {
@@ -32,7 +35,8 @@ export default function NovoDependentePage() {
   const [titularSelecionado, setTitularSelecionado] = useState<any>(null)
   const [foto, setFoto] = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
-  const [documento, setDocumento] = useState<File | null>(null)
+  const [docs, setDocs] = useState(DOCUMENTACAO_VAZIA)
+  const [enviando, setEnviando] = useState(false)
   const [erroIdade, setErroIdade] = useState<string | null>(null)
 
   const [form, setForm] = useState({
@@ -46,18 +50,12 @@ export default function NovoDependentePage() {
   })
 
   const buscarTitulares = async () => {
-    if (buscaTitular.length < 2) return
+    if (!buscaTitular.trim()) return
 
-    // Buscar apenas associados com plano familiar ou patrimonial
-    const { data } = await supabase
-      .from('associados')
-      .select('id, nome, cpf, numero_titulo, plano, foto_url')
-      .or(`nome.ilike.%${buscaTitular}%,cpf.ilike.%${buscaTitular}%`)
-      .in('plano', ['familiar', 'patrimonial'])
-      .eq('status', 'ativo')
-      .limit(10)
-
-    setTitulares(data || [])
+    try {
+      const pessoas = await buscarPessoasClube(supabase,buscaTitular)
+      setTitulares(pessoas.filter(p=>p.status==='ativo' && ['familiar','patrimonial'].includes(p.plano)))
+    } catch {setTitulares([]);toast.error('Não foi possível buscar o titular.')}
   }
 
   const selecionarTitular = (t: any) => {
@@ -78,14 +76,7 @@ export default function NovoDependentePage() {
 
   const calcularIdade = (dataNascimento: string) => {
     if (!dataNascimento) return null
-    const hoje = new Date()
-    const nascimento = new Date(dataNascimento)
-    let idade = hoje.getFullYear() - nascimento.getFullYear()
-    const m = hoje.getMonth() - nascimento.getMonth()
-    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-      idade--
-    }
-    return idade
+    return idadeDependente(dataNascimento, hojeBrasil())
   }
 
   const validarIdade = (parentesco: string, dataNascimento: string) => {
@@ -99,11 +90,6 @@ export default function NovoDependentePage() {
     if (idade === null) {
       setErroIdade(null)
       return true
-    }
-
-    if (regra.idadeMax && idade > regra.idadeMax) {
-      setErroIdade(`${regra.label} deve ter no máximo ${regra.idadeMax} anos. Idade atual: ${idade} anos.`)
-      return false
     }
 
     if (regra.idadeMin && idade < regra.idadeMin) {
@@ -148,18 +134,14 @@ export default function NovoDependentePage() {
       return
     }
 
-    // Verificar documento obrigatório
-    const docObrigatorio = getDocumentoObrigatorio()
-    if (docObrigatorio && !documento) {
-      toast.error(`Documento obrigatório: ${docObrigatorio}`)
-      return
-    }
-
+    if (enviando || loading) return
+    const erroDocumento = validarDocumentacao(form.parentesco, form.data_nascimento, docs, hojeBrasil())
+    if (erroDocumento) { toast.error(erroDocumento); return }
     setLoading(true)
 
     try {
       let foto_url = null
-      let documento_url = null
+
 
       // Upload da foto
       if (foto) {
@@ -173,18 +155,6 @@ export default function NovoDependentePage() {
         foto_url = urlData.publicUrl
       }
 
-      // Upload do documento comprobatório
-      if (documento) {
-        const ext = documento.name.split('.').pop()
-        const fileName = `documentos/${titularSelecionado.id}/${Date.now()}_${form.parentesco}.${ext}`
-        const { error: uploadError } = await supabase.storage
-          .from('documentos')
-          .upload(fileName, documento)
-        if (uploadError) throw uploadError
-        const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(fileName)
-        documento_url = urlData.publicUrl
-      }
-
       const { error } = await supabase.from('dependentes').insert({
         associado_id: titularSelecionado.id,
         nome: form.nome,
@@ -195,8 +165,8 @@ export default function NovoDependentePage() {
         telefone: form.telefone,
         email: form.email,
         foto_url,
-        documento_comprobatorio_url: documento_url,
-        ativo: true,
+        ...Object.fromEntries(Object.entries(docs).map(([k,v]) => [k,v || null])),
+        status: 'ativo',
       })
 
       if (error) throw error
@@ -244,11 +214,11 @@ export default function NovoDependentePage() {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nome ou CPF..."
+                      placeholder="QR Code, título, nome ou CPF..."
                       className="pl-10"
                       value={buscaTitular}
                       onChange={(e) => setBuscaTitular(e.target.value)}
-                      onKeyUp={(e) => e.key === 'Enter' && buscarTitulares()}
+                      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();buscarTitulares()}}}
                     />
                   </div>
                   <Button type="button" onClick={buscarTitulares}>Buscar</Button>
@@ -432,64 +402,7 @@ export default function NovoDependentePage() {
           </CardContent>
         </Card>
 
-        {/* Documento Comprobatório */}
-        <Card className={!form.parentesco ? 'opacity-50' : ''}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Documento Comprobatório
-            </CardTitle>
-            <CardDescription>
-              {getDocumentoObrigatorio() 
-                ? `Obrigatório: ${getDocumentoObrigatorio()}`
-                : 'Selecione o parentesco para ver o documento necessário'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {form.parentesco ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Documento necessário:</strong> {getDocumentoObrigatorio()}
-                  </p>
-                  {form.parentesco === 'filho_universitario' && (
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Para filho universitário, envie a Declaração de Matrícula atualizada ou Histórico Escolar.
-                    </p>
-                  )}
-                  {form.parentesco === 'conjuge' && (
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Para cônjuge, envie a Certidão de Casamento ou Declaração de União Estável.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="flex items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
-                    <Upload className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {documento ? documento.name : 'Clique para selecionar o documento (PDF ou Imagem)'}
-                    </span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={(e) => setDocumento(e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  {documento && (
-                    <p className="text-sm text-green-600 mt-2">✓ Documento selecionado: {documento.name}</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-4">
-                Selecione o parentesco acima para ver o documento necessário
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <DocumentosDependente supabase={supabase} value={docs} onChange={setDocs} disabled={loading} onBusy={setEnviando} />
 
         {/* Botões */}
         <div className="flex gap-4">
@@ -498,7 +411,7 @@ export default function NovoDependentePage() {
           </Link>
           <Button 
             type="submit" 
-            disabled={loading || !!erroIdade} 
+            disabled={loading || enviando || !!erroIdade}
             className="flex-1"
           >
             <Save className="h-4 w-4 mr-2" />

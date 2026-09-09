@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 type SetorPermissao = {
   setor_id: string
@@ -19,38 +20,35 @@ export function useSetoresUsuario() {
 
   const carregarSetores = useCallback(async () => {
     setLoading(true)
+    setIsAdmin(false)
+    setSetoresPermitidos([])
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        console.log('useSetoresUsuario: Nenhum usuário logado')
         setLoading(false)
         return
       }
 
-      console.log('useSetoresUsuario: Usuário logado:', user.email)
 
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('id, is_admin')
-        .eq('auth_id', user.id)
-        .single()
+      const usuario = await buscarUsuarioAtual<{ id: string; is_admin: boolean; ativo: boolean }>(
+        supabase, user.id, 'id, is_admin, ativo'
+      )
 
-      if (!usuario) {
+      if (!usuario?.ativo) {
         console.error('useSetoresUsuario: Usuário não encontrado no banco')
         setLoading(false)
         return
       }
 
-      console.log('useSetoresUsuario: is_admin =', usuario.is_admin)
 
       if (usuario.is_admin) {
         setIsAdmin(true)
-        const { data: todosSetores } = await supabase
+        const { data: todosSetores, error } = await supabase
           .from('setores_whatsapp')
           .select('id')
           .eq('ativo', true)
+        if (error) throw error
 
-        console.log('useSetoresUsuario: Setores para admin:', todosSetores?.length || 0)
 
         setSetoresPermitidos(
           (todosSetores || []).map(s => ({
@@ -63,12 +61,12 @@ export function useSetoresUsuario() {
         )
       } else {
         setIsAdmin(false)
-        const { data: setoresUsuario } = await supabase
+        const { data: setoresUsuario, error } = await supabase
           .from('usuarios_setores')
           .select('setor_id, is_responsavel')
           .eq('usuario_id', usuario.id)
+        if (error) throw error
 
-        console.log('useSetoresUsuario: Setores do usuário:', setoresUsuario?.length || 0)
 
         setSetoresPermitidos(
           (setoresUsuario || []).map(s => ({
@@ -81,6 +79,8 @@ export function useSetoresUsuario() {
         )
       }
     } catch (error) {
+      setIsAdmin(false)
+      setSetoresPermitidos([])
       console.error('useSetoresUsuario: Erro:', error)
     } finally {
       setLoading(false)
@@ -91,27 +91,27 @@ export function useSetoresUsuario() {
     carregarSetores()
   }, [carregarSetores])
 
-  const podeVerSetor = (setorId: string | null): boolean => {
+  const podeVerSetor = useCallback((setorId: string | null): boolean => {
     if (isAdmin) return true
     if (setorId === null) return setoresPermitidos.length > 0
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_ver)
-  }
+  }, [isAdmin, setoresPermitidos])
 
-  const podeResponderSetor = (setorId: string | null): boolean => {
+  const podeResponderSetor = useCallback((setorId: string | null): boolean => {
     if (isAdmin) return true
     if (setorId === null) return setoresPermitidos.some(s => s.pode_responder)
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_responder)
-  }
+  }, [isAdmin, setoresPermitidos])
 
-  const podeTransferirSetor = (setorId: string | null): boolean => {
+  const podeTransferirSetor = useCallback((setorId: string | null): boolean => {
     if (isAdmin) return true
     if (setorId === null) return setoresPermitidos.some(s => s.pode_transferir)
     return setoresPermitidos.some(s => s.setor_id === setorId && s.pode_transferir)
-  }
+  }, [isAdmin, setoresPermitidos])
 
-  const getSetorIds = (): string[] => {
+  const getSetorIds = useCallback((): string[] => {
     return setoresPermitidos.filter(s => s.pode_ver).map(s => s.setor_id)
-  }
+  }, [setoresPermitidos])
 
   return {
     setoresPermitidos,

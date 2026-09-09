@@ -1,12 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { abrirDocumento } from '@/lib/impressao-documento'
+import { conteudoFolha } from '../folha-impressao'
+import { HoleriteEditor } from './HoleriteEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { DollarSign, FileText, CheckCircle, CreditCard, Plus, Eye } from 'lucide-react'
+import { DollarSign, FileText, CheckCircle, CreditCard, Plus, Eye, Printer } from 'lucide-react'
 import { useFolhaPagamento, useFuncionarios } from '../hooks/useRH'
 import type { FolhaPagamento, StatusFolha } from '../types'
 
@@ -29,6 +33,7 @@ const STATUS_FOLHA_LABELS: Record<StatusFolha, string> = {
 }
 
 export function FolhaTab() {
+  const [imprimindo,setImprimindo]=useState(false)
   const currentMonth = new Date().toISOString().slice(0, 7)
   const [referencia, setReferencia] = useState(currentMonth)
   const [statusFilter, setStatusFilter] = useState<StatusFolha | ''>('')
@@ -68,70 +73,35 @@ export function FolhaTab() {
     }
   }
 
+  async function imprimir(id?:string,holerites=false){
+    const janela=window.open('', '_blank')
+    if(!janela){toast.error('Permita novas janelas para imprimir.');return}
+    janela.document.body.textContent='Preparando impressão...'
+    setImprimindo(true)
+    try{
+      const r=await fetch('/api/rh/configuracao');const empresa=await r.json();if(!r.ok)throw Error(empresa.error)
+      const db=createClient();const registros:FolhaPagamento[]=[]
+      for(let offset=0;;offset+=500){
+        let q=db.from('folha_pagamento').select('*, funcionario:funcionarios(nome,cargo,departamento,data_admissao,banco,agencia,conta)').order('id').range(offset,offset+499)
+        if(id)q=q.eq('id',id);else {q=q.eq('referencia',referencia);if(statusFilter)q=q.eq('status',statusFilter)}
+        const {data,error}=await q;if(error)throw error;registros.push(...(data||[]));if((data||[]).length<500)break
+      }
+      if(!registros.length)throw Error('Nenhuma folha encontrada para imprimir.')
+      const conteudo=holerites?registros.map(f=>'<div class="pagina-holerite">'+conteudoFolha([f],empresa,f.referencia,true)+'</div>').join(''):conteudoFolha(registros,empresa,id?registros[0].referencia:referencia,!!id,statusFilter?STATUS_FOLHA_LABELS[statusFilter]:'Todos')
+      abrirDocumento('Folha de pagamento','<style>@media print{.pagina-holerite + .pagina-holerite{break-before:page}}</style>'+conteudo,janela)
+    }catch(e:any){janela.close();toast.error(e.message||'Não foi possível preparar a impressão.')}
+    finally{setImprimindo(false)}
+  }
+
   // Totais
   const totalProventos = folhas.reduce((acc, f) => acc + f.total_proventos, 0)
   const totalDescontos = folhas.reduce((acc, f) => acc + f.total_descontos, 0)
   const totalLiquido = folhas.reduce((acc, f) => acc + f.salario_liquido, 0)
 
-  // Detail view
-  if (selectedFolha) {
-    const f = selectedFolha
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Detalhes - {f.funcionario?.nome}</h3>
-          <Button variant="outline" size="sm" onClick={() => setSelectedFolha(null)}>Voltar</Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-green-600">Proventos</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>Salário Base</span><span>{formatCurrency(f.salario_base)}</span></div>
-              {f.horas_extras_valor > 0 && <div className="flex justify-between"><span>Horas Extras</span><span>{formatCurrency(f.horas_extras_valor)}</span></div>}
-              {f.adicional_noturno > 0 && <div className="flex justify-between"><span>Ad. Noturno</span><span>{formatCurrency(f.adicional_noturno)}</span></div>}
-              {f.adicional_insalubridade > 0 && <div className="flex justify-between"><span>Insalubridade</span><span>{formatCurrency(f.adicional_insalubridade)}</span></div>}
-              {f.adicional_periculosidade > 0 && <div className="flex justify-between"><span>Periculosidade</span><span>{formatCurrency(f.adicional_periculosidade)}</span></div>}
-              {f.gratificacao > 0 && <div className="flex justify-between"><span>Gratificação</span><span>{formatCurrency(f.gratificacao)}</span></div>}
-              {f.comissao > 0 && <div className="flex justify-between"><span>Comissão</span><span>{formatCurrency(f.comissao)}</span></div>}
-              {f.outros_proventos > 0 && <div className="flex justify-between"><span>Outros</span><span>{formatCurrency(f.outros_proventos)}</span></div>}
-              <div className="flex justify-between font-bold border-t pt-2 mt-2"><span>Total</span><span className="text-green-600">{formatCurrency(f.total_proventos)}</span></div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-red-600">Descontos</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              {f.inss > 0 && <div className="flex justify-between"><span>INSS</span><span>{formatCurrency(f.inss)}</span></div>}
-              {f.irrf > 0 && <div className="flex justify-between"><span>IRRF</span><span>{formatCurrency(f.irrf)}</span></div>}
-              {f.vale_transporte > 0 && <div className="flex justify-between"><span>V. Transporte</span><span>{formatCurrency(f.vale_transporte)}</span></div>}
-              {f.vale_refeicao > 0 && <div className="flex justify-between"><span>V. Refeição</span><span>{formatCurrency(f.vale_refeicao)}</span></div>}
-              {f.faltas_desconto > 0 && <div className="flex justify-between"><span>Faltas</span><span>{formatCurrency(f.faltas_desconto)}</span></div>}
-              {f.atrasos_desconto > 0 && <div className="flex justify-between"><span>Atrasos</span><span>{formatCurrency(f.atrasos_desconto)}</span></div>}
-              {f.adiantamento > 0 && <div className="flex justify-between"><span>Adiantamento</span><span>{formatCurrency(f.adiantamento)}</span></div>}
-              {f.outros_descontos > 0 && <div className="flex justify-between"><span>Outros</span><span>{formatCurrency(f.outros_descontos)}</span></div>}
-              <div className="flex justify-between font-bold border-t pt-2 mt-2"><span>Total</span><span className="text-red-600">{formatCurrency(f.total_descontos)}</span></div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-sm text-blue-600">Resumo</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span>Cargo</span><span>{f.funcionario?.cargo}</span></div>
-              <div className="flex justify-between"><span>Departamento</span><span>{f.funcionario?.departamento}</span></div>
-              <div className="flex justify-between"><span>Referência</span><span>{f.referencia}</span></div>
-              <div className="flex justify-between"><span>Status</span><Badge className={STATUS_FOLHA_COLORS[f.status]}>{STATUS_FOLHA_LABELS[f.status]}</Badge></div>
-              <div className="flex justify-between font-bold text-lg border-t pt-3 mt-3">
-                <span>Líquido</span>
-                <span className="text-blue-600">{formatCurrency(f.salario_liquido)}</span>
-              </div>
-              <div className="flex gap-2 mt-4">
-                {f.status === 'rascunho' && <Button size="sm" className="flex-1" onClick={() => handleAprovar(f.id)}>Aprovar</Button>}
-                {f.status === 'aprovada' && <Button size="sm" className="flex-1" onClick={() => handlePagar(f.id)}>Pagar</Button>}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
+  if(selectedFolha){const f=selectedFolha;return <div className="space-y-4">
+    <div className="flex flex-wrap justify-between gap-2"><h3 className="text-lg font-semibold">Demonstrativo · {f.funcionario?.nome} · {f.referencia}</h3><div className="flex gap-2"><Button variant="outline" disabled={imprimindo} onClick={()=>void imprimir(f.id)}><Printer className="h-4 w-4 mr-2"/>Imprimir dados salvos</Button><Button variant="outline" onClick={()=>setSelectedFolha(null)}>Voltar</Button></div></div>
+    <HoleriteEditor key={f.id} folha={f} onSave={()=>{setSelectedFolha(null);void recarregar()}}/>
+  </div>}
 
   return (
     <div className="space-y-6">
@@ -172,7 +142,9 @@ export function FolhaTab() {
             ))}
           </select>
         </div>
-        <div className="sm:ml-auto sm:self-end">
+        <div className="sm:ml-auto sm:self-end flex gap-2">
+          <Button variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir()}><Printer className="h-4 w-4 mr-2"/>Imprimir resumo</Button>
+          <Button variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir(undefined,true)}>Imprimir holerites</Button>
           <Button onClick={handleGerar}>
             <Plus className="h-4 w-4 mr-2" /> Gerar Folha do Mês
           </Button>
@@ -212,6 +184,7 @@ export function FolhaTab() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1">
+                      <Button variant="ghost" size="sm" disabled={imprimindo} onClick={()=>void imprimir(folha.id)} aria-label={"Imprimir demonstrativo de "+folha.funcionario?.nome}><Printer className="h-4 w-4"/></Button>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedFolha(folha)} title="Detalhes">
                         <Eye className="h-4 w-4" />
                       </Button>

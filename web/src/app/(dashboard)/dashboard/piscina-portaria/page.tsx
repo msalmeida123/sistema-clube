@@ -1,7 +1,9 @@
 'use client'
 
+import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
+import { codigoCarteirinha } from '@/lib/carteirinha-qr'
 import { useState, useEffect, useRef } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +42,7 @@ type Acesso = {
 }
 
 export default function PiscinaPortariaPage() {
+  const [opcoes, setOpcoes] = useState<any[]>([])
   const [busca, setBusca] = useState('')
   const [associado, setAssociado] = useState<Associado | null>(null)
   const [exame, setExame] = useState<ExameMedico | null>(null)
@@ -51,7 +54,7 @@ export default function PiscinaPortariaPage() {
   const [ultimoScan, setUltimoScan] = useState<number>(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
 
   useEffect(() => {
     carregarAcessosHoje()
@@ -67,18 +70,6 @@ export default function PiscinaPortariaPage() {
     
     return () => clearInterval(interval)
   }, [modoScanner])
-
-  // Auto-buscar quando detectar QR Code completo (scanner USB)
-  useEffect(() => {
-    if (busca.startsWith('SOCIO-') && busca.length >= 14) {
-      const agora = Date.now()
-      // Evitar buscas duplicadas em menos de 2 segundos
-      if (agora - ultimoScan > 2000) {
-        setUltimoScan(agora)
-        buscarAssociado(busca)
-      }
-    }
-  }, [busca])
 
   const carregarAcessosHoje = async () => {
     const hoje = new Date().toISOString().split('T')[0]
@@ -108,6 +99,7 @@ export default function PiscinaPortariaPage() {
   }
 
   const buscarAssociado = async (codigo?: string) => {
+    if (loading) return
     const termoBusca = codigo || busca
     if (!termoBusca.trim()) {
       toast.error('Digite um código QR, nome ou matrícula')
@@ -119,19 +111,14 @@ export default function PiscinaPortariaPage() {
     setExame(null)
 
     // Buscar associado por QR Code, nome ou número do título
-    const { data: assocData, error } = await supabase
-      .from('associados')
-      .select('id, nome, numero_titulo, telefone, foto_url, qr_code, status')
-      .or(`qr_code.ilike.%${termoBusca}%,nome.ilike.%${termoBusca}%,numero_titulo.ilike.%${termoBusca}%`)
-      .limit(1)
-      .single()
-
-    if (error || !assocData) {
-      setLoading(false)
-      setBusca('')
-      toast.error('Associado não encontrado')
-      return
-    }
+    setOpcoes([])
+    let assocData: any
+    try {
+      const encontrados=await buscarPessoasClube(supabase,termoBusca)
+      if(encontrados.length>1) {setOpcoes(encontrados);setLoading(false);return}
+      assocData=encontrados[0]
+      if(!assocData) {setLoading(false);toast.error('Associado não encontrado');return}
+    } catch {setLoading(false);toast.error('Erro ao consultar. Tente novamente.');return}
 
     setAssociado(assocData)
 
@@ -334,7 +321,8 @@ export default function PiscinaPortariaPage() {
               <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 ref={inputRef}
-                placeholder={modoScanner ? "🔍 Aguardando leitura do QR Code..." : "Digite nome ou matrícula..."}
+                disabled={loading}
+                placeholder={modoScanner ? "QR Code ou número do título..." : "Nome, CPF ou número do título..."}
                 value={busca}
                 onChange={e => setBusca(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && buscarAssociado()}
@@ -342,7 +330,7 @@ export default function PiscinaPortariaPage() {
                 autoFocus
               />
             </div>
-            {!modoScanner && (
+            {(
               <Button onClick={() => buscarAssociado()} disabled={loading} size="lg" className="h-14 px-8 bg-blue-600 hover:bg-blue-700">
                 <Search className="h-5 w-5 mr-2" />
                 {loading ? 'Buscando...' : 'Buscar'}
@@ -454,6 +442,7 @@ export default function PiscinaPortariaPage() {
       )}
 
       {/* Últimos Acessos */}
+      {opcoes.length>0 && <Card><CardContent className="pt-4 space-y-2"><p>Selecione o associado:</p>{opcoes.map(p=><Button key={p.id} variant="outline" onClick={()=>buscarAssociado(codigoCarteirinha(p.id,p.qr_code))}>{p.nome} — Título {p.numero_titulo}</Button>)}</CardContent></Card>}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

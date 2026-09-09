@@ -175,13 +175,8 @@ export async function sendMessageViaProvider(
   messageType: 'text' | 'image' | 'video' | 'audio' | 'document' = 'text',
   mediaUrl?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const provider = await getProviderForConversation(conversaId)
-  
-  if (!provider) {
-    return { success: false, error: 'Nenhum provider configurado' }
-  }
-
-  return provider.sendMessage({
+  const { enfileirarAutomatico } = await import('./queue-auto')
+  return enfileirarAutomatico(conversaId, {
     to: telefone,
     text: mensagem,
     messageType,

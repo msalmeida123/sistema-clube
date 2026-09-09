@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { gerarComandaCozinha } from '@/lib/comanda-cozinha'
 import { escapeHtml } from '@/lib/security'
 import { verificarPermissao } from '@/lib/usuario-atual'
 
@@ -43,6 +44,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
     }
 
+    if (req.nextUrl.searchParams.get('via') === 'cozinha') {
+      if (pedido.status === 'cancelado') return NextResponse.json({ error: 'Pedido cancelado' }, { status: 409 })
+      if (!pedido.bar_itens_pedido?.some((i: any) => i.enviar_cozinha)) return NextResponse.json({ error: 'Pedido sem itens para a cozinha' }, { status: 422 })
+      return new NextResponse(gerarComandaCozinha(pedido), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+    }
+
     // Busca config do clube para nome
     const { data: configNfce } = await supabase
       .from('bar_config_nfce')
@@ -70,12 +77,12 @@ export async function GET(req: NextRequest) {
       cortesia: 'Cortesia'
     }
 
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     const dataFormatada = new Date(pedido.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 
     const itensHtml = itens.map(i => `
       <tr>
-        <td style="text-align:left">${Number(i.quantidade)}x ${escapeHtml(i.nome_produto)}</td>
+        <td style="text-align:left">${Number(i.quantidade)}x ${escapeHtml(i.produto_nome)}</td>
         <td style="text-align:right">${fmt(i.preco_unitario)}</td>
         <td style="text-align:right">${fmt(i.subtotal)}</td>
       </tr>
@@ -93,7 +100,7 @@ export async function GET(req: NextRequest) {
 <html>
 <head>
 <meta charset="utf-8">
-<title>Comprovante #${escapeHtml(String(pedido.numero || pedido.id.slice(0, 8)))}</title>
+<title>Comprovante #${escapeHtml(String(pedido.numero_pedido || pedido.id.slice(0, 8)))}</title>
 <style>
   @media print {
     @page { margin: 0; size: 80mm auto; }
@@ -152,7 +159,7 @@ export async function GET(req: NextRequest) {
   <table>
     <tr>
       <td>Pedido:</td>
-      <td style="text-align:right"><strong>#${escapeHtml(String(pedido.numero || pedido.id.slice(0, 8).toUpperCase()))}</strong></td>
+      <td style="text-align:right"><strong>#${escapeHtml(String(pedido.numero_pedido || pedido.id.slice(0, 8).toUpperCase()))}</strong></td>
     </tr>
     <tr>
       <td>Data:</td>
@@ -161,6 +168,9 @@ export async function GET(req: NextRequest) {
     ${pedido.associado_nome ? `<tr><td>Cliente:</td><td style="text-align:right">${escapeHtml(pedido.associado_nome)}</td></tr>` : ''}
   </table>
 
+  <p>Cliente: ${escapeHtml(pedido.cliente_nome || pedido.associado_nome || 'Consumidor final')}</p>
+  <p>Mesa: ${escapeHtml(pedido.mesa || 'Balcão')}</p>
+  <p style="white-space:pre-wrap">${escapeHtml(pedido.observacao || '')}</p>
   <div class="divider"></div>
 
   <table>

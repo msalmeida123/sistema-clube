@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 type PermissoesContextType = {
@@ -29,6 +29,7 @@ const ROTAS_PERMISSOES: Record<string, string> = {
   '/dashboard/infracoes': 'infracoes',
   '/dashboard/eleicoes': 'eleicoes',
   '/dashboard/relatorios': 'relatorios',
+  '/dashboard/servicos': 'servicos',
   '/dashboard/crm': 'crm',
   '/dashboard/whatsapp': 'crm',
   '/dashboard/respostas-automaticas': 'crm',
@@ -69,7 +70,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         setPermissoes([
           'dashboard', 'associados', 'dependentes', 'financeiro', 'compras',
           'portaria', 'exames', 'infracoes', 'eleicoes', 'relatorios',
-          'crm', 'configuracoes', 'usuarios', 'academia', 'bar'
+          'crm', 'servicos', 'configuracoes', 'usuarios', 'academia', 'bar'
         ])
       } else {
         setIsAdmin(false)
@@ -86,11 +87,14 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     carregarPermissoes()
 
     // Escutar mudanças de autenticação
+    let timer: ReturnType<typeof setTimeout> | undefined
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      carregarPermissoes()
+      // Consultas de auth devem ocorrer depois que o evento liberar o lock da sessão.
+      clearTimeout(timer)
+      timer = setTimeout(() => { void carregarPermissoes() }, 0)
     })
 
-    return () => subscription.unsubscribe()
+    return () => { clearTimeout(timer); subscription.unsubscribe() }
   }, [])
 
   const temPermissao = (codigo: string) => {

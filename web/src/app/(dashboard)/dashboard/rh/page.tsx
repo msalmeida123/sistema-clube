@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import { Users, Clock, DollarSign, Palmtree, LayoutDashboard } from 'lucide-react'
+import { Users, Clock, DollarSign, Palmtree, LayoutDashboard, Settings } from 'lucide-react'
 import { useRHStats } from '@/modules/rh'
 import { RHDashboard } from '@/modules/rh/components/RHDashboard'
 import { FuncionariosTab } from '@/modules/rh/components/FuncionariosTab'
@@ -10,9 +10,12 @@ import { PontoTab } from '@/modules/rh/components/PontoTab'
 import { FolhaTab } from '@/modules/rh/components/FolhaTab'
 import { AfastamentosTab } from '@/modules/rh/components/AfastamentosTab'
 
-type Tab = 'dashboard' | 'funcionarios' | 'ponto' | 'folha' | 'afastamentos'
+import { ConfiguracaoRHTab } from '@/modules/rh/components/ConfiguracaoRHTab'
+
+type Tab = 'dashboard' | 'funcionarios' | 'ponto' | 'folha' | 'afastamentos' | 'configuracao'
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
+  {id:'configuracao',label:'Configuração do RH',icon:Settings},
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'funcionarios', label: 'Funcionários', icon: Users },
   { id: 'ponto', label: 'Ponto', icon: Clock },
@@ -55,6 +58,7 @@ export default function RHPage() {
 
         {/* Content */}
         <div>
+          {tab === 'configuracao' && <ConfiguracaoRHTab />}
           {tab === 'dashboard' && <RHDashboard stats={stats} loading={statsLoading} />}
           {tab === 'funcionarios' && <FuncionariosTab />}
           {tab === 'ponto' && <PontoTab />}

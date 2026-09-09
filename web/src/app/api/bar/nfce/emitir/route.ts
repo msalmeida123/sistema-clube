@@ -1,14 +1,12 @@
+import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { verificarPermissao } from '@/lib/usuario-atual'
 import net from 'net'
+import { reservarNumeroNFCe } from '@/lib/nfce-numero'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 /**
  * POST /api/bar/nfce/emitir
@@ -38,6 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
     }
 
+    const supabase=servicoAuditado(user.id)
     const { pedido_id, cpf_cnpj, nfce_id } = await req.json()
 
     if (!pedido_id) {
@@ -73,14 +72,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'Só é possível emitir NFC-e para pedidos pagos' }, { status: 400 })
     }
 
-    // ── Busca ou incrementa próximo número NFC-e ──────────────
-    const proximoNumero = config.proximo_numero || 1
-    
-    // Atualiza próximo número
-    await supabase
-      .from('bar_config_nfce')
-      .update({ proximo_numero: proximoNumero + 1 })
-      .eq('id', config.id)
+    // Validar antes de reservar número ou abrir conexão com o ACBr.
+    if (nfce_id !== undefined && nfce_id !== null) {
+      if (typeof nfce_id !== 'string' || !nfce_id) {
+        return NextResponse.json({ erro: 'nfce_id inválido' }, { status: 400 })
+      }
+      const { data: nota, error: erroNota } = await supabase.from('bar_nfce')
+        .select('id, status').eq('id', nfce_id).eq('pedido_id', pedido_id).maybeSingle()
+      if (erroNota) throw new Error('Não foi possível consultar a NFC-e')
+      if (!nota) {
+        return NextResponse.json({ erro: 'NFC-e não pertence ao pedido informado' }, { status: 400 })
+      }
+      if (nota.status === 'autorizada' || nota.status === 'cancelada') {
+        return NextResponse.json({ erro: 'NFC-e já autorizada ou cancelada' }, { status: 409 })
+      }
+    }
+    const proximoNumero = await reservarNumeroNFCe(supabase, config.id)
 
     // ── Monta conteúdo INI da NFC-e ───────────────────────────
     const iniContent = montarININFCe(pedido, config, proximoNumero, cpf_cnpj)
@@ -116,6 +123,7 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString()
           })
           .eq('id', nfce_id)
+          .eq('pedido_id', pedido_id)
       }
 
       return NextResponse.json({
@@ -139,6 +147,7 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString()
           })
           .eq('id', nfce_id)
+          .eq('pedido_id', pedido_id)
       }
 
       return NextResponse.json({
@@ -596,6 +605,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ erro: 'Sem permissão' }, { status: 403 })
   }
 
+  const supabase=servicoAuditado(user.id)
   const acao = req.nextUrl.searchParams.get('acao')
 
   if (acao === 'status') {

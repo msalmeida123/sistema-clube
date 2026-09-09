@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import Link from 'next/link'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ type SessionStatus = {
 }
 
 export default function WhatsAppPage() {
+  const [semConfiguracao, setSemConfiguracao] = useState(false)
   const [session, setSession] = useState<SessionStatus | null>(null)
   const [qrCode, setQrCode] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,7 @@ export default function WhatsAppPage() {
       const response = await fetch('/api/wasender/session')
       const result = await response.json()
 
-      console.log('Status result:', result)
+      setSemConfiguracao(Boolean(result.error && result.device_id === null))
 
       if (result.device_id) {
         setDeviceId(result.device_id)
@@ -53,7 +55,7 @@ export default function WhatsAppPage() {
 
       if (result.success) {
         setSession(result.session)
-      } else if (result.error) {
+      } else if (result.error && result.device_id !== null) {
         toast.error(result.error)
       }
     } catch (error: any) {
@@ -162,6 +164,16 @@ export default function WhatsAppPage() {
   useEffect(() => {
     buscarStatus()
   }, [])
+
+  if (semConfiguracao && !loading) return (
+    <Card>
+      <CardHeader><CardTitle>Conexão WhatsApp</CardTitle><CardDescription>Escolha a integração que deseja configurar.</CardDescription></CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border p-4 space-y-3"><h2 className="font-semibold">WhatsApp Oficial (Meta)</h2><p className="text-sm text-muted-foreground">Cadastre as credenciais da Meta Cloud API na configuração da API oficial.</p><Button asChild><Link href="/dashboard/whatsapp-providers">Configurar API oficial</Link></Button></div>
+        <div className="rounded-lg border p-4 space-y-3"><h2 className="font-semibold">WaSenderAPI</h2><p className="text-sm text-muted-foreground">Configure a sessão do WaSender para conectar pelo QR Code.</p><Button asChild variant="outline"><Link href="/dashboard/configuracoes">Configurar WaSender</Link></Button></div>
+      </CardContent>
+    </Card>
+  )
 
   const connected = isConnected(session)
 

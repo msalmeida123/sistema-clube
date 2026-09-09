@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Download, Printer } from 'lucide-react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
+import { codigoCarteirinha } from '@/lib/carteirinha-qr'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
+import { toast } from 'sonner'
 import type { Associado } from '@/types/database'
 
 export default function CarteirinhaPage() {
@@ -19,7 +21,7 @@ export default function CarteirinhaPage() {
   const [clubeConfig, setClubeConfig] = useState<any>(null)
   const cardFrenteRef = useRef<HTMLDivElement>(null)
   const cardVersoRef = useRef<HTMLDivElement>(null)
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
 
   useEffect(() => {
     const fetch = async () => {
@@ -28,7 +30,7 @@ export default function CarteirinhaPage() {
       setAssociado(a)
       setClubeConfig(c)
       if (a) {
-        const hash = btoa(`${a.id}-${a.cpf}-${Date.now()}`)
+        const hash = codigoCarteirinha(a.id, a.qr_code)
         const qr = await QRCode.toDataURL(hash, { width: 150, margin: 1 })
         setQrCodeUrl(qr)
       }
@@ -41,22 +43,43 @@ export default function CarteirinhaPage() {
     return colors[plano] || '#6B7280'
   }
 
-  const gerarPDF = async () => {
-    if (!cardFrenteRef.current) return
-    const canvas = await html2canvas(cardFrenteRef.current, { scale: 3 })
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 54] })
-    pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
-
-    // Adicionar verso se disponível
-    if (cardVersoRef.current) {
-      const canvasVerso = await html2canvas(cardVersoRef.current, { scale: 3 })
-      const imgVerso = canvasVerso.toDataURL('image/png')
-      pdf.addPage([85.6, 54], 'landscape')
-      pdf.addImage(imgVerso, 'PNG', 0, 0, 85.6, 54)
+  const gerarPDF = async (imprimir = false) => {
+    if (!cardFrenteRef.current || !qrCodeUrl) return
+    const janela = imprimir ? window.open('', '_blank') : null
+    if (imprimir && !janela) {
+      toast.error('Permita abrir a aba de impressão ou use Baixar PDF.')
+      return
     }
+    try {
+      const imagens = [cardFrenteRef.current, cardVersoRef.current].flatMap(el => el ? Array.from(el.querySelectorAll('img')) : [])
+      await Promise.all(imagens.map(img => img.decode().catch(() => undefined)))
+      await document.fonts.ready
+      const canvas = await html2canvas(cardFrenteRef.current, { scale: 3 })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 54] })
+      pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
 
-    pdf.save(`carteirinha-${associado?.numero_titulo}.pdf`)
+      // Adicionar verso se disponível
+      if (cardVersoRef.current) {
+        const canvasVerso = await html2canvas(cardVersoRef.current, { scale: 3 })
+        const imgVerso = canvasVerso.toDataURL('image/png')
+        pdf.addPage([85.6, 54], 'landscape')
+        pdf.addImage(imgVerso, 'PNG', 0, 0, 85.6, 54)
+      }
+
+      if (janela) {
+        const url = URL.createObjectURL(pdf.output('blob'))
+        janela.location.href = url
+        const monitor = window.setInterval(() => {
+          if (janela.closed) { URL.revokeObjectURL(url); window.clearInterval(monitor) }
+        }, 1000)
+      } else {
+        pdf.save("carteirinha-" + associado?.numero_titulo + '.pdf')
+      }
+    } catch {
+      janela?.close()
+      toast.error('Não foi possível gerar a carteirinha. Tente novamente.')
+    }
   }
 
   if (!associado) return <div className="p-6">Carregando...</div>
@@ -136,8 +159,8 @@ export default function CarteirinhaPage() {
 
       {/* Botões - escondidos na impressão */}
       <div className="flex gap-4 no-print">
-        <Button onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
-        <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
+        <Button disabled={!qrCodeUrl} onClick={() => gerarPDF()}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
+        <Button disabled={!qrCodeUrl} variant="outline" onClick={() => gerarPDF(true)}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
       </div>
 
       {/* Instruções - escondidas na impressão */}

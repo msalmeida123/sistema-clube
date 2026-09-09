@@ -2,7 +2,7 @@
 'use client'
 
 import { createContext, useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { createAuthRepository } from '../repositories/auth.repository'
 import { createAuthService } from '../services/auth.service'
@@ -26,15 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   })
 
   const router = useRouter()
-  const supabase = createClientComponentClient()
-  const repository = createAuthRepository(supabase)
-  const service = createAuthService(repository)
+  const [supabase] = useState(() => createClientComponentClient())
+  const [repository] = useState(() => createAuthRepository(supabase))
+  const [service] = useState(() => createAuthService(repository))
 
   // Carregar usuário ao iniciar
   useEffect(() => {
+    let ativo = true
     const carregarUsuario = async () => {
       try {
         const usuario = await service.getUsuarioAtual()
+        if (!ativo) return
         setState({
           user: usuario,
           loading: false,
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isAdmin: usuario?.is_admin || false
         })
       } catch (error) {
+        if (!ativo) return
         setState(prev => ({
           ...prev,
           loading: false,
@@ -51,19 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    carregarUsuario()
+    void carregarUsuario()
 
     // Listener para mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const usuario = await service.getUsuarioAtual()
-        setState({
-          user: usuario,
-          loading: false,
-          error: null,
-          isAuthenticated: !!usuario,
-          isAdmin: usuario?.is_admin || false
-        })
+        // Consultas de sessão aguardam a liberação do lock do evento de auth.
+        setTimeout(() => { void carregarUsuario() }, 0)
       } else if (event === 'SIGNED_OUT') {
         setState({
           user: null,
@@ -75,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => { ativo = false; subscription.unsubscribe() }
   }, [])
 
   const login = useCallback(async (data: LoginData) => {

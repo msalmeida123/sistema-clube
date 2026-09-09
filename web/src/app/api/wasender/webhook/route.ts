@@ -404,37 +404,10 @@ ${config.documento_contexto || ''}`
   }
 }
 
-async function enviarMensagem(telefone: string, mensagem: string): Promise<string | false> {
-  try {
-    const { data: config } = await getSupabase()
-      .from('config_wasender')
-      .select('api_key')
-      .single()
-
-    if (!config?.api_key) return false
-
-    let numero = sanitizarTelefone(telefone)
-    if (!numero.startsWith('55')) numero = '55' + numero
-
-    const response = await fetch('https://www.wasenderapi.com/api/send-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.api_key}`
-      },
-      body: JSON.stringify({ 
-        phone: numero, 
-        message: mensagem.substring(0, 4000)
-      }),
-      signal: AbortSignal.timeout(30000)
-    })
-
-    const result = await response.json()
-    return response.ok ? (result.messageId || 'sent') : false
-  } catch (error) {
-    console.error('Erro ao enviar:', error)
-    return false
-  }
+async function enviarMensagem(conversaId: string, telefone: string, mensagem: string): Promise<string | false> {
+  const { enfileirarAutomatico } = await import('@/lib/whatsapp/queue-auto')
+  const result = await enfileirarAutomatico(conversaId, { to: telefone, text: mensagem.substring(0,4000), messageType: 'text' })
+  return result.success ? result.messageId || false : false
 }
 
 async function processarComIA(
@@ -475,19 +448,9 @@ async function processarComIA(
     if (respostaIA) {
       await new Promise(r => setTimeout(r, 2000))
       
-      const enviada = await enviarMensagem(telefone, respostaIA)
+      const enviada = await enviarMensagem(conversaId, telefone, respostaIA)
       
       if (enviada) {
-        await getSupabase()
-          .from('mensagens_whatsapp')
-          .insert({
-            conversa_id: conversaId,
-            direcao: 'saida',
-            conteudo: respostaIA,
-            tipo: 'texto',
-            status: 'enviada',
-            message_id: typeof enviada === 'string' ? enviada : null
-          })
 
         await getSupabase()
           .from('conversas_whatsapp')
@@ -558,16 +521,9 @@ async function processarRespostasAutomaticas(
           await new Promise(r => setTimeout(r, delayMs))
         }
 
-        const enviada = await enviarMensagem(telefone, regra.resposta)
+        const enviada = await enviarMensagem(conversaId, telefone, regra.resposta)
         
         if (enviada) {
-          await getSupabase().from('mensagens_whatsapp').insert({
-            conversa_id: conversaId,
-            direcao: 'saida',
-            conteudo: regra.resposta,
-            tipo: 'texto',
-            status: 'enviada'
-          })
 
           await getSupabase()
             .from('respostas_automaticas')

@@ -168,13 +168,20 @@ export async function DELETE(request: Request) {
 
 async function testarConexao(body: any) {
   try {
-    const config: ProviderConfig = {
+    let config: ProviderConfig = {
       id: body.id || 'test',
       nome: body.nome || 'Test',
       tipo: body.tipo,
       ativo: true,
       is_default: false,
       ...body
+    }
+
+    if (body.id && body.id !== 'test') {
+      const supabase = createRouteHandlerClient({ cookies })
+      const { data: salva, error } = await supabase.from('whatsapp_providers').select('*').eq('id', body.id).single()
+      if (error || !salva) return NextResponse.json({ error: 'Conexão não encontrada ou sem acesso' }, { status: 404 })
+      config = salva as ProviderConfig
     }
 
     const provider = createProvider(config)

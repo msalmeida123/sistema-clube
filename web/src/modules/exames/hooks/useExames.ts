@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createExamesRepository } from '../repositories/exames.repository'
 import { createExamesService } from '../services/exames.service'
 import type { ExameMedico, ExameFilters, ExameFormData, ExamesStats } from '../types'

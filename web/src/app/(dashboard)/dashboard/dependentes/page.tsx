@@ -1,7 +1,8 @@
 'use client'
 
+import { correspondeDependente } from '@/lib/busca-pessoas-clube'
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +42,7 @@ export default function DependentesPage() {
   const [dependentes, setDependentes] = useState<Dependente[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
 
   const fetchDependentes = async () => {
     const { data } = await supabase
@@ -51,11 +52,7 @@ export default function DependentesPage() {
 
     let resultado = data || []
     if (search) {
-      resultado = resultado.filter((d: any) =>
-        d.nome?.toLowerCase().includes(search.toLowerCase()) ||
-        d.cpf?.includes(search) ||
-        d.associado?.nome?.toLowerCase().includes(search.toLowerCase())
-      )
+      resultado = resultado.filter((d: any) => correspondeDependente(d, search))
     }
 
     setDependentes(resultado as Dependente[])
@@ -97,7 +94,7 @@ export default function DependentesPage() {
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar dependente ou titular..."
+              placeholder="Nome, CPF ou título do titular..."
               className="pl-10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}

@@ -28,3 +28,9 @@ Thumbs.db
 # Misc
 *.md
 LICENSE
+
+# Artefatos locais de deploy
+deploy/portainer/*.tar
+graphify-out/
+
+deploy/supabase-local/

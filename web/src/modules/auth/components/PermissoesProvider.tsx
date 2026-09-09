@@ -2,7 +2,7 @@
 'use client'
 
 import { createContext, useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import type { PermissaoCRUD, PaginaSistema, TipoAcao } from '../types'
 import * as permissoesRepository from '../repositories/permissoes.repository'
 

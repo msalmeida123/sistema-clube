@@ -1,20 +1,22 @@
 'use client'
+import {RegistroAcessoSistema} from '@/components/RegistroAcessoSistema'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { NotificationBadgeInline } from '@/components/ui/notification-badge'
+import { AuthProvider } from '@/modules/auth/components/AuthProvider'
 import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
   LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
   Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase,
-  UtensilsCrossed
+  UtensilsCrossed, Package
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
@@ -35,13 +37,17 @@ const menuItems = [
   { href: '/dashboard/carnes', label: 'Carnês', icon: Receipt, permissao: 'financeiro' },
   { href: '/dashboard/compras', label: 'Compras', icon: ShoppingCart, permissao: 'compras' },
   { href: '/dashboard/bar', label: 'Bar/Restaurante', icon: UtensilsCrossed, permissao: 'bar' },
+  { href: '/dashboard/bar/pedidos', label: 'Pedidos do Bar', icon: Package, permissao: 'bar' },
+  { href: '/dashboard/bar/impressora', label: 'Impressora da Cozinha', icon: Settings, permissao: 'bar', apenasAdmin: true },
+  { href: '/dashboard/bar/produtos', label: 'Produtos do Bar', icon: Package, permissao: 'bar' },
   { href: '/dashboard/portaria', label: 'Portaria Clube', icon: DoorOpen, permissao: 'portaria' },
   { href: '/dashboard/portaria-sauna', label: 'Portaria Sauna', icon: Droplets, permissao: 'portaria_sauna' },
   { href: '/dashboard/configuracao-sauna', label: 'Config. Sauna', icon: Settings, permissao: 'configuracoes' },
+  { href: '/dashboard/servicos', label: 'Serviços', icon: Columns3, permissao: 'servicos' },
   { href: '/dashboard/crm', label: 'CRM WhatsApp', icon: MessageSquare, permissao: 'crm', showNotification: true },
   { href: '/dashboard/whatsapp', label: 'Conexão WhatsApp', icon: Smartphone, permissao: 'crm' },
   { href: '/dashboard/respostas-automaticas', label: 'Respostas Auto', icon: Bot, permissao: 'crm' },
-  { href: '/dashboard/kanban', label: 'Kanban', icon: Columns3, permissao: 'crm' },
+  { href: '/dashboard/kanban', label: 'Kanban CRM', icon: Columns3, permissao: 'crm' },
   { href: '/dashboard/setores', label: 'Setores', icon: Building2, permissao: 'configuracoes' },
   { href: '/dashboard/bot-ia', label: 'Bot IA (GPT)', icon: Sparkles, permissao: 'crm' },
   { href: '/dashboard/eleicoes', label: 'Eleições', icon: Vote, permissao: 'eleicoes' },
@@ -315,9 +321,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="min-h-[calc(100vh-4rem)]">
+          <AuthProvider><RegistroAcessoSistema/>
           <PermissoesProvider>
             {children}
           </PermissoesProvider>
+          </AuthProvider>
         </main>
       </div>
 

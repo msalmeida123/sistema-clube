@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { abrirDocumento } from '@/lib/impressao-documento'
+import { conteudoConvite, validarConviteImpressao } from '@/lib/convite-impressao'
+import { hojeBrasil } from '@/lib/documentos-dependente'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import {
   Ticket, Plus, Search, QrCode, Calendar, User, Phone,
@@ -50,7 +53,7 @@ export default function ConvitesPage() {
     convidado_nome: '',
     convidado_cpf: '',
     convidado_telefone: '',
-    data_validade: new Date().toISOString().split('T')[0]
+    data_validade: hojeBrasil()
   })
 
   const [formConfig, setFormConfig] = useState({
@@ -69,13 +72,13 @@ export default function ConvitesPage() {
   const verificarAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const userData = await buscarUsuarioAtual<{ setor: string | null }>(
+      const userData = await buscarUsuarioAtual<{ is_admin: boolean | null }>(
         supabase,
         user.id,
-        'setor'
+        'is_admin'
       )
 
-      setIsAdmin(userData?.setor === 'admin')
+      setIsAdmin(userData?.is_admin === true)
     }
   }
 
@@ -91,7 +94,7 @@ export default function ConvitesPage() {
       supabase.from('associados').select('id, nome, numero_titulo').order('nome')
     ])
 
-    setConvites(convitesRes.data || [])
+    setConvites((convitesRes.data || []).map(c => ({...c, convidado_nome:c.nome_convidado || '', convidado_cpf:c.cpf_convidado || '', convidado_telefone:c.telefone_convidado || '', data_validade:c.data_visita, data_entrada:c.data_utilizacao, status:c.status === 'ativo' ? 'pago' : c.status})))
     if (configRes.data) {
       setConfig(configRes.data)
       setFormConfig({
@@ -152,15 +155,15 @@ export default function ConvitesPage() {
 
     const { data } = await supabase
       .from('convites')
-      .select('data_validade, status')
-      .eq('convidado_cpf', cpfLimpo)
-      .in('status', ['pago', 'utilizado'])
-      .gte('data_validade', dataLimite.toISOString().split('T')[0])
-      .order('data_validade', { ascending: false })
+      .select('data_visita, status')
+      .eq('cpf_convidado', cpfLimpo)
+      .in('status', ['pago', 'ativo', 'utilizado'])
+      .gte('data_visita', dataLimite.toISOString().split('T')[0])
+      .order('data_visita', { ascending: false })
       .limit(1)
 
     if (data && data.length > 0) {
-      const ultimaVisita = new Date(data[0].data_validade)
+      const ultimaVisita = new Date(data[0].data_visita)
       const proximaPermitida = new Date(ultimaVisita)
       proximaPermitida.setDate(proximaPermitida.getDate() + config.intervalo_dias_convidado)
       
@@ -194,24 +197,23 @@ export default function ConvitesPage() {
     }
 
     // Verificar se data é hoje ou futura
-    const dataConvite = new Date(form.data_validade)
-    const hoje = new Date()
-    hoje.setHours(0, 0, 0, 0)
-    
-    if (dataConvite < hoje) {
+    if (form.data_validade < hojeBrasil()) {
       toast.error('A data do convite não pode ser no passado')
       return
     }
 
-    // Criar convite
+    const novoId = crypto.randomUUID()
+    // Criar convite e QR na mesma gravação
     const { data: novoConvite, error } = await supabase
       .from('convites')
       .insert({
+        id: novoId,
+        qr_code: 'CONV-' + novoId.toUpperCase(),
         associado_id: form.associado_id,
-        convidado_nome: form.convidado_nome.toUpperCase(),
-        convidado_cpf: form.convidado_cpf.replace(/\D/g, ''),
-        convidado_telefone: form.convidado_telefone.replace(/\D/g, ''),
-        data_validade: form.data_validade,
+        nome_convidado: form.convidado_nome.toUpperCase(),
+        cpf_convidado: form.convidado_cpf.replace(/\D/g, ''),
+        telefone_convidado: form.convidado_telefone.replace(/\D/g, ''),
+        data_visita: form.data_validade,
         valor_pago: config?.valor_convite || 0,
         status: 'pago' // Considerando pago ao criar
       })
@@ -223,13 +225,6 @@ export default function ConvitesPage() {
       return
     }
 
-    // Gerar QR Code
-    const qrCode = 'CONV-' + novoConvite.id.substring(0, 8).toUpperCase()
-    await supabase
-      .from('convites')
-      .update({ qr_code: qrCode })
-      .eq('id', novoConvite.id)
-
     toast.success('Convite criado com sucesso!')
     setShowForm(false)
     setForm({
@@ -237,7 +232,7 @@ export default function ConvitesPage() {
       convidado_nome: '',
       convidado_cpf: '',
       convidado_telefone: '',
-      data_validade: new Date().toISOString().split('T')[0]
+      data_validade: hojeBrasil()
     })
     carregarDados()
   }
@@ -280,73 +275,16 @@ export default function ConvitesPage() {
     carregarDados()
   }
 
-  const imprimirConvite = (convite: Convite) => {
-    const win = window.open('', '_blank')
-    if (!win) return
-
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Convite - ${convite.convidado_nome}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 40px; }
-          .convite { border: 2px solid #333; padding: 30px; max-width: 500px; margin: 0 auto; }
-          .header { text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 20px; margin-bottom: 20px; }
-          .header h1 { margin: 0; color: #333; }
-          .header p { margin: 5px 0; color: #666; }
-          .info { margin: 15px 0; }
-          .info label { font-weight: bold; color: #666; }
-          .info span { display: block; font-size: 18px; margin-top: 5px; }
-          .qrcode { text-align: center; margin: 30px 0; padding: 20px; background: #f5f5f5; }
-          .qrcode-text { font-family: monospace; font-size: 24px; font-weight: bold; }
-          .footer { text-align: center; font-size: 12px; color: #999; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc; }
-          .validade { background: #e8f5e9; padding: 15px; text-align: center; margin: 20px 0; border-radius: 8px; }
-          .validade strong { font-size: 20px; color: #2e7d32; }
-        </style>
-      </head>
-      <body>
-        <div class="convite">
-          <div class="header">
-            <h1>🎫 CONVITE</h1>
-            <p>Clube Social</p>
-          </div>
-          
-          <div class="info">
-            <label>Convidado:</label>
-            <span>${convite.convidado_nome}</span>
-          </div>
-          
-          <div class="info">
-            <label>CPF:</label>
-            <span>${formatarCPF(convite.convidado_cpf)}</span>
-          </div>
-          
-          <div class="info">
-            <label>Convidado por:</label>
-            <span>${convite.associado?.nome || '-'} (${convite.associado?.numero_titulo || '-'})</span>
-          </div>
-          
-          <div class="validade">
-            <label>Válido para:</label><br>
-            <strong>${new Date(convite.data_validade + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</strong>
-          </div>
-          
-          <div class="qrcode">
-            <p>Apresente este código na portaria:</p>
-            <div class="qrcode-text">${convite.qr_code}</div>
-          </div>
-          
-          <div class="footer">
-            <p>Este convite é válido apenas para a data indicada.</p>
-            <p>Documento com foto é obrigatório na entrada.</p>
-          </div>
-        </div>
-        <script>window.print();</script>
-      </body>
-      </html>
-    `)
-    win.document.close()
+  const imprimirConvite = async (convite: Convite) => {
+    let janela: Window | null = null
+    try {
+      validarConviteImpressao(convite)
+      janela = window.open('', '_blank')
+      if (!janela) throw new Error('Permita abrir novas janelas para imprimir.')
+      const QRCode = (await import('qrcode')).default
+      const qr = await QRCode.toDataURL(convite.qr_code, { width:360, margin:4, errorCorrectionLevel:'M' })
+      abrirDocumento('Convite - ' + convite.convidado_nome, conteudoConvite(convite, qr), janela)
+    } catch(e: any) { janela?.close(); toast.error(e.message || 'Erro ao gerar convite') }
   }
 
   const getStatusColor = (status: string, dataValidade: string) => {
@@ -387,7 +325,7 @@ export default function ConvitesPage() {
 
   // Stats
   const stats = {
-    hoje: convites.filter(c => c.data_validade === new Date().toISOString().split('T')[0] && c.status === 'pago').length,
+    hoje: convites.filter(c => c.data_validade === hojeBrasil() && c.status === 'pago').length,
     mes: convites.filter(c => {
       const d = new Date(c.data_validade)
       const agora = new Date()
@@ -535,7 +473,7 @@ export default function ConvitesPage() {
                 <Input
                   type="date"
                   value={form.data_validade}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={hojeBrasil()}
                   onChange={e => setForm({ ...form, data_validade: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground mt-1">Convite válido apenas para este dia</p>
@@ -662,10 +600,10 @@ export default function ConvitesPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-1">
-                      {c.status === 'pago' && new Date(c.data_validade + 'T00:00:00') >= new Date(new Date().toISOString().split('T')[0]) && (
+                      {c.status === 'pago' && new Date(c.data_validade + 'T00:00:00') >= new Date(hojeBrasil()) && (
                         <>
-                          <Button variant="ghost" size="sm" onClick={() => imprimirConvite(c)} title="Imprimir">
-                            <Printer className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" onClick={() => imprimirConvite(c)} title="Imprimir convite">
+                            <Printer className="h-4 w-4 mr-1" /> Imprimir convite
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => cancelarConvite(c.id)} className="text-red-500" title="Cancelar">
                             <XCircle className="h-4 w-4" />

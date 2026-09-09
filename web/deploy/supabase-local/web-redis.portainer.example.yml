@@ -1,0 +1,135 @@
+name: sistema_clube
+services:
+  sistema-clube:
+    image: sistema-clube:local-backup-logs-20260908
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://crm-redis:6379
+      NEXT_PUBLIC_SUPABASE_URL: ${SITE_URL:?Configure SITE_URL}/supabase
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?Configure NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Configure SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_SUPABASE_LOCAL_PROXY: "1"
+    networks:
+      - supabase-local
+      - crm-interna
+    depends_on:
+      crm-redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - sistema-backups:/backups:ro
+  crm-redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - yes
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - crm-redis-data:/data
+    networks:
+      - crm-interna
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  crm-worker:
+    image: sistema-clube:worker-retencao-20260908
+    restart: unless-stopped
+    stop_grace_period: 45s
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: http://api-gw:8000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Configure SUPABASE_SERVICE_ROLE_KEY}
+      REDIS_URL: redis://crm-redis:6379
+      CRM_SEND_INTERVAL_MS: "3000"
+    depends_on:
+      crm-redis:
+        condition: service_healthy
+    networks:
+      - supabase-local
+      - crm-interna
+  crm-retencao:
+    image: sistema-clube:worker-retencao-20260908
+    command:
+      - node
+      - node_modules/tsx/dist/cli.mjs
+      - workers/retencao-main.ts
+    restart: unless-stopped
+    stop_grace_period: 45s
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: http://api-gw:8000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Configure SUPABASE_SERVICE_ROLE_KEY}
+      REDIS_URL: redis://crm-redis:6379
+      CRM_SEND_INTERVAL_MS: "3000"
+    depends_on:
+      crm-redis:
+        condition: service_healthy
+    networks:
+      - supabase-local
+      - crm-interna
+  web-proxy:
+    image: sistema-clube:proxy-realtime-20260907
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:3000:8080
+    depends_on:
+      sistema-clube:
+        condition: service_healthy
+    networks:
+      - supabase-local
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1:8080/proxy-health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  sistema-backup:
+    image: sistema-clube:backup-20260908
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Configure PGPASSWORD}
+      PGCONNECT_TIMEOUT: "10"
+    volumes:
+      - sistema-backups:/backups
+      - storage-backup:/storage:ro
+    networks:
+      - supabase-local
+networks:
+  crm-interna:
+    internal: true
+  supabase-local:
+    external: true
+    name: clube-supabase-local
+volumes:
+  crm-redis-data: null
+  sistema-backups:
+    name: clube-sistema-backups
+  storage-backup:
+    external: true
+    name: clube-supabase-local_storage-data

@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createMensalidadesRepository } from '../repositories/mensalidades.repository'
 import { createMensalidadesService } from '../services/mensalidades.service'
 import type { Mensalidade, MensalidadeFilters, MensalidadeFormData } from '../types'

@@ -54,7 +54,10 @@ export async function verificarPermissao(
   const usuario = await buscarUsuarioAtual<{
     is_admin: boolean | null
     permissoes: string[] | null
-  }>(supabase, authUserId, 'is_admin, permissoes')
+    ativo: boolean | null
+  }>(supabase, authUserId, 'is_admin, permissoes, ativo')
+
+  if (usuario?.ativo !== true) return { autorizado: false, isAdmin: false }
 
   const isAdmin = Boolean(usuario?.is_admin)
 

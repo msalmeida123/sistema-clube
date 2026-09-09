@@ -1,7 +1,8 @@
 'use client'
 
+import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -56,6 +57,7 @@ export default function PortariaSaunaPage() {
   
   // Entrada
   const [busca, setBusca] = useState('')
+  const [opcoes, setOpcoes] = useState<any[]>([])
   const [pessoa, setPessoa] = useState<Pessoa | null>(null)
   const [armarioSelecionado, setArmarioSelecionado] = useState<Armario | null>(null)
   const [qrCode, setQrCode] = useState('')
@@ -114,54 +116,15 @@ export default function PortariaSaunaPage() {
   }
 
   const buscarPessoa = async () => {
-    if (!busca.trim()) {
-      toast.error('Digite o CPF ou código do cartão')
-      return
-    }
-
-    setBuscando(true)
-    setPessoa(null)
-
-    // Buscar associado
-    const { data: associado } = await supabase
-      .from('associados')
-      .select('id, nome, cpf, status')
-      .or(`cpf.eq.${busca},codigo_cartao.eq.${busca}`)
-      .single()
-
-    if (associado) {
-      setPessoa({
-        id: associado.id,
-        nome: associado.nome,
-        cpf: associado.cpf,
-        tipo: 'associado',
-        status: associado.status,
-      })
-      setBuscando(false)
-      return
-    }
-
-    // Buscar dependente
-    const { data: dependente } = await supabase
-      .from('dependentes')
-      .select('id, nome, cpf, status')
-      .or(`cpf.eq.${busca},codigo_cartao.eq.${busca}`)
-      .single()
-
-    if (dependente) {
-      setPessoa({
-        id: dependente.id,
-        nome: dependente.nome,
-        cpf: dependente.cpf || '',
-        tipo: 'dependente',
-        status: dependente.status,
-      })
-      setBuscando(false)
-      return
-    }
-
-    toast.error('Nenhum associado ou dependente encontrado')
-    setBuscando(false)
+    if(!busca.trim() || buscando) return
+    setBuscando(true);setPessoa(null);setOpcoes([])
+    try {
+      const pessoas=await buscarPessoasClube(supabase,busca,true)
+      if(pessoas.length===1) setPessoa(pessoas[0])
+      else if(pessoas.length>1) setOpcoes(pessoas)
+      else toast.error('Nenhum associado ou dependente encontrado')
+    } catch {toast.error('Não foi possível consultar. Tente novamente.')}
+    finally {setBuscando(false)}
   }
 
   const buscarPorQRCode = async () => {
@@ -436,7 +399,7 @@ export default function PortariaSaunaPage() {
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Input
-                  placeholder="CPF ou código do cartão"
+                  placeholder="QR Code, título, CPF ou nome..."
                   value={busca}
                   onChange={e => setBusca(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && buscarPessoa()}
@@ -446,7 +409,8 @@ export default function PortariaSaunaPage() {
                 </Button>
               </div>
 
-              {pessoa && (
+              {opcoes.length>0 && <div className="space-y-2"><p>Selecione a pessoa:</p>{opcoes.map(p=><Button key={p.tipo+p.id} variant="outline" onClick={()=>{setPessoa(p);setOpcoes([])}}>{p.nome} — {p.tipo}</Button>)}</div>}
+            {pessoa && (
                 <div className={`p-4 rounded-lg border-2 ${
                   pessoa.status === 'ativo' ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
                 }`}>

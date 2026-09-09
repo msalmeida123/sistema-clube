@@ -27,6 +27,7 @@ export interface BarCategoriaFormData {
 
 export interface BarProduto {
   id: string
+  enviar_cozinha?: boolean
   categoria_id?: string
   categoria_nome?: string
   nome: string
@@ -47,6 +48,7 @@ export interface BarProduto {
 }
 
 export interface BarProdutoFormData {
+  enviar_cozinha?: boolean
   categoria_id?: string
   nome: string
   descricao?: string
@@ -65,6 +67,7 @@ export interface BarProdutoFormData {
 export interface BarItemPedido {
   id?: string
   pedido_id?: string
+  enviar_cozinha?: boolean
   produto_id: string
   produto_nome: string
   produto_ncm?: string
@@ -98,6 +101,7 @@ export interface BarPedido {
   total: number
   observacao?: string
   mesa?: string
+  cliente_nome?: string
   itens?: BarItemPedido[]
   pagamentos?: BarPagamento[]
   created_at: string
@@ -136,6 +140,7 @@ export interface CriarPedidoPayload {
   total: number
   observacao?: string
   mesa?: string
+  cliente_nome?: string
 }
 
 export interface CarteirinhaSaldo {

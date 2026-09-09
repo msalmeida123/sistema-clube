@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,11 @@ import Link from 'next/link'
 
 export default function NovoExameMedicoPage() {
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
+  const [modoBusca, setModoBusca] = useState<'qr' | 'cadastro'>('qr')
+  const [buscando, setBuscando] = useState(false)
+  const buscaEmAndamento = useRef(false)
+  const [erroBusca, setErroBusca] = useState('')
   const [loading, setLoading] = useState(false)
   const [buscaAssociado, setBuscaAssociado] = useState('')
   const [associados, setAssociados] = useState<any[]>([])
@@ -32,19 +37,38 @@ export default function NovoExameMedicoPage() {
   })
 
   const buscarAssociados = async () => {
-    if (buscaAssociado.length < 2) return
-
-    const { data } = await supabase
-      .from('associados')
-      .select('id, nome, cpf, numero_titulo, foto_url')
-      .or(`nome.ilike.%${buscaAssociado}%,cpf.ilike.%${buscaAssociado}%`)
-      .eq('status', 'ativo')
-      .limit(10)
-
-    setAssociados(data || [])
+    const valor = buscaAssociado.trim()
+    if (!valor || buscaEmAndamento.current) return
+    buscaEmAndamento.current = true
+    setBuscando(true)
+    setAssociados([])
+    setErroBusca('')
+    try {
+      if (modoBusca === 'qr') {
+        const pessoas = await buscarPessoasClube(supabase, valor)
+        const ativos=pessoas.filter(p=>p.status==='ativo')
+        if(ativos.length>1) {setAssociados(ativos);return}
+        const pessoa = ativos[0] ?? pessoas[0]
+        if (!pessoa) { setErroBusca('Carteirinha de associado não encontrada. Use o QR da carteirinha atual.'); return }
+        if (pessoa.status !== 'ativo') { setErroBusca('Este associado não está ativo. Verifique o cadastro.'); return }
+        selecionarAssociado(pessoa)
+        return
+      }
+      if (valor.length < 2) { setErroBusca('Digite pelo menos dois caracteres.'); return }
+      let consulta = supabase.from('associados').select('id,nome,cpf,numero_titulo,foto_url').eq('status','ativo')
+      const cpf = valor.replace(/[.\-\s]/g,'')
+      consulta = /^\d{11}$/.test(cpf) ? consulta.eq('cpf',cpf) : consulta.ilike('nome','%'+valor.replace(/[%_]/g,'')+'%')
+      const {data,error} = await consulta.limit(10)
+      if (error) throw error
+      setAssociados(data || [])
+      if (!data?.length) setErroBusca('Nenhum associado encontrado.')
+    } catch {
+      setErroBusca('Não foi possível consultar. Verifique sua conexão e permissão e tente novamente.')
+    } finally { buscaEmAndamento.current = false; setBuscando(false) }
   }
 
   const selecionarAssociado = (a: any) => {
+    setErroBusca('')
     setAssociadoSelecionado(a)
     setAssociados([])
     setBuscaAssociado('')
@@ -68,6 +92,7 @@ export default function NovoExameMedicoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (buscaEmAndamento.current || loading) return
     if (!associadoSelecionado) {
       toast.error('Selecione um associado')
       return
@@ -145,20 +170,33 @@ export default function NovoExameMedicoPage() {
           <CardContent className="space-y-4">
             {!associadoSelecionado ? (
               <>
+                <div>
+                  <Label htmlFor="modo-busca">Consultar associado por</Label>
+                  <select id="modo-busca" className="w-full h-10 border rounded-md px-3" value={modoBusca} disabled={buscando}
+                    onChange={e=>{setModoBusca(e.target.value as 'qr' | 'cadastro');setBuscaAssociado('');setAssociados([]);setErroBusca('')}}>
+                    <option value="qr">QR Code ou número do título</option>
+                    <option value="cadastro">Nome ou CPF</option>
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nome ou CPF..."
+                      aria-label="Buscar associado"
+                      autoFocus
+                      disabled={buscando}
+                      placeholder={modoBusca === 'qr' ? 'Escaneie o QR Code ou digite o título...' : 'Buscar por nome ou CPF...'}
                       className="pl-10"
                       value={buscaAssociado}
                       onChange={(e) => setBuscaAssociado(e.target.value)}
-                      onKeyUp={(e) => e.key === 'Enter' && buscarAssociados()}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); buscarAssociados() } }}
                     />
                   </div>
-                  <Button type="button" onClick={buscarAssociados}>Buscar</Button>
+                  <Button type="button" disabled={buscando} onClick={buscarAssociados}>{buscando ? 'Buscando...' : 'Buscar'}</Button>
                 </div>
 
+                <p className="text-sm text-muted-foreground">Leia com o scanner USB e pressione Enter, se necessário. A consulta apenas seleciona o associado.</p>
+                {erroBusca && <p role="alert" className="text-sm text-red-600">{erroBusca}</p>}
                 {associados.length > 0 && (
                   <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
                     {associados.map((a) => (
@@ -329,7 +367,7 @@ export default function NovoExameMedicoPage() {
           <Link href="/dashboard/exames-medicos" className="flex-1">
             <Button type="button" variant="outline" className="w-full">Cancelar</Button>
           </Link>
-          <Button type="submit" disabled={loading} className="flex-1">
+          <Button type="submit" disabled={loading || buscando} className="flex-1">
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Salvando...' : 'Salvar Exame'}
           </Button>

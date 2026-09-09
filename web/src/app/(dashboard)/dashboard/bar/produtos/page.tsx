@@ -29,7 +29,7 @@ export default function BarProdutosPage() {
   const [busca, setBusca] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<BarProduto | null>(null)
-  const [form, setForm] = useState<Partial<BarProdutoFormData>>({ ativo: true, unidade: 'UN', cfop: '5102', cst: '400' })
+  const [form, setForm] = useState<Partial<BarProdutoFormData>>({ enviar_cozinha: false, ativo: true, unidade: 'UN', cfop: '5102', cst: '400' })
 
   const { data: produtos = [], isLoading } = useQuery({
     queryKey: ['bar-produtos', false],
@@ -43,7 +43,7 @@ export default function BarProdutosPage() {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      if (!form.nome || !form.preco) throw new Error('Nome e preço são obrigatórios')
+      if (!form.nome?.trim() || !Number.isFinite(form.preco) || Number(form.preco) <= 0) throw new Error('Nome e preço são obrigatórios')
       const payload = form as BarProdutoFormData
       if (editando) return barProdutosRepository.atualizar(editando.id, payload)
       return barProdutosRepository.criar(payload)
@@ -52,7 +52,7 @@ export default function BarProdutosPage() {
       qc.invalidateQueries({ queryKey: ['bar-produtos'] })
       setModalAberto(false)
       setEditando(null)
-      setForm({ ativo: true, unidade: 'UN', cfop: '5102', cst: '400' })
+      setForm({ enviar_cozinha: false, ativo: true, unidade: 'UN', cfop: '5102', cst: '400' })
       toast({ title: editando ? 'Produto atualizado' : 'Produto criado' })
     },
     onError: (e: Error) => toast({ title: 'Erro', description: e.message, variant: 'destructive' })
@@ -69,7 +69,7 @@ export default function BarProdutosPage() {
   function abrirEditar(p: BarProduto) {
     setEditando(p)
     setForm({
-      nome: p.nome, descricao: p.descricao, preco: p.preco, preco_custo: p.preco_custo,
+      enviar_cozinha: p.enviar_cozinha ?? false, nome: p.nome, descricao: p.descricao, preco: p.preco, preco_custo: p.preco_custo,
       categoria_id: p.categoria_id, ncm: p.ncm, cfop: p.cfop, cst: p.cst,
       unidade: p.unidade, ativo: p.ativo, controla_estoque: p.controla_estoque,
       estoque_atual: p.estoque_atual, estoque_minimo: p.estoque_minimo
@@ -91,7 +91,7 @@ export default function BarProdutosPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Cardápio e cadastro de produtos</p>
         </div>
-        <Button onClick={() => { setEditando(null); setForm({ ativo: true, unidade: 'UN', cfop: '5102', cst: '400' }); setModalAberto(true) }} className="gap-2">
+        <Button onClick={() => { setEditando(null); setForm({ enviar_cozinha: false, ativo: true, unidade: 'UN', cfop: '5102', cst: '400' }); setModalAberto(true) }} className="gap-2">
           <Plus size={16} /> Novo Produto
         </Button>
       </div>
@@ -160,7 +160,7 @@ export default function BarProdutosPage() {
                   <label className="text-sm font-medium text-gray-700">Categoria</label>
                   <select
                     value={form.categoria_id || ''}
-                    onChange={e => setForm(f => ({ ...f, categoria_id: e.target.value || undefined }))}
+                    onChange={e => { const categoria = categorias.find(c => c.id === e.target.value); setForm(f => ({ ...f, categoria_id: e.target.value || undefined, enviar_cozinha: ['Pratos', 'Lanches', 'Pizzas', 'Porções', 'Sobremesas'].includes(categoria?.nome || '') })) }}
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
                   >
                     <option value="">Sem categoria</option>
@@ -191,6 +191,11 @@ export default function BarProdutosPage() {
                 </div>
               </div>
 
+              <div className="flex items-center gap-2">
+                <input id="enviar_cozinha" type="checkbox" checked={form.enviar_cozinha ?? false} onChange={e => setForm(f => ({ ...f, enviar_cozinha: e.target.checked }))} />
+                <label htmlFor="enviar_cozinha">Imprimir este produto na comanda da cozinha</label>
+              </div>
+              <p className="text-xs text-gray-500">Marque para pratos, lanches, pizzas e outros alimentos preparados na cozinha.</p>
               {/* Campos fiscais */}
               <div className="border rounded-xl p-4 space-y-3 bg-blue-50">
                 <h3 className="font-semibold text-sm text-blue-800">📋 Dados Fiscais (NFC-e)</h3>

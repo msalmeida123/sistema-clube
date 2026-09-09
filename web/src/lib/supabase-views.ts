@@ -120,17 +120,17 @@ export interface MetricaPorHora {
 
 // Funções de acesso às views (usam singleton do supabase)
 
-export async function getKPIs(): Promise<KPIs | null> {
+export async function getKPIs(colunas = '*'): Promise<KPIs | null> {
   const { data, error } = await supabase
     .from('vw_kpis_sistema')
-    .select('*')
+    .select(colunas)
     .single()
   
   if (error) {
     console.error('Erro ao buscar KPIs:', error)
     return null
   }
-  return data
+  return data as unknown as KPIs
 }
 
 export async function getDashboardConversas(): Promise<DashboardConversas | null> {

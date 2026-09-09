@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
+import ConfiguracaoBackupLogs from '@/components/ConfiguracaoBackupLogs'
+import ConfiguracaoDashboard from '@/components/ConfiguracaoDashboard'
+import ConfiguracaoWhatsAppProviders from '@/components/ConfiguracaoWhatsAppProviders'
 import { Save, Building2, CreditCard, MessageSquare, Users, Plus, Trash2, Edit, X, Shield, Upload, Image } from 'lucide-react'
 
 const MODULOS = [
@@ -20,6 +23,7 @@ const MODULOS = [
   { id: 'infracoes', label: 'Infrações', desc: 'Registro de infrações' },
   { id: 'eleicoes', label: 'Eleições', desc: 'Gestão de eleições' },
   { id: 'relatorios', label: 'Relatórios', desc: 'Visualizar relatórios' },
+  { id: 'servicos', label: 'Serviços', desc: 'Tarefas por dia, semana e mês' },
   { id: 'crm', label: 'CRM', desc: 'WhatsApp e atendimento' },
   { id: 'configuracoes', label: 'Configurações', desc: 'Configurar sistema' },
   { id: 'usuarios', label: 'Usuários', desc: 'Gerenciar usuários' },
@@ -37,7 +41,7 @@ type Usuario = {
 
 export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'clube' | 'usuarios' | 'sicoob' | 'wasender'>('clube')
+  const [tab, setTab] = useState<'clube' | 'usuarios' | 'sicoob' | 'wasender' | 'meta' | 'dashboard' | 'backup' | 'logs'>('clube')
   const [clube, setClube] = useState({
     id: '',
     nome: '',
@@ -347,15 +351,19 @@ export default function ConfiguracoesPage() {
   }
 
   const tabs = [
+    {id:'backup',label:'Backup',icon:Save},
+    {id:'logs',label:'Logs do sistema',icon:Shield},
     { id: 'clube', label: 'Dados do Clube', icon: Building2 },
     { id: 'usuarios', label: 'Usuários', icon: Users },
     { id: 'sicoob', label: 'Sicoob (Pagamentos)', icon: CreditCard },
+    { id: 'dashboard', label: 'Dashboard', icon: Shield },
     { id: 'wasender', label: 'WaSenderAPI', icon: MessageSquare },
+    { id: 'meta', label: 'WhatsApp Oficial (Meta)', icon: MessageSquare },
   ]
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2 border-b">
+      <div className="flex flex-wrap gap-2 border-b">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id as any)} className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${tab === t.id ? 'border-primary text-primary' : 'border-transparent hover:text-primary'}`}>
             <t.icon className="h-4 w-4" />{t.label}
@@ -635,6 +643,10 @@ export default function ConfiguracoesPage() {
           </CardContent>
         </Card>
       )}
+
+      {(tab === 'backup' || tab === 'logs') && <ConfiguracaoBackupLogs key={tab} tipo={tab} />}
+      {tab === 'dashboard' && <ConfiguracaoDashboard />}
+      {tab === 'meta' && <ConfiguracaoWhatsAppProviders somenteMeta />}
 
       {tab === 'wasender' && (
         <Card>

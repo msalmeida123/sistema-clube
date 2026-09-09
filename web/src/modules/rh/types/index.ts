@@ -1,3 +1,4 @@
+import type {DetalhesHolerite} from '../holerite'
 // Tipos do módulo de RH (Recursos Humanos)
 
 // ==================== FUNCIONÁRIOS ====================
@@ -156,6 +157,7 @@ export interface ResumoPonto {
 export type StatusFolha = 'rascunho' | 'calculada' | 'aprovada' | 'paga' | 'cancelada'
 
 export interface FolhaPagamento {
+  detalhes_holerite?: DetalhesHolerite | null
   id: string
   funcionario_id: string
   referencia: string // YYYY-MM
@@ -192,7 +194,7 @@ export interface FolhaPagamento {
 
   created_at: string
   updated_at?: string
-  funcionario?: { nome: string; cargo: string; departamento: string; banco?: string; agencia?: string; conta?: string; chave_pix?: string }
+  funcionario?: { nome: string; cargo: string; departamento: string; data_admissao?: string; banco?: string; agencia?: string; conta?: string; chave_pix?: string }
 }
 
 export interface FolhaFilters {

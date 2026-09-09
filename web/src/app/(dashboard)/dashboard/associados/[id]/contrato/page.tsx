@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { abrirDocumento, dataDocumento } from '@/lib/impressao-documento'
+import { toast } from 'sonner'
 import { ArrowLeft, Download, Printer } from 'lucide-react'
 
 export default function ContratoPage() {
   const params = useParams()
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
   const contratoRef = useRef<HTMLDivElement>(null)
   
   const [associado, setAssociado] = useState<any>(null)
@@ -26,12 +28,12 @@ export default function ContratoPage() {
 
       if (assocData) {
         const { data: planoData } = await supabase
-          .from('planos_valores')
+          .from('planos')
           .select('*')
-          .eq('tipo', assocData.plano)
+          .eq('codigo', assocData.plano)
           .eq('ativo', true)
           .single()
-        setPlanoValor(planoData)
+        setPlanoValor({ valor_mensal: assocData.valor_mensalidade ?? planoData?.valor_mensal })
       }
 
       setAssociado(assocData)
@@ -41,28 +43,15 @@ export default function ContratoPage() {
     if (params.id) fetchData()
   }, [params.id, supabase])
 
-  const imprimir = () => window.print()
-
-  const gerarPDF = async () => {
+  const imprimir = () => {
     if (!contratoRef.current) return
-    const html2canvas = (await import('html2canvas')).default
-    const jsPDF = (await import('jspdf')).default
-    
-    const canvas = await html2canvas(contratoRef.current, { scale: 2, useCORS: true })
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = canvas.width
-    const imgHeight = canvas.height
-    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-    
-    pdf.addImage(imgData, 'PNG', (pdfWidth - imgWidth * ratio) / 2, 5, imgWidth * ratio, imgHeight * ratio)
-    pdf.save(`contrato_${associado?.nome?.replace(/\s+/g, '_')}.pdf`)
+    try { abrirDocumento('Contrato de Associação - ' + associado.nome, contratoRef.current.innerHTML) }
+    catch(e: any) { toast.error(e.message) }
   }
+  const gerarPDF = imprimir
 
-  const formatarData = (data: string | null) => data ? new Date(data).toLocaleDateString('pt-BR') : '-'
-  const formatarMoeda = (valor: number | null) => valor ? valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'
+  const formatarData = dataDocumento
+  const formatarMoeda = (valor: number | null | undefined) => valor == null ? 'Não informado' : Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   
   const dataExtenso = () => {
     const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -88,7 +77,7 @@ export default function ContratoPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={imprimir}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
-          <Button onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
+          <Button onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />Salvar em PDF</Button>
         </div>
       </div>
 
@@ -244,7 +233,7 @@ export default function ContratoPage() {
               <ul className="list-disc ml-6 mt-2 space-y-1 text-sm">
                 <li>Cônjuge;</li>
                 <li>Filhos menores de 21 (vinte e um) anos;</li>
-                <li>Filhos universitários até 24 (vinte e quatro) anos, com declaração da Universidade;</li>
+                <li>Filhos com mais de 21 (vinte e um) anos enquanto estiverem cursando faculdade, sem limite fixo de idade, mediante comprovante de matrícula válido;</li>
                 <li>Pai e mãe, com idade superior a 60 anos, quando vivam sob dependência econômica do associado solteiro;</li>
                 <li>Mãe e sogra, quando viúvas e vivam sob dependência econômica do associado;</li>
                 <li>Filhos legalmente adotados, menores de 21 anos, que vivam sob dependência econômica;</li>
@@ -286,7 +275,7 @@ export default function ContratoPage() {
           </div>
 
           {/* Assinaturas */}
-          <div className="grid grid-cols-2 gap-8 mt-10">
+          <div className="assinaturas grid grid-cols-2 gap-8 mt-10">
             <div className="text-center">
               <div className="border-t border-gray-800 pt-2 mx-4">
                 <p className="font-bold">ASSOCIAÇÃO DOS EMPREGADOS NO COMÉRCIO DE FRANCA</p>
@@ -302,7 +291,7 @@ export default function ContratoPage() {
           </div>
 
           {/* Testemunhas */}
-          <div className="grid grid-cols-2 gap-8 mt-8">
+          <div className="assinaturas grid grid-cols-2 gap-8 mt-8">
             <div className="text-center">
               <div className="border-t border-gray-800 pt-2 mx-8">
                 <p className="text-sm font-medium">Testemunha 1</p>

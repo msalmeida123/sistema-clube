@@ -1,0 +1,8 @@
+FROM envoyproxy/envoy:v1.39.0
+COPY upstream/docker/volumes/api/envoy/envoy.yaml /etc/envoy/envoy.yaml
+COPY upstream/docker/volumes/api/envoy/cds.yaml /etc/envoy/cds.yaml
+COPY upstream/docker/volumes/api/envoy/lds.template.yaml /etc/envoy/lds.template.yaml
+COPY upstream/docker/volumes/api/envoy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN sed -i "s/\r$//" /docker-entrypoint.sh
+
+RUN sed -i "s/realtime-dev.supabase-realtime/realtime-dev.clube-supabase-realtime/g" /etc/envoy/cds.yaml

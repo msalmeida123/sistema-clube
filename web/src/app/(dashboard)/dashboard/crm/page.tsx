@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -28,6 +28,7 @@ type Conversa = {
   associado_id: string | null
   nao_lidas: number
   setor_id: string | null
+  preservar_historico?: boolean
   foto_perfil_url: string | null
 }
 
@@ -76,6 +77,29 @@ export default function CRMPage() {
   const [conversas, setConversas] = useState<Conversa[]>([])
   const [conversaAtiva, setConversaAtiva] = useState<Conversa | null>(null)
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
+  const [temAnteriores, setTemAnteriores] = useState(false)
+  const [carregandoAnteriores, setCarregandoAnteriores] = useState(false)
+  const conversaMensagens = useRef<string | null>(null)
+  const mesclarMensagens = (anteriores: Mensagem[], novas: Mensagem[]) => {
+    const mapa = new Map(anteriores.map(m => [m.id, m]))
+    novas.forEach(m => mapa.set(m.id, m))
+    return Array.from(mapa.values()).sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+  }
+  const carregarAnteriores = async () => {
+    if (!conversaAtiva || !mensagens.length || carregandoAnteriores) return
+    const id = conversaAtiva.id, primeira = mensagens[0]
+    setCarregandoAnteriores(true)
+    try {
+      const {data,error} = await supabase.from('mensagens_whatsapp').select('*').eq('conversa_id', id)
+        .or('created_at.lt.'+primeira.created_at+',and(created_at.eq.'+primeira.created_at+',id.lt.'+primeira.id+')')
+        .order('created_at',{ascending:false}).order('id',{ascending:false}).limit(50)
+      if (error) throw error
+      if (conversaMensagens.current !== id) return
+      setMensagens(prev => mesclarMensagens(prev, data || []))
+      setTemAnteriores(data?.length === 50)
+    } catch { toast.error('Não foi possível carregar o histórico anterior') }
+    finally { setCarregandoAnteriores(false) }
+  }
   const [novaMensagem, setNovaMensagem] = useState('')
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(false)
@@ -126,7 +150,6 @@ export default function CRMPage() {
   // Carregar setores - INDEPENDENTE
   useEffect(() => {
     const carregarSetores = async () => {
-      console.log('CRM: Carregando setores...')
       const { data, error } = await supabase
         .from('setores_whatsapp')
         .select('*')
@@ -136,7 +159,6 @@ export default function CRMPage() {
       if (error) {
         console.error('CRM: Erro ao carregar setores:', error)
       } else {
-        console.log('CRM: Setores carregados:', data?.length || 0)
         setSetores(data || [])
       }
     }
@@ -161,11 +183,9 @@ export default function CRMPage() {
   // Carregar conversas - FILTRADO POR SETOR DO USUÁRIO
   const carregarConversas = useCallback(async () => {
     if (loadingPermissoes) {
-      console.log('CRM: Aguardando permissões...')
       return
     }
     
-    console.log('CRM: Carregando conversas...', { isAdmin, setoresPermitidos: setoresPermitidos.length })
     setLoadingConversas(true)
     
     try {
@@ -190,7 +210,6 @@ export default function CRMPage() {
         }
       } else if (!isAdmin && setoresPermitidos.length === 0) {
         // Usuário sem nenhum setor não vê nada
-        console.log('CRM: Usuário sem setores, não mostrando conversas')
         setConversas([])
         setLoadingConversas(false)
         return
@@ -207,7 +226,6 @@ export default function CRMPage() {
         console.error('CRM: Erro ao carregar conversas:', error)
         toast.error('Erro ao carregar conversas')
       } else {
-        console.log('CRM: Conversas carregadas:', data?.length || 0)
         setConversas(data || [])
       }
     } catch (error) {
@@ -224,7 +242,6 @@ export default function CRMPage() {
 
   // Efeito para carregar conversas quando permissões estiverem prontas
   useEffect(() => {
-    console.log('CRM: useEffect conversas disparado', { loadingPermissoes, isAdmin })
     
     if (!loadingPermissoes) {
       carregarConversasRef.current()
@@ -241,7 +258,6 @@ export default function CRMPage() {
           table: 'conversas_whatsapp'
         },
         (payload) => {
-          console.log('CRM: Nova conversa:', payload)
           setConversas(prev => [payload.new as Conversa, ...prev])
         }
       )
@@ -258,7 +274,6 @@ export default function CRMPage() {
           table: 'mensagens_whatsapp'
         },
         (payload) => {
-          console.log('CRM: Nova mensagem recebida')
           // Recarregar para atualizar ultima_mensagem e nao_lidas
           carregarConversasRef.current()
         }
@@ -443,14 +458,20 @@ export default function CRMPage() {
       return
     }
 
+    let cancelado = false
+    let primeiraConsulta = true
+    conversaMensagens.current = conversaAtiva.id
+    setMensagens([])
+    setTemAnteriores(false)
     const fetchMensagens = async () => {
       const { data } = await supabase
         .from('mensagens_whatsapp')
         .select('*')
         .eq('conversa_id', conversaAtiva.id)
-        .order('created_at', { ascending: true })
-      
-      setMensagens(data || [])
+        .order('created_at', { ascending: false }).order('id', {ascending:false}).limit(50)
+      if (cancelado) return
+      setMensagens(prev => mesclarMensagens(prev, data || []))
+      if (primeiraConsulta) { setTemAnteriores(data?.length === 50); primeiraConsulta = false }
 
       // Marcar como lida no banco
       await supabase
@@ -465,6 +486,7 @@ export default function CRMPage() {
     }
     
     fetchMensagens()
+    const refresh = setInterval(fetchMensagens, 5000)
 
     // Realtime para novas mensagens na conversa ativa
     const channel = supabase
@@ -494,13 +516,16 @@ export default function CRMPage() {
       .subscribe()
 
     return () => {
+      cancelado = true
+      conversaMensagens.current = null
+      clearInterval(refresh)
       supabase.removeChannel(channel)
     }
   }, [conversaAtiva, supabase, podeVerSetor])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mensagens])
+  }, [mensagens[mensagens.length - 1]?.id])
 
   // Criar nova conversa
   const criarConversa = async () => {
@@ -629,6 +654,12 @@ export default function CRMPage() {
     }
   }
 
+  const envioPendente = useRef<{ key: string; id: string } | null>(null)
+  const idEnvio = (key: string) => {
+    if (envioPendente.current?.key !== key) envioPendente.current = { key, id: crypto.randomUUID() }
+    return envioPendente.current.id
+  }
+
   // Enviar mensagem de texto - COM VERIFICAÇÃO DE PERMISSÃO
   const enviarMensagem = async () => {
     if (!novaMensagem.trim() || !conversaAtiva) return
@@ -652,6 +683,7 @@ export default function CRMPage() {
         body: JSON.stringify({
           to: numero,
           text: novaMensagem,
+          requestId: idEnvio(conversaAtiva.id + ':texto:' + novaMensagem),
           conversaId: conversaAtiva.id
         })
       })
@@ -662,21 +694,11 @@ export default function CRMPage() {
         throw new Error(result.error || 'Erro ao enviar mensagem')
       }
 
-      await supabase.from('mensagens_whatsapp').insert({
-        conversa_id: conversaAtiva.id,
-        direcao: 'saida',
-        conteudo: novaMensagem,
-        tipo: 'texto',
-        status: 'enviada'
-      })
-
-      await supabase.from('conversas_whatsapp').update({
-        ultimo_contato: new Date().toISOString(),
-        ultima_mensagem: novaMensagem
-      }).eq('id', conversaAtiva.id)
-
+      envioPendente.current = null
+      const { data: atualizadas } = await supabase.from('mensagens_whatsapp').select('*').eq('conversa_id', conversaAtiva.id).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(50)
+      setMensagens(prev => mesclarMensagens(prev, atualizadas || []))
       setNovaMensagem('')
-      toast.success('Mensagem enviada!')
+      toast.success('Mensagem adicionada à fila')
 
     } catch (error: any) {
       toast.error('Erro: ' + error.message)
@@ -819,6 +841,7 @@ export default function CRMPage() {
         body: JSON.stringify({
           to: numero,
           messageType,
+          requestId: idEnvio(conversaAtiva.id + ':midia:' + mediaUrl + ':' + caption),
           mediaUrl,
           caption: caption || undefined,
           fileName: mediaPreview.name,
@@ -839,25 +862,11 @@ export default function CRMPage() {
 
       console.log('[enviarMedia] Enviado OK:', sendResult)
 
-      // Etapa 6: Salvar no banco
-      etapa = 'salvar mensagem'
-      const conteudo = caption || `📎 ${mediaPreview.name}`
-      await supabase.from('mensagens_whatsapp').insert({
-        conversa_id: conversaAtiva.id,
-        direcao: 'saida',
-        conteudo,
-        tipo: messageType,
-        status: 'enviada',
-        media_url: mediaUrl
-      })
-
-      await supabase.from('conversas_whatsapp').update({
-        ultimo_contato: new Date().toISOString(),
-        ultima_mensagem: conteudo
-      }).eq('id', conversaAtiva.id)
-
+      envioPendente.current = null
+      const { data: atualizadas } = await supabase.from('mensagens_whatsapp').select('*').eq('conversa_id', conversaAtiva.id).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(50)
+      setMensagens(prev => mesclarMensagens(prev, atualizadas || []))
       cancelarMedia()
-      toast.success('Mídia enviada!')
+      toast.success('Mídia adicionada à fila')
 
     } catch (error: any) {
       console.error(`[enviarMedia] Erro na etapa "${etapa}":`, error)
@@ -883,6 +892,10 @@ export default function CRMPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'na_fila': return <span className="text-xs">Na fila</span>
+      case 'enviando': return <span className="text-xs">Enviando</span>
+      case 'falhou': return <span className="text-xs text-red-500">Falhou</span>
+      case 'incerto': return <span className="text-xs text-amber-600">Conferir envio</span>
       case 'lida': return <CheckCheck className="h-3 w-3 text-blue-400" />
       case 'entregue': return <CheckCheck className="h-3 w-3" />
       case 'enviada': return <Check className="h-3 w-3" />
@@ -1127,6 +1140,13 @@ export default function CRMPage() {
                 </Avatar>
                 <div>
                   <p className="font-medium">{conversaAtiva.nome_contato || conversaAtiva.telefone}</p>
+                  <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={!!conversaAtiva.preservar_historico} onChange={async e => {
+                    const preservar_historico=e.target.checked, id=conversaAtiva.id
+                    const {error}=await supabase.from('conversas_whatsapp').update({preservar_historico}).eq('id',id)
+                    if(error) {toast.error('Não foi possível alterar a preservação');return}
+                    setConversaAtiva(prev=>prev?.id===id?{...prev,preservar_historico}:prev)
+                    setConversas(prev=>prev.map(c=>c.id===id?{...c,preservar_historico}:c))
+                  }}/>Preservar histórico além de 90 dias</label>
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" />
@@ -1206,6 +1226,7 @@ export default function CRMPage() {
 
             {/* Mensagens */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+              {temAnteriores && <div className="text-center"><Button variant="outline" onClick={carregarAnteriores} disabled={carregandoAnteriores}>{carregandoAnteriores ? 'Carregando...' : 'Carregar 50 mensagens anteriores'}</Button></div>}
               {mensagens.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>Nenhuma mensagem ainda</p>

@@ -40,6 +40,16 @@ graphify-out/
 *.tsbuildinfo
 next-env.d.ts
 
+# Ferramentas e arquivos privados desta instalação
+.claude/
+.codex/
+.gstack/
+deploy/gstack-deps.cjs
+scripts/browse-clube.cjs
+scripts/start-browse-clube.cjs
+scripts/prepare-develop.cjs
+scripts/check-staged-secrets.cjs
+
 # IDE
 .idea/
 .vscode/

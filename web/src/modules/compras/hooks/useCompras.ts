@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createComprasRepository } from '../repositories/compras.repository'
 import { createComprasService } from '../services/compras.service'
 import type { Compra, CompraFilters, CompraFormData, Fornecedor, ComprasStats } from '../types'

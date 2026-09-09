@@ -1,0 +1,21 @@
+upstream/
+.env
+stack.portainer.yml
+ACESSO-LOCAL.txt
+*.tar
+web.portainer.yml
+
+# Stacks reais contêm credenciais; versionar apenas modelos
+*.yml
+!*.example.yml
+*.json
+*.html
+*.pdf
+*.png
+*.log
+before-*.sql
+schema-clickup-original.sql
+schema-local.sql
+upstream-revision.txt
+
+backups/

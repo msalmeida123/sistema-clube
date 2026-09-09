@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createConfiguracoesRepository } from '../repositories/configuracoes.repository'
 import { createConfiguracoesService } from '../services/configuracoes.service'
 import type { ConfiguracaoClube, Plano, Quiosque, SicoobConfig, WaSenderConfig } from '../types'

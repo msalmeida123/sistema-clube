@@ -1,3 +1,4 @@
+import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
@@ -5,10 +6,6 @@ import { cookies } from 'next/headers'
 import { verificarPermissao } from '@/lib/usuario-atual'
 import net from 'net'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 /**
  * POST /api/bar/nfce/cancelar
@@ -35,6 +32,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const supabase=servicoAuditado(user.id)
     const { nfce_id, justificativa } = await req.json()
 
     if (!nfce_id) {

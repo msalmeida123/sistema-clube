@@ -458,14 +458,6 @@ async function processarAutomacoes(
         const result = await sendMessageViaProvider(conversaId, telefone, regra.resposta)
 
         if (result.success) {
-          await getSupabase().from('mensagens_whatsapp').insert({
-            conversa_id: conversaId,
-            direcao: 'saida',
-            conteudo: regra.resposta,
-            tipo: 'texto',
-            status: 'enviada',
-            message_id: result.messageId || null
-          })
 
           await getSupabase()
             .from('respostas_automaticas')
@@ -529,14 +521,6 @@ ${configIA.documento_contexto || ''}`
       const enviada = await sendMessageViaProvider(conversaId, telefone, respostaIA)
 
       if (enviada.success) {
-        await getSupabase().from('mensagens_whatsapp').insert({
-          conversa_id: conversaId,
-          direcao: 'saida',
-          conteudo: respostaIA,
-          tipo: 'texto',
-          status: 'enviada',
-          message_id: enviada.messageId || null
-        })
 
         await getSupabase()
           .from('conversas_whatsapp')

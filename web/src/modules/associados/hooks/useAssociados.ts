@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createAssociadosRepository } from '../repositories/associados.repository'
 import { createAssociadosService } from '../services/associados.service'
 import type { Associado, AssociadoFilters, AssociadoFormData } from '../types'

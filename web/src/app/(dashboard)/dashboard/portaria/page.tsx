@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
+import { idCarteirinha, buscaNumerica } from '@/lib/carteirinha-qr'
+import { DOCUMENTACAO_VAZIA, validarDocumentacao, hojeBrasil } from '@/lib/documentos-dependente'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { PaginaProtegida } from '@/components/ui/permissao'
 import { 
@@ -45,6 +48,7 @@ const PONTOS_ACESSO = [
 ]
 
 export default function PortariaPage() {
+  const [opcoesPessoas, setOpcoesPessoas] = useState<any[]>([])
   const [modo, setModo] = useState<'leitor' | 'cpf' | 'nome'>('leitor')
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(false)
@@ -54,6 +58,7 @@ export default function PortariaPage() {
   const [userSetor, setUserSetor] = useState<string>('')
   const [pontosPermitidos, setPontosPermitidos] = useState<string[]>([])
   const [loadingUser, setLoadingUser] = useState(true)
+  const [erroCarregamento, setErroCarregamento] = useState('')
   
   // Estados para pagamento
   const [showPagamento, setShowPagamento] = useState(false)
@@ -65,11 +70,12 @@ export default function PortariaPage() {
   const [pagamentoId, setPagamentoId] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClientComponentClient()
+  const [supabase] = useState(() => createClientComponentClient())
 
   // Carregar setor do usuário e config PIX
   useEffect(() => {
     const carregarDados = async () => {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const userData = await buscarUsuarioAtual<{ setor: string | null }>(
@@ -104,7 +110,10 @@ export default function PortariaPage() {
       
       if (pixConfig) setConfigPix(pixConfig)
 
-      setLoadingUser(false)
+      } catch {
+        setPontosPermitidos([])
+        setErroCarregamento('Não foi possível carregar sua sessão. Recarregue a página ou entre novamente.')
+      } finally { setLoadingUser(false) }
     }
     carregarDados()
   }, [supabase])
@@ -144,8 +153,8 @@ export default function PortariaPage() {
     return pixCopiaECola
   }
 
-  const verificarAcesso = async (tipo: string, valor: string) => {
-    if (!valor.trim()) return
+  const verificarAcesso = async (tipo: string, valor: string, escolhida?: any) => {
+    if (!valor.trim() || loading) return
     
     setLoading(true)
     setAguardandoLeitor(false)
@@ -153,8 +162,9 @@ export default function PortariaPage() {
     setShowPagamento(false)
     
     try {
-      let pessoa = null
-      let tipoPessoa = 'associado'
+      let pessoa = escolhida ?? null
+      let tipoPessoa = escolhida?.tipo ?? 'associado'
+      setOpcoesPessoas([])
       const valorLimpo = valor.trim()
 
       // VERIFICAR SE É CONVITE
@@ -171,7 +181,7 @@ export default function PortariaPage() {
           return
         }
 
-        const hoje = new Date().toISOString().split('T')[0]
+        const hoje = hojeBrasil()
         
         if (convite.status === 'cancelado') {
           setResultado({ autorizado: false, motivo: 'Este convite foi cancelado.' })
@@ -185,56 +195,86 @@ export default function PortariaPage() {
           return
         }
 
-        if (convite.data_validade !== hoje) {
-          setResultado({ autorizado: false, motivo: `Convite válido apenas para ${new Date(convite.data_validade + 'T00:00:00').toLocaleDateString('pt-BR')}` })
+        if (convite.data_visita !== hoje) {
+          setResultado({ autorizado: false, motivo: `Convite válido apenas para ${new Date(convite.data_visita + 'T00:00:00').toLocaleDateString('pt-BR')}` })
           playBeep(300, 300)
           return
         }
 
-        await supabase
+        if (!['ativo', 'pago'].includes(convite.status)) {
+          setResultado({ autorizado: false, motivo: 'Convite ainda não liberado.' })
+          return
+        }
+        const { data: utilizado, error: usoError } = await supabase
           .from('convites')
-          .update({ status: 'utilizado', data_entrada: new Date().toISOString() })
+          .update({ status: 'utilizado', data_utilizacao: new Date().toISOString() })
           .eq('id', convite.id)
+          .eq('data_visita', hoje)
+          .in('status', ['ativo', 'pago'])
+          .select('id')
+          .maybeSingle()
+        if (usoError || !utilizado) {
+          setResultado({ autorizado: false, motivo: 'Não foi possível validar o convite. Verifique se já foi utilizado.' })
+          return
+        }
 
         setResultado({ 
           autorizado: true, 
-          pessoa: { nome: convite.convidado_nome, tipo: 'convidado' }, 
+          pessoa: { nome: convite.nome_convidado, tipo: 'convidado' }, 
           tipo: 'convidado' 
         })
         playBeep(800, 150)
-        toast.success(`Bem-vindo(a), ${convite.convidado_nome}!`)
+        toast.success(`Bem-vindo(a), ${convite.nome_convidado}!`)
         return
       }
 
-      // BUSCAR ASSOCIADO
-      if (valorLimpo.toUpperCase().startsWith('SOCIO-')) {
-        const { data } = await supabase
-          .from('associados')
-          .select('*')
-          .eq('qr_code', valorLimpo.toUpperCase())
-          .single()
-        pessoa = data
-      } else if (tipo === 'cpf') {
-        const cpfLimpo = valorLimpo.replace(/\D/g, '')
-        const { data } = await supabase.from('associados').select('*').eq('cpf', cpfLimpo).single()
-        pessoa = data
-      } else if (tipo === 'nome') {
-        const { data } = await supabase.from('associados').select('*').ilike('nome', `%${valorLimpo}%`).limit(1).single()
-        pessoa = data
-      } else {
-        // Tentar várias formas de busca
-        const numeroTitulo = parseInt(valorLimpo.replace(/\D/g, '')) || 0
-        if (numeroTitulo > 0) {
-          const { data } = await supabase.from('associados').select('*').eq('numero_titulo', numeroTitulo).single()
-          pessoa = data
+      // Busca exata: nunca extrair números de um QR desconhecido.
+      let titular: any = null
+      if (!pessoa && tipo === 'leitor' && buscaNumerica(valorLimpo)) {
+        const pessoas=await buscarPessoasClube(supabase,valorLimpo,true)
+        if(pessoas.length>1){setOpcoesPessoas(pessoas);return}
+        pessoa=pessoas[0] ?? null
+        tipoPessoa=pessoa?.tipo ?? 'associado'
+      }
+      if (pessoa) { /* Pessoa escolhida pelo título. */ } else if (tipo === 'leitor' && !buscaNumerica(valorLimpo)) {
+        for (const tabela of ['associados', 'dependentes'] as const) {
+          const {data,error} = await supabase.from(tabela).select('*').eq('qr_code',valorLimpo).maybeSingle()
+          if (error) throw error
+          if (data) { pessoa=data; tipoPessoa=tabela==='dependentes'?'dependente':'associado'; break }
         }
         if (!pessoa) {
-          const cpfLimpo = valorLimpo.replace(/\D/g, '')
-          if (cpfLimpo.length === 11) {
-            const { data } = await supabase.from('associados').select('*').eq('cpf', cpfLimpo).single()
-            pessoa = data
+          const socioId=idCarteirinha(valorLimpo,'SOCIO'), depId=idCarteirinha(valorLimpo,'DEP')
+          if (socioId || depId) {
+            const {data,error}=await supabase.from(depId?'dependentes':'associados').select('*').eq('id',depId || socioId).maybeSingle()
+            if(error) throw error
+            if(data && !data.qr_code?.trim()) {pessoa=data;tipoPessoa=depId?'dependente':'associado'}
           }
         }
+      } else if (tipo==='nome') {
+        const {data,error}=await supabase.from('associados').select('*').ilike('nome','%'+valorLimpo+'%').limit(1).maybeSingle()
+        if(error) throw error
+        pessoa=data
+      } else {
+        const numero=tipo==='cpf'?valorLimpo.replace(/\D/g,''):buscaNumerica(valorLimpo)
+        if(numero) {
+          const {data,error}=await supabase.from('associados').select('*').eq(tipo==='cpf'?'cpf':'numero_titulo',numero).maybeSingle()
+          if(error) throw error
+          pessoa=data
+          if(!pessoa && numero.length===11 && tipo!=='cpf') {
+            const {data,error}=await supabase.from('associados').select('*').eq('cpf',numero).maybeSingle()
+            if(error) throw error
+            pessoa=data
+          }
+        }
+      }
+      if(pessoa && tipoPessoa==='dependente') {
+        const docs=Object.fromEntries(Object.keys(DOCUMENTACAO_VAZIA).map(k=>[k,pessoa[k]??''])) as typeof DOCUMENTACAO_VAZIA
+        const pendencia=validarDocumentacao(pessoa.parentesco??'',pessoa.data_nascimento??'',docs,hojeBrasil())
+        if(pendencia) {setResultado({autorizado:false,motivo:pendencia,pessoa,tipo:tipoPessoa});playBeep(300,300);return}
+        const {data,error}=await supabase.from('associados').select('*').eq('id',pessoa.associado_id).maybeSingle()
+        if(error) throw error
+        titular=data
+        if(!titular || titular.status!=='ativo') {setResultado({autorizado:false,motivo:'Titular indisponível ou inativo.',pessoa,tipo:tipoPessoa});return}
       }
 
       if (!pessoa) {
@@ -250,15 +290,16 @@ export default function PortariaPage() {
       }
 
       // VERIFICAR MENSALIDADES EM ATRASO
-      const hoje = new Date().toISOString().split('T')[0]
-      const { data: mensalidadesAtrasadas } = await supabase
+      const hoje = hojeBrasil()
+      const { data: mensalidadesAtrasadas, error: erroMensalidades } = await supabase
         .from('mensalidades')
         .select('*')
-        .eq('associado_id', pessoa.id)
+        .eq('associado_id', titular?.id ?? pessoa.id)
         .in('status', ['pendente', 'atrasado'])
         .lt('data_vencimento', hoje)
         .order('data_vencimento', { ascending: true })
 
+      if (erroMensalidades) throw erroMensalidades
       if (mensalidadesAtrasadas && mensalidadesAtrasadas.length > 0) {
         // TEM MENSALIDADES EM ATRASO - OFERECER PAGAMENTO
         setResultado({ 
@@ -266,19 +307,20 @@ export default function PortariaPage() {
           motivo: `${mensalidadesAtrasadas.length} mensalidade(s) em atraso. Pague agora para liberar a entrada.`,
           pessoa,
           tipo: tipoPessoa,
-          mensalidadesPendentes: mensalidadesAtrasadas
+          mensalidadesPendentes: tipoPessoa === 'dependente' ? undefined : mensalidadesAtrasadas
         })
         playBeep(400, 200)
         return
       }
 
       // LIBERADO
-      await supabase.from('registros_acesso').insert({
-        ponto_acesso_id: pontoAcesso,
-        associado_id: pessoa.id,
-        tipo: 'entrada',
-        forma_identificacao: tipo
+      const {error: erroRegistro} = await supabase.from('registros_acesso').insert({
+        portaria: pontoAcesso, local: pontoAcesso, associado_id: titular?.id ?? pessoa.id,
+        dependente_id: tipoPessoa === 'dependente' ? pessoa.id : null,
+        pessoa_id: pessoa.id, pessoa_nome: pessoa.nome, tipo_pessoa: tipoPessoa,
+        tipo: 'entrada', metodo: tipo
       })
+      if (erroRegistro) throw erroRegistro
 
       setResultado({ autorizado: true, pessoa, tipo: tipoPessoa })
       playBeep(800, 150)
@@ -440,6 +482,7 @@ export default function PortariaPage() {
 
   const limparResultado = () => {
     setResultado(null)
+    setOpcoesPessoas([])
     setBusca('')
     setAguardandoLeitor(true)
     setShowPagamento(false)
@@ -461,6 +504,8 @@ export default function PortariaPage() {
     )
   }
 
+  if (erroCarregamento) return <div className="p-6 space-y-4" role="alert"><p>{erroCarregamento}</p><Button onClick={()=>window.location.reload()}>Tentar novamente</Button></div>
+
   if (pontosPermitidos.length === 0) {
     return (
       <div className="max-w-xl mx-auto p-6">
@@ -478,6 +523,7 @@ export default function PortariaPage() {
   return (
     <PaginaProtegida codigoPagina="portaria">
     <div className="max-w-5xl mx-auto p-6 space-y-6">
+      {opcoesPessoas.length>0 && <Card><CardContent className="pt-4 space-y-2"><p>Selecione quem está entrando:</p>{opcoesPessoas.map(p=><Button key={p.tipo+p.id} variant="outline" disabled={loading} onClick={()=>verificarAcesso('leitor',p.id,p)}>{p.nome} — {p.tipo}</Button>)}</CardContent></Card>}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">

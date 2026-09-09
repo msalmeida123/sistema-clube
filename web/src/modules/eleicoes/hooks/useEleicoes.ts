@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createEleicoesRepository } from '../repositories/eleicoes.repository'
 import { createEleicoesService } from '../services/eleicoes.service'
 import type { Eleicao, EleicaoFilters, EleicaoFormData, Candidato, ResultadoEleicao } from '../types'

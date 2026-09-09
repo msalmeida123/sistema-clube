@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { createInfracoesRepository } from '../repositories/infracoes.repository'
 import { createInfracoesService } from '../services/infracoes.service'
 import type { Infracao, InfracaoFilters, InfracaoFormData, TipoPenalidade, InfracoesStats } from '../types'

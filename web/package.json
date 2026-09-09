@@ -29,6 +29,7 @@
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^5.17.0",
     "@tanstack/react-table": "^8.11.0",
+    "bullmq": "^5.81.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.2.0",
@@ -46,8 +47,10 @@
     "recharts": "^2.10.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.2.0",
+    "tsx": "^4.23.13",
     "zod": "^3.22.4",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "@supabase/auth-helpers-shared": "0.6.3"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

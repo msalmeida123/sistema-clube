@@ -15,7 +15,14 @@ export class DependentesRepository {
       .order('nome')
 
     if (filters?.search) {
-      query = query.or(`nome.ilike.%${filters.search}%,cpf.ilike.%${filters.search}%`)
+      const termo = filters.search.trim()
+      const {data: titulares,error: erroTitulares}=await this.supabase.from('associados').select('id').eq('numero_titulo',termo)
+      if(erroTitulares) throw erroTitulares
+      if(titulares?.length) query=query.in('associado_id',titulares.map(t=>t.id))
+      else {
+        const cpf=termo.replace(/[.\-\s]/g,'')
+        query=/^\d{11}$/.test(cpf)?query.eq('cpf',cpf):query.ilike('nome','%'+termo.replace(/[%_]/g,'')+'%')
+      }
     }
     if (filters?.associado_id) {
       query = query.eq('associado_id', filters.associado_id)

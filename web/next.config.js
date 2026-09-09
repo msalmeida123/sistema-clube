@@ -5,6 +5,13 @@ const __impeccableLiveDev =
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+
+  // Proxy opcional da instalação local: navegador e servidor usam a mesma URL.
+  async rewrites() {
+    return process.env.NEXT_PUBLIC_SUPABASE_LOCAL_PROXY === '1'
+      ? [{ source: '/supabase/:path*', destination: 'http://api-gw:8000/:path*' }]
+      : []
+  },
   
   // Headers de segurança
   async headers() {

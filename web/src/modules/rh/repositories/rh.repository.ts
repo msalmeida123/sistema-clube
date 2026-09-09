@@ -203,7 +203,7 @@ export class RHRepository {
   async findAllFolhas(filters?: FolhaFilters): Promise<FolhaPagamento[]> {
     let query = this.supabase
       .from('folha_pagamento')
-      .select('*, funcionario:funcionarios(nome, cargo, departamento, banco, agencia, conta, chave_pix)')
+      .select('*, funcionario:funcionarios(nome, cargo, departamento, data_admissao, banco, agencia, conta, chave_pix)')
       .order('referencia', { ascending: false })
 
     if (filters?.funcionario_id) {
@@ -230,7 +230,7 @@ export class RHRepository {
   async findFolhaById(id: string): Promise<FolhaPagamento | null> {
     const { data, error } = await this.supabase
       .from('folha_pagamento')
-      .select('*, funcionario:funcionarios(nome, cargo, departamento, banco, agencia, conta, chave_pix)')
+      .select('*, funcionario:funcionarios(nome, cargo, departamento, data_admissao, banco, agencia, conta, chave_pix)')
       .eq('id', id)
       .single()
 
@@ -242,7 +242,7 @@ export class RHRepository {
     const { data: created, error } = await this.supabase
       .from('folha_pagamento')
       .insert({ ...data, status: 'rascunho' })
-      .select('*, funcionario:funcionarios(nome, cargo, departamento, banco, agencia, conta, chave_pix)')
+      .select('*, funcionario:funcionarios(nome, cargo, departamento, data_admissao, banco, agencia, conta, chave_pix)')
       .single()
 
     if (error) throw error
@@ -254,7 +254,7 @@ export class RHRepository {
       .from('folha_pagamento')
       .update({ ...data, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select('*, funcionario:funcionarios(nome, cargo, departamento, banco, agencia, conta, chave_pix)')
+      .select('*, funcionario:funcionarios(nome, cargo, departamento, data_admissao, banco, agencia, conta, chave_pix)')
       .single()
 
     if (error) throw error

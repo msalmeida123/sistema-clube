@@ -169,6 +169,7 @@ export const barPedidosRepository = {
         total: payload.total,
         observacao: payload.observacao,
         mesa: payload.mesa,
+        cliente_nome: payload.cliente_nome,
         status: 'pago',
         pago_em: new Date().toISOString()
       })

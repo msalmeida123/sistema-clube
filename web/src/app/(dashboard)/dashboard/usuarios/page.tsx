@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -57,6 +57,7 @@ const permissoesDisponiveis = [
   { value: 'eleicoes', label: 'Eleições', grupo: null },
   { value: 'relatorios', label: 'Relatórios', grupo: null },
   { value: 'bar', label: 'Bar/Restaurante', grupo: null },
+  { value: 'servicos', label: 'Serviços', grupo: null },
   { value: 'crm', label: 'CRM/WhatsApp', grupo: null },
   { value: 'configuracoes', label: 'Configurações', grupo: null },
   { value: 'usuarios', label: 'Usuários', grupo: null },

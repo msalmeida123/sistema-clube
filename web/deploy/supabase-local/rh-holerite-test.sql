@@ -1,0 +1,20 @@
+BEGIN;
+SELECT set_config('request.jwt.claim.sub',(SELECT auth_id::text FROM usuarios WHERE email='admin@clube.local'),true);
+INSERT INTO funcionarios(id,nome,cpf,cargo,departamento,data_admissao) VALUES('fb000000-0000-4000-8000-000000000001','TESTE HOLERITE','TESTE-HOLERITE-0910','Teste','Teste','2026-01-05');
+INSERT INTO folha_pagamento(id,funcionario_id,referencia,salario_base) VALUES('fb000000-0000-4000-8000-000000000002','fb000000-0000-4000-8000-000000000001','2026-09',3000);
+SET LOCAL ROLE authenticated;
+SELECT rh_salvar_holerite('fb000000-0000-4000-8000-000000000002',null,'{"codigo_funcionario":"007","sede":"Matriz","admissao":"2026-01-05","conta":"Banco Teste / 0001 / 12345-6","dependentes":2,"base_inss":3000,"base_irrf":2700,"base_fgts":3000,"salario_contratual":3000,"rubricas":[{"campo":"salario_base","codigo":"001","descricao":"Salário","referencia":"30 dias","valor":3000},{"campo":"inss","codigo":"101","descricao":"INSS","referencia":"Informado pelo RH","valor":250.25},{"campo":"outros_descontos","codigo":"102","descricao":"Plano de saúde","referencia":"Mensalidade","valor":99.75},{"campo":"outros_descontos","codigo":"103","descricao":"Pensão alimentícia","referencia":"Valor informado","valor":100}]}'::jsonb,'Teste');
+DO $$ DECLARE f folha_pagamento;d jsonb; BEGIN
+ SELECT * INTO f FROM folha_pagamento WHERE id='fb000000-0000-4000-8000-000000000002';
+ IF f.total_proventos<>3000 OR f.total_descontos<>450 OR f.salario_liquido<>2550 OR f.outros_descontos<>199.75 THEN RAISE EXCEPTION 'Totais divergentes';END IF;
+ BEGIN PERFORM rh_salvar_holerite(f.id,null,f.detalhes_holerite,'Antigo');RAISE EXCEPTION 'Versão antiga aceita';EXCEPTION WHEN raise_exception THEN IF SQLERRM='Versão antiga aceita' THEN RAISE;END IF;END;
+ d:=jsonb_set(f.detalhes_holerite,'{rubricas,0,valor}','-10');
+ BEGIN PERFORM rh_salvar_holerite(f.id,f.updated_at,d,'Negativo');RAISE EXCEPTION 'Negativo aceito';EXCEPTION WHEN raise_exception THEN IF SQLERRM='Negativo aceito' THEN RAISE;END IF;END;
+ UPDATE folha_pagamento SET status='aprovada' WHERE id=f.id;
+ BEGIN PERFORM rh_salvar_holerite(f.id,f.updated_at,f.detalhes_holerite,'Aprovada');RAISE EXCEPTION 'Aprovada editada';EXCEPTION WHEN raise_exception THEN IF SQLERRM='Aprovada editada' THEN RAISE;END IF;END;
+END $$;
+RESET ROLE;
+UPDATE usuarios SET is_admin=false,permissoes=ARRAY['rh'] WHERE email='admin@clube.local';
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN BEGIN PERFORM rh_salvar_holerite('fb000000-0000-4000-8000-000000000002',null,'{}','');RAISE EXCEPTION 'Não admin editou';EXCEPTION WHEN raise_exception THEN IF SQLERRM='Não admin editou' THEN RAISE;END IF;END;END $$;
+ROLLBACK;

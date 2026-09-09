@@ -1,3 +1,4 @@
+import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
@@ -15,17 +16,6 @@ export async function POST(request: Request) {
     }
 
     // Cliente admin para criar usuários sem fazer login
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     
@@ -45,12 +35,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
+    const supabaseAdmin=servicoAuditado(currentUser.id)
     // Dados do novo usuário - sanitização XSS
     const rawBody = await request.json()
     
-    // Sanitiza todos os campos de texto
-    const body = sanitizeObject(rawBody)
-    const { nome, email, senha, telefone, setor, is_admin, perfil_acesso_id, permissoes } = body
+    if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
+      return NextResponse.json({ error: 'Corpo inválido' }, { status: 400 })
+    }
+    // Senhas são credenciais opacas: não remover HTML, espaços ou caracteres.
+    const { senha, ...dados } = rawBody
+    if (typeof senha !== 'string' || !senha) {
+      return NextResponse.json({ error: 'Senha deve ser uma string não vazia' }, { status: 400 })
+    }
+    const body = sanitizeObject(dados)
+    const { nome, email, telefone, setor, is_admin, perfil_acesso_id, permissoes } = body
 
     // Validações
     if (!nome || !email || !senha) {

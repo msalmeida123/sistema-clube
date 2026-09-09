@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ImprimirCozinha } from '@/components/ImprimirCozinha'
 import { ShoppingCart, CreditCard, Wallet, Banknote, QrCode, Gift, Plus, Minus, Trash2, Search, User, Receipt, RefreshCw, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +51,8 @@ export default function BarPDVPage() {
   const [pedidoCriado, setPedidoCriado] = useState<string | null>(null)
   const [cpfNFCe, setCpfNFCe] = useState('')
   const [desconto, setDesconto] = useState(0)
+  const [mesa, setMesa] = useState('')
+  const [observacao, setObservacao] = useState('')
 
   const { data: saldoCarteirinha } = useCarteirinhaSaldo(associadoId || undefined)
 
@@ -107,6 +110,9 @@ export default function BarPDVPage() {
 
     const payload = {
       associado_id: associadoId || undefined,
+      cliente_nome: associadoBusca.trim() || undefined,
+      mesa: mesa.trim() || undefined,
+      observacao: observacao.trim() || undefined,
       itens: carrinho.map(item => ({
         produto_id: item.produto.id,
         produto_nome: item.produto.nome,
@@ -139,6 +145,8 @@ export default function BarPDVPage() {
     setAssociadoId('')
     setAssociadoBusca('')
     setDesconto(0)
+    setMesa('')
+    setObservacao('')
     setPedidoCriado(null)
     setCpfNFCe('')
   }
@@ -190,6 +198,7 @@ export default function BarPDVPage() {
             Imprimir Comprovante
           </Button>
 
+          {carrinho.some(item => item.produto.enviar_cozinha) && <ImprimirCozinha pedidoId={pedidoCriado} />}
           <Button onClick={handleNovoPedido} className="gap-2 bg-blue-600 hover:bg-blue-700">
             <RefreshCw size={18} />
             Nova Venda
@@ -279,12 +288,21 @@ export default function BarPDVPage() {
           <div className="flex items-center gap-2">
             <User size={16} className="text-gray-400" />
             <Input
-              placeholder="CPF ou nome do associado (opcional)"
+              placeholder="Nome do cliente (opcional)"
+              aria-label="Nome do cliente"
+              maxLength={120}
               value={associadoBusca}
               onChange={e => setAssociadoBusca(e.target.value)}
               className="text-sm h-8"
             />
           </div>
+          <p className="text-xs text-gray-500 mt-1">Venda ao consumidor final. Não é necessário cadastro de associado.</p>
+          <label className="block text-sm mt-2">Mesa ou balcão
+            <Input value={mesa} onChange={e => setMesa(e.target.value)} maxLength={10} placeholder="Ex.: 12 ou Balcão" />
+          </label>
+          <label className="block text-sm mt-2">Observações para a cozinha
+            <Input value={observacao} onChange={e => setObservacao(e.target.value)} maxLength={500} placeholder="Ex.: lanche sem cebola" />
+          </label>
           {saldoCarteirinha && (
             <p className="text-xs text-green-600 mt-1 font-medium">
               💳 Saldo carteirinha: R$ {saldoCarteirinha.saldo.toFixed(2)}

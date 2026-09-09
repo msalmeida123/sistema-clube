@@ -24,6 +24,11 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
 
+  // O Supabase local valida as próprias chaves e sessões atrás deste proxy.
+  if (process.env.NEXT_PUBLIC_SUPABASE_LOCAL_PROXY === '1' && pathname.startsWith('/supabase/')) {
+    return res
+  }
+
   // Headers de segurança estão no next.config.js (fonte única)
 
   // Permite rotas de API com autenticação própria

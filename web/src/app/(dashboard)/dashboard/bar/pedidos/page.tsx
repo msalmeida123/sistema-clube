@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ImprimirCozinha } from '@/components/ImprimirCozinha'
 import { ClipboardList, Search, Eye, XCircle, Receipt, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,7 +84,7 @@ export default function BarPedidosPage() {
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">#</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-600">Associado</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Cliente / Mesa</th>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">Pagamento</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-600">Total</th>
               <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
@@ -99,7 +100,7 @@ export default function BarPedidosPage() {
             ) : pedidos.map(p => (
               <tr key={p.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-mono text-gray-500">#{p.numero_pedido}</td>
-                <td className="px-4 py-3 text-gray-700">{p.associado_nome || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-3 text-gray-700">{p.cliente_nome || p.associado_nome || 'Consumidor final'}<div className="text-xs">Mesa: {p.mesa || 'Balcão'}</div></td>
                 <td className="px-4 py-3 text-gray-500 text-xs">
                   {p.pagamentos?.map(pg => FORMAS_LABEL[pg.forma_pagamento] || pg.forma_pagamento).join(' + ') || '—'}
                 </td>
@@ -134,6 +135,8 @@ export default function BarPedidosPage() {
               </span>
             </div>
             <div className="p-6 space-y-4">
+              <p>Cliente: {detalhe.cliente_nome || detalhe.associado_nome || 'Consumidor final'} • Mesa: {detalhe.mesa || 'Balcão'}</p>
+              {detalhe.observacao && <p>Observações: {detalhe.observacao}</p>}
               {detalhe.associado_nome && (
                 <p className="text-sm text-gray-600">Associado: <span className="font-medium">{detalhe.associado_nome}</span></p>
               )}
@@ -192,6 +195,7 @@ export default function BarPedidosPage() {
               )}
             </div>
             <div className="p-6 border-t flex gap-2">
+              {detalhe.status !== 'cancelado' && detalhe.itens?.some(i => i.enviar_cozinha) && <ImprimirCozinha pedidoId={detalhe.id} reimpressao />}
               <Button variant="outline" className="flex-1" onClick={() => setDetalhe(null)}>Fechar</Button>
               <Button
                 variant="outline"
