@@ -12,7 +12,7 @@ import { hojeBrasil } from '@/lib/documentos-dependente'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import {
   Ticket, Plus, Search, QrCode, Calendar, User, Phone,
-  CheckCircle, XCircle, Clock, Settings, AlertTriangle, Printer
+  CheckCircle, XCircle, Clock, Settings, AlertTriangle, Printer, Download
 } from 'lucide-react'
 
 type Convite = {
@@ -39,6 +39,7 @@ type ConfigConvites = {
 
 export default function ConvitesPage() {
   const [convites, setConvites] = useState<Convite[]>([])
+  const [formatoImpressao,setFormatoImpressao]=useState<'80mm'|'a4'>('80mm')
   const [config, setConfig] = useState<ConfigConvites | null>(null)
   const [associados, setAssociados] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +48,7 @@ export default function ConvitesPage() {
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [isAdmin, setIsAdmin] = useState(false)
-  
+
   const [form, setForm] = useState({
     associado_id: '',
     convidado_nome: '',
@@ -84,7 +85,7 @@ export default function ConvitesPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-    
+
     const [convitesRes, configRes, assocRes] = await Promise.all([
       supabase
         .from('convites')
@@ -137,9 +138,9 @@ export default function ConvitesPage() {
       .neq('status', 'cancelado')
 
     if ((count || 0) >= config.limite_convites_mes) {
-      return { 
-        permitido: false, 
-        motivo: `Limite de ${config.limite_convites_mes} convites por mês atingido` 
+      return {
+        permitido: false,
+        motivo: `Limite de ${config.limite_convites_mes} convites por mês atingido`
       }
     }
 
@@ -166,10 +167,10 @@ export default function ConvitesPage() {
       const ultimaVisita = new Date(data[0].data_visita)
       const proximaPermitida = new Date(ultimaVisita)
       proximaPermitida.setDate(proximaPermitida.getDate() + config.intervalo_dias_convidado)
-      
-      return { 
-        permitido: false, 
-        motivo: `Este CPF só pode ser convidado novamente a partir de ${proximaPermitida.toLocaleDateString('pt-BR')}` 
+
+      return {
+        permitido: false,
+        motivo: `Este CPF só pode ser convidado novamente a partir de ${proximaPermitida.toLocaleDateString('pt-BR')}`
       }
     }
 
@@ -275,23 +276,48 @@ export default function ConvitesPage() {
     carregarDados()
   }
 
-  const imprimirConvite = async (convite: Convite) => {
+  const imprimirConvite = async (convite: Convite, baixar = false) => {
     let janela: Window | null = null
     try {
       validarConviteImpressao(convite)
-      janela = window.open('', '_blank')
-      if (!janela) throw new Error('Permita abrir novas janelas para imprimir.')
+      if (!baixar) {
+        janela = window.open('', '_blank')
+        if (!janela) throw new Error('Permita abrir novas janelas para imprimir ou use Baixar PDF.')
+        janela.document.title = 'Preparando convite'
+        janela.document.body.textContent = 'Preparando convite e QR Code. Aguarde...'
+      }
       const QRCode = (await import('qrcode')).default
       const qr = await QRCode.toDataURL(convite.qr_code, { width:360, margin:4, errorCorrectionLevel:'M' })
+      if (baixar || formatoImpressao==='80mm') {
+        const {gerarConvitePDF} = await import('@/lib/convite-pdf')
+        const pdf=gerarConvitePDF(convite, qr,formatoImpressao)
+        if(baixar){
+          pdf.save('convite-' + convite.id + '-'+formatoImpressao+'.pdf')
+          toast.success('PDF gerado. Abra o arquivo em um leitor de PDF para imprimir.')
+        }else if(janela){
+          const url=URL.createObjectURL(pdf.output('blob'));janela.location.href=url
+          const monitor=window.setInterval(()=>{if(janela?.closed){URL.revokeObjectURL(url);window.clearInterval(monitor)}},1000)
+        }
+        return
+      }
       abrirDocumento('Convite - ' + convite.convidado_nome, conteudoConvite(convite, qr), janela)
-    } catch(e: any) { janela?.close(); toast.error(e.message || 'Erro ao gerar convite') }
+    } catch(e: any) {
+      const mensagem = e.message || 'Erro ao gerar convite'
+      if (janela && !janela.closed) {
+        try {
+          janela.document.title = 'Não foi possível gerar o convite'
+          janela.document.body.textContent = mensagem + ' Volte à aba do sistema e tente novamente.'
+        } catch { /* A aba do sistema continua disponível para apresentar o erro. */ }
+      }
+      toast.error(mensagem)
+    }
   }
 
   const getStatusColor = (status: string, dataValidade: string) => {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     const data = new Date(dataValidade + 'T00:00:00')
-    
+
     if (status === 'cancelado') return 'bg-gray-100 text-gray-600'
     if (status === 'utilizado') return 'bg-green-100 text-green-600'
     if (data < hoje) return 'bg-red-100 text-red-600'
@@ -303,7 +329,7 @@ export default function ConvitesPage() {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     const data = new Date(dataValidade + 'T00:00:00')
-    
+
     if (status === 'cancelado') return 'Cancelado'
     if (status === 'utilizado') return 'Utilizado'
     if (data < hoje) return 'Expirado'
@@ -312,11 +338,11 @@ export default function ConvitesPage() {
   }
 
   const convitesFiltrados = convites.filter(c => {
-    const matchBusca = !busca || 
+    const matchBusca = !busca ||
       c.convidado_nome.toLowerCase().includes(busca.toLowerCase()) ||
       c.convidado_cpf.includes(busca.replace(/\D/g, '')) ||
       c.associado?.nome?.toLowerCase().includes(busca.toLowerCase())
-    
+
     const statusAtual = getStatusLabel(c.status, c.data_validade).toLowerCase()
     const matchStatus = filtroStatus === 'todos' || statusAtual === filtroStatus
 
@@ -444,6 +470,13 @@ export default function ConvitesPage() {
         </Card>
       )}
 
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white p-4">
+        <label htmlFor="formato-convite" className="font-medium">Formato de impressão do convite</label>
+        <select id="formato-convite" className="rounded border p-2" value={formatoImpressao} onChange={e=>setFormatoImpressao(e.target.value as '80mm'|'a4')}>
+          <option value="80mm">Térmica 80 mm · MP-4200</option><option value="a4">Folha A4</option>
+        </select>
+        <p className="text-sm text-slate-600">Na impressora térmica, selecione papel de 80 mm e escala 100%. Gere um novo PDF após mudar o formato.</p>
+      </div>
       {/* Form Novo Convite */}
       {showForm && (
         <Card className="border-2 border-purple-200">
@@ -518,7 +551,7 @@ export default function ConvitesPage() {
                 <strong>Valor do convite:</strong> R$ {config?.valor_convite?.toFixed(2) || '0.00'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Limite: {config?.limite_convites_mes || 2} convites por mês | 
+                Limite: {config?.limite_convites_mes || 2} convites por mês |
                 Mesmo convidado: mínimo {config?.intervalo_dias_convidado || 90} dias entre visitas
               </p>
             </div>
@@ -600,10 +633,13 @@ export default function ConvitesPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-1">
-                      {c.status === 'pago' && new Date(c.data_validade + 'T00:00:00') >= new Date(hojeBrasil()) && (
+                      {['pago','utilizado'].includes(c.status) && new Date(c.data_validade + 'T00:00:00') >= new Date(hojeBrasil()) && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => imprimirConvite(c)} title="Imprimir convite">
                             <Printer className="h-4 w-4 mr-1" /> Imprimir convite
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => imprimirConvite(c,true)} title="Baixar PDF do convite">
+                            <Download className="h-4 w-4 mr-1" /> Baixar PDF
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => cancelarConvite(c.id)} className="text-red-500" title="Cancelar">
                             <XCircle className="h-4 w-4" />

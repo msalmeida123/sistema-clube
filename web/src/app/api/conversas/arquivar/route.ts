@@ -1,12 +1,12 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
+    const supabase = await createRouteHandlerClient({ cookies })
+
     // Verificar autenticação
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {

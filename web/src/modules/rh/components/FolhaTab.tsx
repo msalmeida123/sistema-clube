@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { abrirDocumento } from '@/lib/impressao-documento'
 import { conteudoFolha } from '../folha-impressao'
+import { estiloImpressaoRH } from '../impressora'
 import { HoleriteEditor } from './HoleriteEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +39,7 @@ export function FolhaTab() {
   const [referencia, setReferencia] = useState(currentMonth)
   const [statusFilter, setStatusFilter] = useState<StatusFolha | ''>('')
   const [selectedFolha, setSelectedFolha] = useState<FolhaPagamento | null>(null)
-  
+
   const { folhas, loading, gerarFolhaMensal, aprovar, marcarComoPaga, recarregar } = useFolhaPagamento({
     referencia,
     status: statusFilter || undefined,
@@ -88,7 +89,7 @@ export function FolhaTab() {
       }
       if(!registros.length)throw Error('Nenhuma folha encontrada para imprimir.')
       const conteudo=holerites?registros.map(f=>'<div class="pagina-holerite">'+conteudoFolha([f],empresa,f.referencia,true)+'</div>').join(''):conteudoFolha(registros,empresa,id?registros[0].referencia:referencia,!!id,statusFilter?STATUS_FOLHA_LABELS[statusFilter]:'Todos')
-      abrirDocumento('Folha de pagamento','<style>@media print{.pagina-holerite + .pagina-holerite{break-before:page}}</style>'+conteudo,janela)
+      abrirDocumento('Folha de pagamento',estiloImpressaoRH()+'<style>@media print{.pagina-holerite + .pagina-holerite{break-before:page}}</style>'+conteudo,janela)
     }catch(e:any){janela.close();toast.error(e.message||'Não foi possível preparar a impressão.')}
     finally{setImprimindo(false)}
   }
@@ -185,8 +186,8 @@ export function FolhaTab() {
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1">
                       <Button variant="ghost" size="sm" disabled={imprimindo} onClick={()=>void imprimir(folha.id)} aria-label={"Imprimir demonstrativo de "+folha.funcionario?.nome}><Printer className="h-4 w-4"/></Button>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedFolha(folha)} title="Detalhes">
-                        <Eye className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedFolha(folha)} title="Editar quinzena e descontos">
+                        <Eye className="h-4 w-4 mr-1" /> Quinzena / descontos
                       </Button>
                       {folha.status === 'rascunho' && (
                         <Button variant="ghost" size="sm" onClick={() => handleAprovar(folha.id)} title="Aprovar">

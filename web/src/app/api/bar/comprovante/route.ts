@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { gerarComandaCozinha } from '@/lib/comanda-cozinha'
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     // Este handler usa a service role key (ignora RLS): exige sessão válida e
     // permissão do módulo, senão qualquer logado leria o pedido de qualquer um.
-    const auth = createRouteHandlerClient({ cookies })
+    const auth = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await auth.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
@@ -45,9 +45,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (req.nextUrl.searchParams.get('via') === 'cozinha') {
-      if (pedido.status === 'cancelado') return NextResponse.json({ error: 'Pedido cancelado' }, { status: 409 })
+      if (pedido.status !== 'pago') return NextResponse.json({ error: 'Finalize o pagamento antes de imprimir para a cozinha' }, { status: 409 })
       if (!pedido.bar_itens_pedido?.some((i: any) => i.enviar_cozinha)) return NextResponse.json({ error: 'Pedido sem itens para a cozinha' }, { status: 422 })
-      return new NextResponse(gerarComandaCozinha(pedido), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+      const papel=req.nextUrl.searchParams.get('papel')==='58'?58:80
+      return new NextResponse(gerarComandaCozinha(pedido,papel,req.nextUrl.searchParams.get('reimpressao')==='1'), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
     }
 
     // Busca config do clube para nome

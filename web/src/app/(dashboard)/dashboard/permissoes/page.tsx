@@ -123,7 +123,7 @@ export default function PermissoesPage() {
       .eq('usuario_id', usuario.id)
 
     const permissoesMap: Record<string, Permissao> = {}
-    
+
     if (usuario.perfil_acesso_id) {
       const { data: permissoesPerfil } = await supabase
         .from('permissoes_perfil')
@@ -242,51 +242,22 @@ export default function PermissoesPage() {
     setSalvando(true)
 
     try {
-      if (usuarioSelecionado) {
-        await supabase
-          .from('permissoes_usuario')
-          .delete()
-          .eq('usuario_id', usuarioSelecionado.id)
+      const todas = paginas.flatMap(p => [p, ...(p.subpaginas || [])])
+      const regras = todas.map(p => ({
+        pagina_id: p.id,
+        pode_visualizar: permissoes[p.id]?.pode_visualizar === true,
+        pode_criar: permissoes[p.id]?.pode_criar === true,
+        pode_editar: permissoes[p.id]?.pode_editar === true,
+        pode_excluir: permissoes[p.id]?.pode_excluir === true
+      }))
+      const { error } = await supabase.rpc('sistema_salvar_permissoes', {
+        p_tipo: usuarioSelecionado ? 'usuario' : 'perfil',
+        p_alvo: usuarioSelecionado?.id || perfilSelecionado!.id,
+        p_regras: regras
+      })
+      if (error) throw error
+      toast.success('Permissões salvas. O acesso será atualizado em até 15 segundos.')
 
-        const novasPermissoes = Object.values(permissoes)
-          .filter(p => p.pode_visualizar || p.pode_criar || p.pode_editar || p.pode_excluir)
-          .map(p => ({
-            usuario_id: usuarioSelecionado.id,
-            pagina_id: p.pagina_id,
-            pode_visualizar: p.pode_visualizar,
-            pode_criar: p.pode_criar,
-            pode_editar: p.pode_editar,
-            pode_excluir: p.pode_excluir
-          }))
-
-        if (novasPermissoes.length > 0) {
-          await supabase.from('permissoes_usuario').insert(novasPermissoes)
-        }
-
-        toast.success(`Permissões de ${usuarioSelecionado.nome} salvas!`)
-      } else if (perfilSelecionado) {
-        await supabase
-          .from('permissoes_perfil')
-          .delete()
-          .eq('perfil_id', perfilSelecionado.id)
-
-        const novasPermissoes = Object.values(permissoes)
-          .filter(p => p.pode_visualizar || p.pode_criar || p.pode_editar || p.pode_excluir)
-          .map(p => ({
-            perfil_id: perfilSelecionado.id,
-            pagina_id: p.pagina_id,
-            pode_visualizar: p.pode_visualizar,
-            pode_criar: p.pode_criar,
-            pode_editar: p.pode_editar,
-            pode_excluir: p.pode_excluir
-          }))
-
-        if (novasPermissoes.length > 0) {
-          await supabase.from('permissoes_perfil').insert(novasPermissoes)
-        }
-
-        toast.success(`Permissões do perfil ${perfilSelecionado.nome} salvas!`)
-      }
     } catch (error: any) {
       toast.error('Erro ao salvar: ' + error.message)
     } finally {
@@ -341,7 +312,7 @@ export default function PermissoesPage() {
     })
   }
 
-  const usuariosFiltrados = usuarios.filter(u => 
+  const usuariosFiltrados = usuarios.filter(u =>
     u.nome?.toLowerCase().includes(busca.toLowerCase()) ||
     u.email?.toLowerCase().includes(busca.toLowerCase())
   )
@@ -533,7 +504,7 @@ export default function PermissoesPage() {
                             </div>
                           </td>
                         </tr>
-                        
+
                         {expandidos.has(pagina.id) && pagina.subpaginas?.map(sub => (
                           <tr key={sub.id} className="border-t bg-gray-50/50 hover:bg-gray-100">
                             <td className="p-3 pl-12">

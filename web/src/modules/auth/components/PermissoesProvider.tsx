@@ -2,6 +2,7 @@
 'use client'
 
 import { createContext, useState, useEffect, useCallback } from 'react'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import type { PermissaoCRUD, PaginaSistema, TipoAcao } from '../types'
 import * as permissoesRepository from '../repositories/permissoes.repository'
@@ -33,7 +34,7 @@ export function PermissoesProvider({ children }: { children: React.ReactNode }) 
   const supabase = createClientComponentClient()
 
   const carregarPermissoes = useCallback(async () => {
-    setLoading(true)
+    // O carregamento inicial já começa ativo. Atualizações periódicas não devem desmontar formulários.
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
@@ -43,72 +44,31 @@ export function PermissoesProvider({ children }: { children: React.ReactNode }) 
         return
       }
 
-      // Buscar dados do usuário
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('id, is_admin, perfil_acesso_id')
-        .eq('auth_id', user.id)
-        .single()
-
-      if (!userData) {
-        setPermissoes({})
-        setIsAdmin(false)
-        return
-      }
-
-      setUsuarioId(userData.id)
-      setPerfilId(userData.perfil_acesso_id)
-      setIsAdmin(userData.is_admin || false)
-
-      // Admin tem todas as permissões
-      if (userData.is_admin) {
-        const todasPaginas = await permissoesRepository.findPaginas()
-        setPaginas(todasPaginas)
-
-        const paginasMapTemp: Record<string, PaginaSistema> = {}
-        const permissoesAdmin: Record<string, PermissaoCRUD> = {}
-
-        todasPaginas.forEach(p => {
-          paginasMapTemp[p.codigo] = p
-          permissoesAdmin[p.id] = {
-            pagina_id: p.id,
-            pode_visualizar: true,
-            pode_criar: true,
-            pode_editar: true,
-            pode_excluir: true
-          }
-        })
-
-        setPaginasMap(paginasMapTemp)
-        setPermissoes(permissoesAdmin)
-        return
-      }
-
-      // Carregar páginas e permissões
-      const [todasPaginas, permissoesUsuario] = await Promise.all([
-        permissoesRepository.findPaginas(),
-        permissoesRepository.findPermissoesCompletas(userData.id, userData.perfil_acesso_id)
-      ])
-
-      setPaginas(todasPaginas)
-
-      const paginasMapTemp: Record<string, PaginaSistema> = {}
-      todasPaginas.forEach(p => {
-        paginasMapTemp[p.codigo] = p
-      })
-      setPaginasMap(paginasMapTemp)
-
-      setPermissoes(permissoesUsuario)
+      const { data: rows, error } = await supabase.rpc('minhas_permissoes')
+      if (error) throw error
+      const todasPaginas = await permissoesRepository.findPaginas()
+      const map: Record<string, PaginaSistema> = {}
+      const permissions: Record<string, PermissaoCRUD> = {}
+      todasPaginas.forEach(p => { map[p.codigo] = p })
+      ;(rows || []).forEach((r: any) => { permissions[r.id] = { ...r, pagina_id: r.id } })
+      setPaginas(todasPaginas); setPaginasMap(map); setPermissoes(permissions)
+      // Todas as ações, inclusive do administrador, já foram resolvidas no servidor.
+      const atual = await buscarUsuarioAtual<any>(supabase, user.id, 'ativo,is_admin')
+      setIsAdmin(atual?.ativo === true && atual?.is_admin === true)
 
     } catch (error) {
-      console.error('Erro ao carregar permissões:', error)
+      setPermissoes({}); setIsAdmin(false)
     } finally {
       setLoading(false)
     }
   }, [supabase])
 
   useEffect(() => {
-    carregarPermissoes()
+    void carregarPermissoes()
+    const timer = setInterval(() => { void carregarPermissoes() }, 15000)
+    const focus = () => { void carregarPermissoes() }
+    window.addEventListener('focus', focus)
+    return () => { clearInterval(timer); window.removeEventListener('focus', focus) }
   }, [carregarPermissoes])
 
   // Funções de verificação

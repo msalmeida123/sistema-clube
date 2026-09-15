@@ -1,6 +1,6 @@
 import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { verificarPermissao } from '@/lib/usuario-atual'
@@ -9,7 +9,7 @@ import net from 'net'
 
 /**
  * POST /api/bar/nfce/cancelar
- * 
+ *
  * Cancela uma NFC-e autorizada via ACBrMonitor.
  * Comando: NFe.Cancelar(chaveNFe, justificativa, CNPJ, lote)
  */
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     // Este handler usa a service role key (ignora RLS) e cancela documento
     // fiscal já autorizado — irreversível e com prazo legal. Exige admin, não
     // apenas a permissão 'bar' que libera emitir/comprovante.
-    const auth = createRouteHandlerClient({ cookies })
+    const auth = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await auth.auth.getUser()
     if (!user) {
       return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })

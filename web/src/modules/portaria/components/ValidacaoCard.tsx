@@ -16,12 +16,12 @@ interface ValidacaoCardProps {
   loading?: boolean
 }
 
-export function ValidacaoCard({ 
-  validacao, 
+export function ValidacaoCard({
+  validacao,
   onRegistrarEntrada,
   onRegistrarSaida,
   onLimpar,
-  loading 
+  loading
 }: ValidacaoCardProps) {
   const { permitido, pessoa, motivo, alertas } = validacao
 
@@ -100,8 +100,8 @@ export function ValidacaoCard({
                 </Button>
               )}
               {onRegistrarSaida && (
-                <Button 
-                  onClick={onRegistrarSaida} 
+                <Button
+                  onClick={onRegistrarSaida}
                   disabled={loading}
                   variant="outline"
                 >

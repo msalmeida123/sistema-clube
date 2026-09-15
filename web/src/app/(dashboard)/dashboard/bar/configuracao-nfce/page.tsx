@@ -1,4 +1,5 @@
 'use client'
+import {useCep} from '@/hooks/useCep'
 
 import { useEffect, useState } from 'react'
 import { Settings, Save, Wifi, WifiOff, CheckCircle2, AlertCircle, Building2, UserCog } from 'lucide-react'
@@ -50,6 +51,7 @@ export default function ConfiguracaoNFCePage() {
     resp_tec_fone: ''
   })
 
+  const {buscarCEP,mensagemCep}=useCep(data => setForm(prev => ({...prev,endereco_logradouro:data.endereco||prev.endereco_logradouro,endereco_bairro:data.bairro||prev.endereco_bairro,endereco_municipio:data.cidade,uf:data.estado,codigo_municipio:data.ibge||prev.codigo_municipio})))
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [testMsg, setTestMsg] = useState('')
 
@@ -280,7 +282,7 @@ export default function ConfiguracaoNFCePage() {
           </div>
           <div>
             <label className="text-sm text-gray-400 mb-1 block">CEP</label>
-            <Input placeholder="00000-000" value={form.endereco_cep} onChange={e => update('endereco_cep', e.target.value)} className="bg-gray-900 border-gray-600" />
+            <Input placeholder="00000-000" value={form.endereco_cep} onChange={e => {update('endereco_cep', e.target.value); void buscarCEP(e.target.value)}} inputMode="numeric" maxLength={9} className="bg-gray-900 border-gray-600" /><p role="status" className="text-xs mt-1">{mensagemCep}</p>
           </div>
         </div>
       </div>

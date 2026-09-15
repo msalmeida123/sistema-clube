@@ -81,8 +81,8 @@ export function FinanceiroStatsCards({ stats, loading }: FinanceiroStatsCardsPro
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {card.isCurrency === false 
-                ? card.value 
+              {card.isCurrency === false
+                ? card.value
                 : formatCurrency(card.value)}
             </div>
           </CardContent>

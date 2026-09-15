@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Buscar configuração do WaSender
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: config } = await supabase
       .from('config_wasender')
       .select('api_key')
@@ -54,8 +54,8 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       console.error('Erro WaSender Upload:', result)
-      return NextResponse.json({ 
-        error: result.message || result.error || 'Erro ao fazer upload' 
+      return NextResponse.json({
+        error: result.message || result.error || 'Erro ao fazer upload'
       }, { status: response.status })
     }
 
@@ -63,9 +63,9 @@ export async function POST(request: Request) {
 
     // Retornar URL do arquivo
     const fileUrl = result.data?.url || result.url || result.data?.fileUrl || result.fileUrl
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       url: fileUrl,
       fileName: file.name,
       mediaType: mediaType,

@@ -1,4 +1,5 @@
 'use client'
+import {atenderConvite} from '@/components/AtendimentoConvidado'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
@@ -6,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import PagamentoMensalidade from '@/components/PagamentoMensalidade'
 import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
 import { idCarteirinha, buscaNumerica } from '@/lib/carteirinha-qr'
 import { DOCUMENTACAO_VAZIA, validarDocumentacao, hojeBrasil } from '@/lib/documentos-dependente'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import { 
+import {
   QrCode, Search, CheckCircle, XCircle, User, Usb, AlertTriangle,
   CreditCard, Smartphone, DollarSign, Loader2, X, Banknote
 } from 'lucide-react'
@@ -59,7 +61,7 @@ export default function PortariaPage() {
   const [pontosPermitidos, setPontosPermitidos] = useState<string[]>([])
   const [loadingUser, setLoadingUser] = useState(true)
   const [erroCarregamento, setErroCarregamento] = useState('')
-  
+
   // Estados para pagamento
   const [showPagamento, setShowPagamento] = useState(false)
   const [formaPagamento, setFormaPagamento] = useState<'pix' | 'credito' | 'debito' | null>(null)
@@ -107,7 +109,7 @@ export default function PortariaPage() {
         .select('*')
         .eq('ativo', true)
         .single()
-      
+
       if (pixConfig) setConfigPix(pixConfig)
 
       } catch {
@@ -123,7 +125,7 @@ export default function PortariaPage() {
     if (modo === 'leitor' && aguardandoLeitor && !loadingUser && !showPagamento) {
       inputRef.current?.focus()
       const interval = setInterval(() => {
-        if (modo === 'leitor' && document.activeElement !== inputRef.current && !showPagamento) {
+        if (modo === 'leitor' && document.activeElement !== inputRef.current && !showPagamento && !document.querySelector('[data-pagamento-modal]')) {
           inputRef.current?.focus()
         }
       }, 500)
@@ -131,36 +133,14 @@ export default function PortariaPage() {
     }
   }, [modo, aguardandoLeitor, loadingUser, showPagamento])
 
-  // Gerar QR Code PIX (formato EMV)
-  const gerarPixQRCode = (valor: number, txid: string) => {
-    if (!configPix) return null
-
-    // Simplificado - em produção use uma biblioteca própria
-    const payload = gerarPayloadPix(valor, txid)
-    return payload
-  }
-
-  const gerarPayloadPix = (valor: number, txid: string) => {
-    if (!configPix) return ''
-    
-    // Payload PIX simplificado (BRCode)
-    const valorFormatado = valor.toFixed(2)
-    
-    // Em produção, usar biblioteca como 'pix-payload' ou gerar corretamente
-    // Este é um exemplo simplificado
-    const pixCopiaECola = `00020126580014br.gov.bcb.pix0136${configPix.chave_pix}5204000053039865404${valorFormatado}5802BR5913${configPix.nome_beneficiario.substring(0,13)}6008${configPix.cidade.substring(0,8)}62070503***6304`
-    
-    return pixCopiaECola
-  }
-
   const verificarAcesso = async (tipo: string, valor: string, escolhida?: any) => {
     if (!valor.trim() || loading) return
-    
+
     setLoading(true)
     setAguardandoLeitor(false)
     setResultado(null)
     setShowPagamento(false)
-    
+
     try {
       let pessoa = escolhida ?? null
       let tipoPessoa = escolhida?.tipo ?? 'associado'
@@ -169,62 +149,15 @@ export default function PortariaPage() {
 
       // VERIFICAR SE É CONVITE
       if (valorLimpo.toUpperCase().startsWith('CONV-')) {
-        const { data: convite } = await supabase
-          .from('convites')
-          .select('*, associado:associados(nome, numero_titulo)')
-          .eq('qr_code', valorLimpo.toUpperCase())
-          .single()
-
-        if (!convite) {
-          setResultado({ autorizado: false, motivo: 'Convite não encontrado.' })
-          playBeep(300, 300)
-          return
+        try {
+          const convite=await atenderConvite(valorLimpo,'clube_entrada',{requisicao:crypto.randomUUID()})
+          setResultado({autorizado:true,pessoa:{nome:convite.nome,tipo:'convidado'},tipo:'convidado'})
+          playBeep(800,150)
+          toast.success('Entrada no clube registrada. Para a piscina, apresente este QR no exame médico.')
+        } catch(e:any) {
+          setResultado({autorizado:false,motivo:e.message})
+          playBeep(300,300)
         }
-
-        const hoje = hojeBrasil()
-        
-        if (convite.status === 'cancelado') {
-          setResultado({ autorizado: false, motivo: 'Este convite foi cancelado.' })
-          playBeep(300, 300)
-          return
-        }
-
-        if (convite.status === 'utilizado') {
-          setResultado({ autorizado: false, motivo: 'Este convite já foi utilizado.' })
-          playBeep(300, 300)
-          return
-        }
-
-        if (convite.data_visita !== hoje) {
-          setResultado({ autorizado: false, motivo: `Convite válido apenas para ${new Date(convite.data_visita + 'T00:00:00').toLocaleDateString('pt-BR')}` })
-          playBeep(300, 300)
-          return
-        }
-
-        if (!['ativo', 'pago'].includes(convite.status)) {
-          setResultado({ autorizado: false, motivo: 'Convite ainda não liberado.' })
-          return
-        }
-        const { data: utilizado, error: usoError } = await supabase
-          .from('convites')
-          .update({ status: 'utilizado', data_utilizacao: new Date().toISOString() })
-          .eq('id', convite.id)
-          .eq('data_visita', hoje)
-          .in('status', ['ativo', 'pago'])
-          .select('id')
-          .maybeSingle()
-        if (usoError || !utilizado) {
-          setResultado({ autorizado: false, motivo: 'Não foi possível validar o convite. Verifique se já foi utilizado.' })
-          return
-        }
-
-        setResultado({ 
-          autorizado: true, 
-          pessoa: { nome: convite.nome_convidado, tipo: 'convidado' }, 
-          tipo: 'convidado' 
-        })
-        playBeep(800, 150)
-        toast.success(`Bem-vindo(a), ${convite.nome_convidado}!`)
         return
       }
 
@@ -295,6 +228,7 @@ export default function PortariaPage() {
         .from('mensalidades')
         .select('*')
         .eq('associado_id', titular?.id ?? pessoa.id)
+        .eq('tipo', 'clube')
         .in('status', ['pendente', 'atrasado'])
         .lt('data_vencimento', hoje)
         .order('data_vencimento', { ascending: true })
@@ -302,8 +236,8 @@ export default function PortariaPage() {
       if (erroMensalidades) throw erroMensalidades
       if (mensalidadesAtrasadas && mensalidadesAtrasadas.length > 0) {
         // TEM MENSALIDADES EM ATRASO - OFERECER PAGAMENTO
-        setResultado({ 
-          autorizado: false, 
+        setResultado({
+          autorizado: false,
           motivo: `${mensalidadesAtrasadas.length} mensalidade(s) em atraso. Pague agora para liberar a entrada.`,
           pessoa,
           tipo: tipoPessoa,
@@ -333,129 +267,6 @@ export default function PortariaPage() {
     } finally {
       setLoading(false)
       setBusca('')
-    }
-  }
-
-  const iniciarPagamento = async (forma: 'pix' | 'credito' | 'debito') => {
-    if (!resultado?.pessoa || !resultado?.mensalidadesPendentes) return
-
-    setFormaPagamento(forma)
-    setProcessandoPagamento(true)
-
-    const valorTotal = resultado.mensalidadesPendentes.reduce((acc, m) => acc + m.valor, 0)
-    const txid = `PORT${Date.now()}`
-
-    // Criar registro de pagamento
-    const { data: pagamento, error } = await supabase
-      .from('pagamentos_portaria')
-      .insert({
-        associado_id: resultado.pessoa.id,
-        mensalidade_id: resultado.mensalidadesPendentes[0].id,
-        valor: valorTotal,
-        forma_pagamento: forma,
-        pix_txid: forma === 'pix' ? txid : null,
-        status: 'pendente'
-      })
-      .select()
-      .single()
-
-    if (error) {
-      toast.error('Erro ao iniciar pagamento')
-      setProcessandoPagamento(false)
-      return
-    }
-
-    setPagamentoId(pagamento.id)
-
-    if (forma === 'pix') {
-      // Gerar QR Code PIX
-      const payload = gerarPayloadPix(valorTotal, txid)
-      setPixCopiaCola(payload)
-      
-      // Gerar QR Code como Data URL (simplificado)
-      // Em produção, usar biblioteca como 'qrcode' para gerar imagem
-      setPixQRCode(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payload)}`)
-      
-      await supabase
-        .from('pagamentos_portaria')
-        .update({ pix_qrcode: payload, pix_codigo_copia_cola: payload })
-        .eq('id', pagamento.id)
-    }
-
-    setShowPagamento(true)
-    setProcessandoPagamento(false)
-  }
-
-  const confirmarPagamento = async () => {
-    if (!resultado?.pessoa || !resultado?.mensalidadesPendentes || !pagamentoId) return
-
-    setProcessandoPagamento(true)
-
-    try {
-      // Marcar pagamento como pago
-      await supabase
-        .from('pagamentos_portaria')
-        .update({ 
-          status: 'pago', 
-          data_pagamento: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', pagamentoId)
-
-      // Marcar mensalidades como pagas
-      for (const mensalidade of resultado.mensalidadesPendentes) {
-        await supabase
-          .from('mensalidades')
-          .update({ 
-            status: 'pago', 
-            data_pagamento: new Date().toISOString().split('T')[0],
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', mensalidade.id)
-      }
-
-      // Registrar entrada
-      await supabase.from('registros_acesso').insert({
-        ponto_acesso_id: pontoAcesso,
-        associado_id: resultado.pessoa.id,
-        tipo: 'entrada',
-        forma_identificacao: 'pagamento_portaria'
-      })
-
-      // Atualizar resultado
-      setResultado({ 
-        autorizado: true, 
-        pessoa: resultado.pessoa, 
-        tipo: 'associado' 
-      })
-      setShowPagamento(false)
-      setFormaPagamento(null)
-      setPixQRCode(null)
-      setPixCopiaCola(null)
-      setPagamentoId(null)
-
-      playBeep(800, 150)
-      toast.success(`Pagamento confirmado! Bem-vindo(a), ${resultado.pessoa.nome}!`)
-
-    } catch (error) {
-      toast.error('Erro ao confirmar pagamento')
-    } finally {
-      setProcessandoPagamento(false)
-    }
-  }
-
-  const cancelarPagamento = () => {
-    setShowPagamento(false)
-    setFormaPagamento(null)
-    setPixQRCode(null)
-    setPixCopiaCola(null)
-    setPagamentoId(null)
-  }
-
-  const copiarPix = () => {
-    if (pixCopiaCola) {
-      navigator.clipboard.writeText(pixCopiaCola)
-      toast.success('Código PIX copiado!')
     }
   }
 
@@ -493,7 +304,7 @@ export default function PortariaPage() {
     inputRef.current?.focus()
   }
 
-  const formatCurrency = (value: number) => 
+  const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
   if (loadingUser) {
@@ -528,8 +339,8 @@ export default function PortariaPage() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-2xl">
-              <Usb className="h-7 w-7" /> 
-              <QrCode className="h-7 w-7" /> 
+              <Usb className="h-7 w-7" />
+              <QrCode className="h-7 w-7" />
               Controle de Acesso - Portaria
             </div>
             <div className="text-sm font-normal text-muted-foreground">
@@ -576,9 +387,9 @@ export default function PortariaPage() {
           {/* Resultado */}
           {resultado && !showPagamento && (
             <div className={`p-6 rounded-xl border-4 ${
-              resultado.autorizado 
-                ? 'bg-green-50 border-green-500' 
-                : resultado.mensalidadesPendentes 
+              resultado.autorizado
+                ? 'bg-green-50 border-green-500'
+                : resultado.mensalidadesPendentes
                   ? 'bg-yellow-50 border-yellow-500'
                   : 'bg-red-50 border-red-500'
             }`}>
@@ -603,7 +414,7 @@ export default function PortariaPage() {
                   }`}>
                     {resultado.autorizado ? '✅ ACESSO LIBERADO' : resultado.mensalidadesPendentes ? '⚠️ PAGAMENTO PENDENTE' : '🚫 ACESSO NEGADO'}
                   </h2>
-                  
+
                   {resultado.pessoa && (
                     <div className="mt-2">
                       <p className="text-2xl font-semibold">{resultado.pessoa.nome}</p>
@@ -612,7 +423,7 @@ export default function PortariaPage() {
                       )}
                     </div>
                   )}
-                  
+
                   {resultado.motivo && !resultado.autorizado && (
                     <p className="mt-2 text-lg">{resultado.motivo}</p>
                   )}
@@ -636,33 +447,8 @@ export default function PortariaPage() {
                         </div>
                       </div>
 
-                      {/* Botões de Pagamento */}
-                      <div className="mt-4 grid grid-cols-3 gap-3">
-                        <Button 
-                          onClick={() => iniciarPagamento('pix')}
-                          className="h-16 bg-teal-600 hover:bg-teal-700"
-                          disabled={processandoPagamento}
-                        >
-                          <QrCode className="h-6 w-6 mr-2" />
-                          PIX
-                        </Button>
-                        <Button 
-                          onClick={() => iniciarPagamento('credito')}
-                          className="h-16 bg-blue-600 hover:bg-blue-700"
-                          disabled={processandoPagamento}
-                        >
-                          <CreditCard className="h-6 w-6 mr-2" />
-                          Crédito
-                        </Button>
-                        <Button 
-                          onClick={() => iniciarPagamento('debito')}
-                          className="h-16 bg-purple-600 hover:bg-purple-700"
-                          disabled={processandoPagamento}
-                        >
-                          <Banknote className="h-6 w-6 mr-2" />
-                          Débito
-                        </Button>
-                      </div>
+                      <div className="space-y-3 mt-4">{resultado.mensalidadesPendentes.map(m=><PagamentoMensalidade key={m.id} mensalidade={m} onPago={()=>{limparResultado();toast.info('Pagamento salvo. Leia a carteirinha novamente para validar a entrada.')}}/>)}</div>
+                      <p className="mt-2 text-sm">PIX automático Sicoob aguarda ativação da integração bancária.</p>
                     </div>
                   )}
                 </div>
@@ -676,90 +462,6 @@ export default function PortariaPage() {
             </div>
           )}
 
-          {/* Modal de Pagamento */}
-          {showPagamento && resultado?.pessoa && (
-            <div className="p-6 rounded-xl border-4 border-blue-500 bg-blue-50">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold text-blue-700">
-                  💳 Pagamento - {formaPagamento?.toUpperCase()}
-                </h2>
-                <Button variant="ghost" size="sm" onClick={cancelarPagamento}>
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              <div className="bg-white p-4 rounded-lg mb-4">
-                <p className="text-lg"><strong>Associado:</strong> {resultado.pessoa.nome}</p>
-                <p className="text-2xl font-bold text-green-600 mt-2">
-                  Total: {formatCurrency(resultado.mensalidadesPendentes?.reduce((acc, m) => acc + m.valor, 0) || 0)}
-                </p>
-              </div>
-
-              {formaPagamento === 'pix' && (
-                <div className="text-center">
-                  <p className="mb-4 text-lg">Escaneie o QR Code ou copie o código PIX:</p>
-                  
-                  {pixQRCode && (
-                    <div className="bg-white p-4 rounded-lg inline-block mb-4">
-                      <img src={pixQRCode} alt="QR Code PIX" className="w-64 h-64 mx-auto" />
-                    </div>
-                  )}
-
-                  {pixCopiaCola && (
-                    <div className="mb-4">
-                      <div className="bg-gray-100 p-3 rounded text-xs font-mono break-all max-w-md mx-auto">
-                        {pixCopiaCola}
-                      </div>
-                      <Button onClick={copiarPix} className="mt-2">
-                        📋 Copiar Código PIX
-                      </Button>
-                    </div>
-                  )}
-
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Após o pagamento, clique em "Confirmar Pagamento"
-                  </p>
-                </div>
-              )}
-
-              {(formaPagamento === 'credito' || formaPagamento === 'debito') && (
-                <div className="text-center">
-                  <div className="bg-white p-6 rounded-lg mb-4">
-                    <CreditCard className="h-16 w-16 mx-auto text-blue-500 mb-4" />
-                    <p className="text-lg">Passe o cartão na maquininha</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {formaPagamento === 'credito' ? 'Crédito' : 'Débito'} - {formatCurrency(resultado.mensalidadesPendentes?.reduce((acc, m) => acc + m.valor, 0) || 0)}
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Após passar o cartão, clique em "Confirmar Pagamento"
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-3 justify-center">
-                <Button 
-                  variant="outline" 
-                  onClick={cancelarPagamento}
-                  className="h-14 px-8"
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={confirmarPagamento}
-                  disabled={processandoPagamento}
-                  className="h-14 px-8 bg-green-600 hover:bg-green-700"
-                >
-                  {processandoPagamento ? (
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  ) : (
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                  )}
-                  Confirmar Pagamento
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 'use client'
+import {LicencaPainel} from '@/components/LicencaSistema'
 import {RegistroAcessoSistema} from '@/components/RegistroAcessoSistema'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -14,21 +15,22 @@ import { AuthProvider } from '@/modules/auth/components/AuthProvider'
 import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
-  LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
+  LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone,
   Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase,
   UtensilsCrossed, Package
 } from 'lucide-react'
 
 // Itens do menu com código da permissão
 const menuItems = [
+  {href:'/dashboard/suporte',label:'Suporte',icon:MessageSquare,permissao:'suporte'},
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissao: 'dashboard' },
   { href: '/dashboard/dashboard-clube', label: 'Dashboard Clube', icon: BarChart3, permissao: 'relatorios' },
   { href: '/dashboard/associados', label: 'Associados', icon: Users, permissao: 'associados' },
   { href: '/dashboard/dependentes', label: 'Dependentes', icon: UserPlus, permissao: 'dependentes' },
   { href: '/dashboard/planos', label: 'Planos/Categorias', icon: BadgeDollarSign, permissao: 'configuracoes' },
   { href: '/dashboard/academia', label: 'Academia', icon: Dumbbell, permissao: 'portaria' },
-  { href: '/dashboard/academia-portaria', label: 'Portaria Academia', icon: ScanLine, permissao: 'portaria' },
-  { href: '/dashboard/piscina-portaria', label: 'Portaria Piscina', icon: Waves, permissao: 'portaria' },
+  { href: '/dashboard/academia-portaria', label: 'Portaria Academia', icon: ScanLine, permissao: 'portaria_academia' },
+  { href: '/dashboard/piscina-portaria', label: 'Portaria Piscina', icon: Waves, permissao: 'portaria_piscina' },
   { href: '/dashboard/convites', label: 'Convites', icon: Ticket, permissao: 'associados' },
   { href: '/dashboard/quiosques', label: 'Quiosques', icon: Tent, permissao: 'configuracoes' },
   { href: '/dashboard/exames-medicos', label: 'Exames Médicos', icon: Stethoscope, permissao: 'exames' },
@@ -63,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<any>(null)
   const [userName, setUserName] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [regras, setRegras] = useState<any[]>([])
   const [permissoes, setPermissoes] = useState<string[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -91,20 +94,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const carregarUsuario = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { 
+      if (!user) {
         router.push('/login')
-        return 
+        return
       }
       setUser(user)
 
       // Buscar dados do usuário incluindo permissões
       const userData = await buscarUsuarioAtual<{
+        ativo: boolean | null
         is_admin: boolean | null
         nome: string | null
         permissoes: string[] | null
-      }>(supabase, user.id, 'is_admin, nome, permissoes')
+      }>(supabase, user.id, 'ativo, is_admin, nome, permissoes')
 
-      if (userData) {
+      if (userData?.ativo) {
         setIsAdmin(userData.is_admin || false)
         setUserName(userData.nome || user.email?.split('@')[0] || 'Usuário')
 
@@ -121,15 +125,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       }
 
+      const { data: regrasAtuais, error } = await supabase.rpc('minhas_permissoes')
+      setRegras(error ? [] : regrasAtuais || [])
+      if (!userData?.ativo || error) { setIsAdmin(false); setPermissoes([]) }
       setLoading(false)
     }
 
-    carregarUsuario()
+    void carregarUsuario()
+    const timer = setInterval(() => { void carregarUsuario() }, 15000)
+    window.addEventListener('focus', carregarUsuario)
+    return () => { clearInterval(timer); window.removeEventListener('focus', carregarUsuario) }
   }, [router, supabase])
 
   // Monitorar mensagens não lidas em tempo real
   useEffect(() => {
-    // Buscar inicial
+    if (!isAdmin && !regras.some(r => r.codigo === 'whatsapp' && r.pode_visualizar)) return
     fetchMensagensNaoLidas()
 
     // Configurar Realtime para atualizações
@@ -157,7 +167,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         (payload) => {
           console.log('🔔 Nova mensagem WhatsApp recebida!')
           fetchMensagensNaoLidas()
-          
+
           // Tocar som de notificação
           try {
             const audio = new Audio('/sounds/notification.mp3')
@@ -184,7 +194,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase, fetchMensagensNaoLidas])
+  }, [supabase, fetchMensagensNaoLidas, isAdmin, regras])
 
   const temPermissao = (permissao: string) => {
     if (isAdmin) return true
@@ -196,12 +206,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login')
   }
 
+  const regraRota = (rota: string) => [...regras].sort((a,b) => b.rota.length-a.rota.length).find(r => rota === r.rota || (r.rota !== '/dashboard' && rota.startsWith(r.rota + '/')))
+  const regraAtual = regraRota(pathname)
+  const podeAbrir = pathname === '/dashboard/suporte' || isAdmin || (regraAtual?.pode_visualizar && (!pathname.endsWith('/novo') || regraAtual.pode_criar) && (!pathname.endsWith('/editar') || regraAtual.pode_editar))
   // Filtrar menu baseado nas permissões
   const menuFiltrado = menuItems.filter(item => {
     // Se é página apenas para admin, verificar se é admin
     if (item.apenasAdmin && !isAdmin) return false
     // Verificar permissão normal
-    return temPermissao(item.permissao)
+    return item.href === '/dashboard/suporte' || isAdmin || regraRota(item.href)?.pode_visualizar === true
   })
 
   if (loading) {
@@ -248,8 +261,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="flex-1">{item.label}</span>
               {/* Badge de notificação para CRM WhatsApp */}
               {item.showNotification && mensagensNaoLidas > 0 && (
-                <NotificationBadgeInline 
-                  count={mensagensNaoLidas} 
+                <NotificationBadgeInline
+                  count={mensagensNaoLidas}
                   className={pathname === item.href ? "bg-white text-primary" : ""}
                 />
               )}
@@ -292,7 +305,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             <Menu className="h-5 w-5" />
           </Button>
-          
+
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
               {menuItems.find(item => item.href === pathname)?.label || 'Painel'}
@@ -301,7 +314,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Indicador de novas mensagens no header */}
           {mensagensNaoLidas > 0 && (
-            <Link 
+            <Link
               href="/dashboard/crm"
               className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
             >
@@ -318,12 +331,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           )}
         </header>
+        {isAdmin&&<LicencaPainel/>}
 
         {/* Page content */}
         <main className="min-h-[calc(100vh-4rem)]">
           <AuthProvider><RegistroAcessoSistema/>
           <PermissoesProvider>
-            {children}
+            {podeAbrir ? children : <div role="alert" className="p-8"><h1 className="text-xl font-semibold">Acesso não permitido</h1><p>Seu usuário não tem permissão para esta página. Selecione uma opção disponível no menu.</p></div>}
           </PermissoesProvider>
           </AuthProvider>
         </main>

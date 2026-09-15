@@ -194,7 +194,7 @@ function extrairMensagemMeta(message: any, contact: any, phoneNumberId: string):
 async function processarStatus(status: any) {
   const messageId = status.id
   const statusType = status.status // sent, delivered, read, failed
-  
+
   if (!messageId) return
 
   let statusDb = 'enviada'
@@ -237,7 +237,7 @@ async function downloadMediaUrl(mediaId: string, provider: MetaCloudProvider): P
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  
+
   const mode = searchParams.get('hub.mode')
   const token = searchParams.get('hub.verify_token')
   const challenge = searchParams.get('hub.challenge')
@@ -256,7 +256,7 @@ export async function GET(request: Request) {
 
     if (provider) {
       console.log('✅ Webhook verificado para provider:', provider.id)
-      
+
       // Atualizar status
       await getSupabase()
         .from('whatsapp_providers')
@@ -270,8 +270,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
   }
 
-  return NextResponse.json({ 
-    status: 'ok', 
+  return NextResponse.json({
+    status: 'ok',
     message: 'Meta WhatsApp Webhook ativo',
     timestamp: new Date().toISOString()
   })
@@ -282,7 +282,7 @@ export async function GET(request: Request) {
 // ==========================================
 
 export async function POST(request: Request) {
-  const headersList = headers()
+  const headersList = await headers()
   const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
   try {

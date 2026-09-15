@@ -2,7 +2,7 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { 
+import {
   TrendingUp, TrendingDown, DollarSign, CreditCard,
   CheckCircle, Receipt, Ticket, AlertCircle, PiggyBank
 } from 'lucide-react'
@@ -94,29 +94,29 @@ export function StatsCardsSecundarios({ stats, loading }: StatsCardsProps) {
   }
 
   const items = [
-    { 
-      icon: CheckCircle, 
-      color: 'green', 
-      value: stats.mensalidadesPagas || 0, 
-      label: 'Mensalidades Pagas' 
+    {
+      icon: CheckCircle,
+      color: 'green',
+      value: stats.mensalidadesPagas || 0,
+      label: 'Mensalidades Pagas'
     },
-    { 
-      icon: Receipt, 
-      color: 'blue', 
-      value: stats.parcelasPagas || 0, 
-      label: 'Parcelas Pagas' 
+    {
+      icon: Receipt,
+      color: 'blue',
+      value: stats.parcelasPagas || 0,
+      label: 'Parcelas Pagas'
     },
-    { 
-      icon: Ticket, 
-      color: 'purple', 
-      value: stats.convitesMes || 0, 
-      label: 'Convites no Mês' 
+    {
+      icon: Ticket,
+      color: 'purple',
+      value: stats.convitesMes || 0,
+      label: 'Convites no Mês'
     },
-    { 
-      icon: AlertCircle, 
-      color: 'red', 
-      value: stats.inadimplentes || 0, 
-      label: 'Inadimplentes' 
+    {
+      icon: AlertCircle,
+      color: 'red',
+      value: stats.inadimplentes || 0,
+      label: 'Inadimplentes'
     },
   ]
 

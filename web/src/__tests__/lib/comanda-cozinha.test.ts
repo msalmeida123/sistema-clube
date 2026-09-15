@@ -38,3 +38,14 @@ test('consumidor sem cadastro e balcão são permitidos', () => {
   expect(html).toContain('Consumidor final')
   expect(html).toContain('Balcão')
 })
+
+test.each([58,80] as const)('comanda USB cabe no papel %s mm sem fechar a janela',papel=>{
+ const html=gerarComandaCozinha(pedido,papel)
+ expect(html).toContain(`size:${papel}mm 297mm`)
+ expect(html).toContain(`width:${papel-8}mm`)
+ expect(html).not.toContain('window.close')
+ expect(html).toContain('onclick="window.print()"')
+})
+test('segunda via fica identificada para evitar preparo duplicado',()=>{
+ expect(gerarComandaCozinha(pedido,80,true)).toContain('REIMPRESSÃO — CONFERIR ANTES DE PREPARAR')
+})

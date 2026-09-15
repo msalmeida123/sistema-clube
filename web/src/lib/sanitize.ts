@@ -1,12 +1,12 @@
 /**
  * Funções de Sanitização para uso em componentes React
- * 
+ *
  * Uso:
  * import { sanitize, SafeHtml } from '@/lib/sanitize'
- * 
+ *
  * // Em texto:
  * <p>{sanitize(userInput)}</p>
- * 
+ *
  * // Para renderizar HTML seguro:
  * <SafeHtml content={userHtml} />
  */
@@ -37,21 +37,21 @@ export function sanitizeAttribute(value: string | null | undefined): string {
  */
 export function sanitizeUrl(url: string | null | undefined): string {
   if (!url) return ''
-  
+
   const cleaned = sanitizeString(url)
-  
+
   // Bloqueia protocolos perigosos
   const dangerous = /^(javascript|data|vbscript):/i
   if (dangerous.test(cleaned)) {
     return ''
   }
-  
+
   // Permite apenas http, https, mailto, tel
   const safe = /^(https?:\/\/|mailto:|tel:|#|\/)/i
   if (!safe.test(cleaned) && !cleaned.startsWith('/')) {
     return ''
   }
-  
+
   return cleaned
 }
 
@@ -119,12 +119,12 @@ function sanitizeHtmlContent(html: string): string {
 interface SafeHtmlProps {
   content: string
   className?: string
-  as?: keyof JSX.IntrinsicElements
+  as?: keyof React.JSX.IntrinsicElements
 }
 
 export function SafeHtml({ content, className, as: Tag = 'div' }: SafeHtmlProps) {
   const sanitizedHtml = sanitizeHtmlContent(content)
-  
+
   return React.createElement(Tag, {
     className,
     dangerouslySetInnerHTML: { __html: sanitizedHtml }
@@ -137,13 +137,13 @@ export function SafeHtml({ content, className, as: Tag = 'div' }: SafeHtmlProps)
 export function useSanitizedInput(initialValue: string = '') {
   const [value, setValue] = React.useState(initialValue)
   const [sanitizedValue, setSanitizedValue] = React.useState(sanitizeForDatabase(initialValue))
-  
+
   const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const raw = e.target.value
     setValue(raw)
     setSanitizedValue(sanitizeForDatabase(raw))
   }, [])
-  
+
   return {
     value,
     sanitizedValue,

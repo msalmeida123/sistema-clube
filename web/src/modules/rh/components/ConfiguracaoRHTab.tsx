@@ -3,8 +3,12 @@ import {useEffect,useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {toast} from 'sonner'
+import {ConfiguracaoBancoHoras} from './ConfiguracaoBancoHoras'
+import {ConfiguracaoEncargos} from './ConfiguracaoEncargos'
+import {ConfiguracaoImpressoraRH} from './ConfiguracaoImpressoraRH'
 
 export function ConfiguracaoRHTab(){
+ const [aba,setAba]=useState('encargos')
  const [form,setForm]=useState<any>(null),[erro,setErro]=useState(''),[busy,setBusy]=useState(false),[resultado,setResultado]=useState(''),[alterado,setAlterado]=useState(false)
  async function carregar(){setErro('');try{const r=await fetch('/api/rh/configuracao');const d=await r.json();if(!r.ok)throw Error(d.error);setForm({...d,senha:''});setAlterado(false)}catch(e:any){setErro(e.message)}}
  useEffect(()=>{void carregar()},[])
@@ -14,7 +18,14 @@ export function ConfiguracaoRHTab(){
  if(!form)return <p>Carregando configuração...</p>
  if(!form.isAdmin)return <p>A configuração do aparelho e da empresa é feita pelo administrador.</p>
  function mudar(campo:string,valor:unknown){setForm({...form,[campo]:valor});setAlterado(true);setResultado('')}
- return <form onSubmit={salvar} className="max-w-3xl space-y-5">
+ return <div className="space-y-6">
+ <nav aria-label="Configurações do RH" className="flex flex-wrap gap-2">
+  {[['banco','Banco de horas'],['encargos','INSS, FGTS e IRRF'],['empresa','Empresa e ponto'],['impressora','Impressora']].map(([id,label])=><Button key={id} type="button" aria-pressed={aba===id} variant={aba===id?'default':'outline'} onClick={()=>setAba(id)}>{label}</Button>)}
+ </nav>
+ <div hidden={aba!=='banco'}><ConfiguracaoBancoHoras/></div>
+ <div hidden={aba!=='encargos'}><ConfiguracaoEncargos/></div>
+ <div hidden={aba!=='impressora'}><ConfiguracaoImpressoraRH/></div>
+ <div hidden={aba!=='empresa'}><form onSubmit={salvar} className="max-w-3xl space-y-5">
   <h2 className="text-xl font-semibold">Empresa e aparelho de ponto</h2>
   <fieldset disabled={busy} className="rounded-lg border p-4 grid gap-4 sm:grid-cols-2"><legend className="px-2 font-medium">Identificação na folha de pagamento</legend>
    <label>Nome da empresa<Input maxLength={160} value={form.empresa_nome} onChange={e=>mudar('empresa_nome',e.target.value)}/></label>
@@ -32,5 +43,5 @@ export function ConfiguracaoRHTab(){
   <p className="text-sm text-slate-600">Salve os dados antes de testar. O teste consulta a identificação do relógio. A importação automática das marcações ainda não está habilitada.</p>
   <div className="flex gap-2"><Button disabled={busy} type="submit">{busy?'Aguarde...':'Salvar configuração'}</Button><Button type="button" variant="outline" disabled={busy||alterado||!form.ip||!form.senha_configurada} onClick={()=>void testar()}>Testar conexão</Button></div>
   {resultado&&<p role="status" className="text-green-700">{resultado}</p>}
- </form>
+ </form></div></div>
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { 
+import {
   Waves, Users, Ticket, TrendingUp, Calendar, Clock,
   Download, FileText, Loader2, RefreshCw, DollarSign,
   BarChart3, PieChart as PieChartIcon, Filter
@@ -42,7 +42,7 @@ export default function DashboardClubePage() {
   const [periodo, setPeriodo] = useState<'hoje' | 'semana' | 'mes' | '90dias'>('mes')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
-  
+
   // Dados
   const [acessosPiscina, setAcessosPiscina] = useState<Acesso[]>([])
   const [convites, setConvites] = useState<Convite[]>([])
@@ -51,7 +51,7 @@ export default function DashboardClubePage() {
   const [convitesPorStatus, setConvitesPorStatus] = useState<any[]>([])
   const [convitesPorDia, setConvitesPorDia] = useState<any[]>([])
   const [topAssociados, setTopAssociados] = useState<any[]>([])
-  
+
   // Estatísticas
   const [stats, setStats] = useState({
     totalAcessos: 0,
@@ -67,7 +67,7 @@ export default function DashboardClubePage() {
   useEffect(() => {
     const hoje = new Date()
     let inicio: Date
-    
+
     switch (periodo) {
       case 'hoje':
         inicio = new Date(hoje.setHours(0, 0, 0, 0))
@@ -85,7 +85,7 @@ export default function DashboardClubePage() {
         inicio = new Date(hoje)
         inicio.setDate(inicio.getDate() - 30)
     }
-    
+
     setDataInicio(inicio.toISOString().split('T')[0])
     setDataFim(new Date().toISOString().split('T')[0])
   }, [periodo])
@@ -98,7 +98,7 @@ export default function DashboardClubePage() {
 
   const carregarDados = async () => {
     setLoading(true)
-    
+
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
     const fim = new Date(dataFim)
@@ -160,7 +160,7 @@ export default function DashboardClubePage() {
 
   const processarAcessosPorDia = (acessos: Acesso[]) => {
     const porDia: { [key: string]: number } = {}
-    
+
     acessos.forEach(acesso => {
       const data = new Date(acesso.data_hora).toLocaleDateString('pt-BR')
       porDia[data] = (porDia[data] || 0) + 1
@@ -179,11 +179,11 @@ export default function DashboardClubePage() {
 
   const processarAcessosPorHora = (acessos: Acesso[]) => {
     const porHora: { [key: string]: number } = {}
-    
+
     for (let i = 6; i <= 22; i++) {
       porHora[`${i}h`] = 0
     }
-    
+
     acessos.forEach(acesso => {
       const hora = new Date(acesso.data_hora).getHours()
       if (hora >= 6 && hora <= 22) {
@@ -204,7 +204,7 @@ export default function DashboardClubePage() {
       'expirado': 0,
       'cancelado': 0,
     }
-    
+
     convites.forEach(convite => {
       const status = convite.status || 'ativo'
       porStatus[status] = (porStatus[status] || 0) + 1
@@ -229,7 +229,7 @@ export default function DashboardClubePage() {
 
   const processarConvitesPorDia = (convites: Convite[]) => {
     const porDia: { [key: string]: { vendidos: number; usados: number } } = {}
-    
+
     convites.forEach(convite => {
       const data = new Date(convite.created_at).toLocaleDateString('pt-BR')
       if (!porDia[data]) {
@@ -254,7 +254,7 @@ export default function DashboardClubePage() {
 
   const processarTopAssociados = (acessos: Acesso[]) => {
     const contagem: { [key: string]: { nome: string; quantidade: number } } = {}
-    
+
     acessos.forEach(acesso => {
       if (acesso.associado) {
         const nome = acesso.associado.nome
@@ -274,7 +274,7 @@ export default function DashboardClubePage() {
 
   const exportarPDF = async (tipo: string) => {
     toast.loading('Gerando relatório...')
-    
+
     // Criar conteúdo HTML para o relatório
     let conteudo = ''
     const dataRelatorio = new Date().toLocaleDateString('pt-BR')
@@ -335,7 +335,7 @@ export default function DashboardClubePage() {
         </div>
         <p><strong>Período:</strong> ${periodo}</p>
         <p><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-        
+
         <div class="stats">
           <div class="stat-card">
             <div class="stat-value">${stats.totalAcessos}</div>
@@ -448,7 +448,7 @@ export default function DashboardClubePage() {
         <h1>🎫 Relatório de Convites</h1>
         <p><strong>Período:</strong> ${periodo}</p>
         <p><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-        
+
         <div class="stats">
           <div class="stat-card">
             <div class="stat-value">${stats.totalConvites}</div>
@@ -563,8 +563,8 @@ export default function DashboardClubePage() {
           tr:nth-child(even) { background: #f9fafb; }
           .section { page-break-inside: avoid; margin-bottom: 30px; }
           .footer { margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px; }
-          @media print { 
-            body { padding: 0; } 
+          @media print {
+            body { padding: 0; }
             .section { page-break-after: auto; }
           }
         </style>
@@ -939,11 +939,11 @@ export default function DashboardClubePage() {
                 <XAxis dataKey="data" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="quantidade" 
-                  stroke="#3b82f6" 
-                  fill="#93c5fd" 
+                <Area
+                  type="monotone"
+                  dataKey="quantidade"
+                  stroke="#3b82f6"
+                  fill="#93c5fd"
                   name="Acessos"
                 />
               </AreaChart>

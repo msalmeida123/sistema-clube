@@ -37,3 +37,14 @@ test('Holerite inclui bases informadas e rubricas separadas sem duplicar outros 
  for(const campo of ['Código','Referência','Vencimentos','Base INSS','Base IRRF','Base FGTS','Dependentes','Sede Norte','05&#x2F;01&#x2F;2026','Conta 0001','Plano odontológico','30 dias','Não informado'])expect(html).toContain(campo)
  expect(html).not.toContain('Outros descontos')
 })
+
+test('Imprime quinzena e outros descontos em linhas próprias, com líquido salvo',()=>{
+ const folha:any={status:'rascunho',funcionario:{nome:'Teste'},total_proventos:3000,total_descontos:650,salario_liquido:2350,detalhes_holerite:{codigo_funcionario:'1',sede:'',admissao:'',conta:'',dependentes:0,base_inss:null,base_irrf:null,base_fgts:null,salario_contratual:3000,rubricas:[
+ {campo:'salario_base',codigo:'001',descricao:'Salário',referencia:'Mensal',valor:3000},
+ {campo:'adiantamento',codigo:'ADI',descricao:'Adiantamento quinzenal',referencia:'Primeira quinzena',valor:500},
+ {campo:'outros_descontos',codigo:'D01',descricao:'Plano de saúde',referencia:'Mensal',valor:100},
+ {campo:'outros_descontos',codigo:'D02',descricao:'Desconto autorizado',referencia:'Ajuste',valor:50}]}}
+ const html=conteudoFolha([folha],{empresa_nome:'Teste',empresa_documento:''},'2026-09',true)
+ expect(html.match(/Adiantamento quinzenal/g)).toHaveLength(1)
+ for(const texto of ['Primeira quinzena','Plano de saúde','Desconto autorizado','500,00','650,00','2.350,00'])expect(html).toContain(texto)
+})

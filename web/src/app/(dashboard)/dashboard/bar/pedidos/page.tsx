@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import {BotaoUSBLocal} from '@/components/ImpressaoUSBLocal'
 import { ImprimirCozinha } from '@/components/ImprimirCozinha'
 import { ClipboardList, Search, Eye, XCircle, Receipt, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -194,7 +195,8 @@ export default function BarPedidosPage() {
                 </div>
               )}
             </div>
-            <div className="p-6 border-t flex gap-2">
+            <div className="p-6 border-t flex flex-wrap gap-2">
+              {detalhe.status==='pago'&&<BotaoUSBLocal pedidoId={detalhe.id} destino="balcao" reimpressao/>}
               {detalhe.status !== 'cancelado' && detalhe.itens?.some(i => i.enviar_cozinha) && <ImprimirCozinha pedidoId={detalhe.id} reimpressao />}
               <Button variant="outline" className="flex-1" onClick={() => setDetalhe(null)}>Fechar</Button>
               <Button

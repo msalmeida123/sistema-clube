@@ -12,7 +12,7 @@ const nextConfig = {
       ? [{ source: '/supabase/:path*', destination: 'http://api-gw:8000/:path*' }]
       : []
   },
-  
+
   // Headers de segurança
   async headers() {
     return [

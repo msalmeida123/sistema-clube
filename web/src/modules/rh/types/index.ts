@@ -161,7 +161,7 @@ export interface FolhaPagamento {
   id: string
   funcionario_id: string
   referencia: string // YYYY-MM
-  
+
   // Proventos
   salario_base: number
   horas_extras_valor: number
@@ -205,6 +205,7 @@ export interface FolhaFilters {
 }
 
 export interface FolhaFormData {
+  detalhes_holerite?: DetalhesHolerite
   funcionario_id: string
   referencia: string
   salario_base: number

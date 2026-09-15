@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, CreditCard, Edit, User, MapPin, Phone, Mail, FileText } from 'lucide-react'
 import Link from 'next/link'
+import { usePermissaoPagina } from '@/modules/auth/hooks/usePermissoesCRUD'
 
 export default function AssociadoDetalhesPage() {
   const params = useParams()
@@ -15,6 +16,21 @@ export default function AssociadoDetalhesPage() {
   const supabase = createClientComponentClient()
   const [associado, setAssociado] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const { podeEditar } = usePermissaoPagina('associados')
+  const [enviando, setEnviando] = useState(false)
+  const [avisoAcesso, setAvisoAcesso] = useState('')
+  async function enviarAcesso() {
+    if(enviando || !associado?.email) return
+    if(!window.confirm(`Enviar uma senha temporária para ${associado.email}?`)) return
+    setEnviando(true); setAvisoAcesso('')
+    try {
+      const resposta = await fetch(`/api/associados/${associado.id}/enviar-acesso`, {method:'POST'})
+      const dados = await resposta.json()
+      if(!resposta.ok) throw Error(dados.error || 'Não foi possível enviar.')
+      setAvisoAcesso(dados.message)
+    } catch(e) { setAvisoAcesso(e instanceof Error ? e.message : 'Não foi possível enviar.') }
+    finally { setEnviando(false) }
+  }
 
   useEffect(() => {
     async function fetchAssociado() {
@@ -76,6 +92,16 @@ export default function AssociadoDetalhesPage() {
         <h1 className="text-2xl font-bold">Detalhes do Associado</h1>
       </div>
 
+      {podeEditar && <Card>
+        <CardHeader><CardTitle>Acesso ao aplicativo do associado</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{associado.email ? `Enviar para ${associado.email}. A senha vale por uma hora e precisa ser trocada no primeiro acesso.` : 'Cadastre um e-mail em Editar para enviar o acesso.'}</p>
+          <Button disabled={enviando || !associado.email} onClick={enviarAcesso}>
+            <Mail className="h-4 w-4 mr-2" />{enviando ? 'Enviando...' : 'Gerar senha e enviar por e-mail'}
+          </Button>
+          {avisoAcesso && <p role="status" className="text-sm">{avisoAcesso}</p>}
+        </CardContent>
+      </Card>}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Card Principal */}
         <Card className="md:col-span-1">
@@ -144,7 +170,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Data de Nascimento</p>
                 <p className="font-medium">
-                  {associado.data_nascimento 
+                  {associado.data_nascimento
                     ? new Date(associado.data_nascimento).toLocaleDateString('pt-BR')
                     : '-'}
                 </p>
@@ -156,7 +182,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Data de Associação</p>
                 <p className="font-medium">
-                  {associado.data_associacao 
+                  {associado.data_associacao
                     ? new Date(associado.data_associacao).toLocaleDateString('pt-BR')
                     : '-'}
                 </p>
@@ -209,7 +235,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Cidade/Estado</p>
                 <p className="font-medium">
-                  {associado.cidade && associado.estado 
+                  {associado.cidade && associado.estado
                     ? `${associado.cidade}/${associado.estado}`
                     : '-'}
                 </p>

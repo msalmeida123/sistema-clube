@@ -31,7 +31,7 @@ export default function CarteirinhaPage() {
       setClubeConfig(c)
       if (a) {
         const hash = codigoCarteirinha(a.id, a.qr_code)
-        const qr = await QRCode.toDataURL(hash, { width: 150, margin: 1 })
+        const qr = await QRCode.toDataURL(hash, { width: 240, margin: 4 })
         setQrCodeUrl(qr)
       }
     }
@@ -103,7 +103,7 @@ export default function CarteirinhaPage() {
             <div ref={cardFrenteRef} className="relative bg-white rounded-lg shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ width: '342px', height: '216px' }}>
               {/* Barra de cor do plano */}
               <div className="absolute top-0 left-0 right-0 h-2" style={{ backgroundColor: getPlanoColor(associado.plano) }} />
-              
+
               {/* Logo */}
               <div className="absolute top-4 left-4">
                 {clubeConfig?.logo_url ? (
@@ -114,7 +114,7 @@ export default function CarteirinhaPage() {
               </div>
 
               {/* QR Code */}
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-7 right-4 bg-white">
                 {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code" className="w-20 h-20" />}
               </div>
 

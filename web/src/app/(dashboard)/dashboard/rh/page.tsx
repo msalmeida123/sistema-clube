@@ -6,15 +6,17 @@ import { Users, Clock, DollarSign, Palmtree, LayoutDashboard, Settings } from 'l
 import { useRHStats } from '@/modules/rh'
 import { RHDashboard } from '@/modules/rh/components/RHDashboard'
 import { FuncionariosTab } from '@/modules/rh/components/FuncionariosTab'
+import {BancoHorasTab} from '@/modules/rh/components/BancoHorasTab'
 import { PontoTab } from '@/modules/rh/components/PontoTab'
 import { FolhaTab } from '@/modules/rh/components/FolhaTab'
 import { AfastamentosTab } from '@/modules/rh/components/AfastamentosTab'
 
 import { ConfiguracaoRHTab } from '@/modules/rh/components/ConfiguracaoRHTab'
 
-type Tab = 'dashboard' | 'funcionarios' | 'ponto' | 'folha' | 'afastamentos' | 'configuracao'
+type Tab = 'banco' | 'dashboard' | 'funcionarios' | 'ponto' | 'folha' | 'afastamentos' | 'configuracao'
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
+  {id:'banco',label:'Banco de horas',icon:Clock},
   {id:'configuracao',label:'Configuração do RH',icon:Settings},
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'funcionarios', label: 'Funcionários', icon: Users },
@@ -62,6 +64,7 @@ export default function RHPage() {
           {tab === 'dashboard' && <RHDashboard stats={stats} loading={statsLoading} />}
           {tab === 'funcionarios' && <FuncionariosTab />}
           {tab === 'ponto' && <PontoTab />}
+          {tab === 'banco' && <BancoHorasTab />}
           {tab === 'folha' && <FolhaTab />}
           {tab === 'afastamentos' && <AfastamentosTab />}
         </div>

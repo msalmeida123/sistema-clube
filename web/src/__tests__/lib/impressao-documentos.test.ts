@@ -18,7 +18,11 @@ test('convite inclui QR imagem e código cadastrado, data e título, escapando d
   expect(html).not.toContain('<script>')
   expect(html).toContain('&amp;')
 })
-test.each(['cancelado','utilizado','pendente'])('não emite via válida para status %s', status=>expect(()=>validarConviteImpressao({...convite,status})).toThrow())
+test.each(['cancelado','pendente'])('não emite via válida para status %s', status=>expect(()=>validarConviteImpressao({...convite,status})).toThrow())
+test('permite reimprimir o mesmo convite após entrada para exame e piscina',()=>{
+ expect(()=>validarConviteImpressao({...convite,status:'utilizado'})).not.toThrow()
+ expect(conteudoConvite(convite,'data:image/png;base64,YQ==')).toContain('Piscina somente após exame Apto')
+})
 test('recusa convite expirado ou sem QR',()=>{
   expect(()=>validarConviteImpressao({...convite,data_validade:'2000-01-01'})).toThrow()
   expect(()=>validarConviteImpressao({...convite,qr_code:''})).toThrow()

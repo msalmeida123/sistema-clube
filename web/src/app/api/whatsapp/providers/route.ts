@@ -3,7 +3,7 @@
 // CRUD + status + testar conexão
 // =====================================================
 
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createProvider } from '@/lib/whatsapp/factory'
@@ -12,7 +12,7 @@ import { ProviderConfig } from '@/lib/whatsapp/provider'
 // GET - Listar providers
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -42,7 +42,7 @@ export async function GET() {
 // POST - Criar provider
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 // PUT - Atualizar provider
 export async function PUT(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -141,7 +141,7 @@ export async function PUT(request: Request) {
 // DELETE - Remover provider
 export async function DELETE(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -178,7 +178,7 @@ async function testarConexao(body: any) {
     }
 
     if (body.id && body.id !== 'test') {
-      const supabase = createRouteHandlerClient({ cookies })
+      const supabase = await createRouteHandlerClient({ cookies })
       const { data: salva, error } = await supabase.from('whatsapp_providers').select('*').eq('id', body.id).single()
       if (error || !salva) return NextResponse.json({ error: 'Conexão não encontrada ou sem acesso' }, { status: 404 })
       config = salva as ProviderConfig
@@ -189,10 +189,10 @@ async function testarConexao(body: any) {
 
     // Atualizar status no banco se tem id
     if (body.id && body.id !== 'test') {
-      const supabase = createRouteHandlerClient({ cookies })
+      const supabase = await createRouteHandlerClient({ cookies })
       await supabase
         .from('whatsapp_providers')
-        .update({ 
+        .update({
           status: status.connected ? 'conectado' : 'desconectado',
           telefone: status.phone || null,
           nome_exibicao: status.name || null,
@@ -209,7 +209,7 @@ async function testarConexao(body: any) {
 
 async function buscarStatus(id: string) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: config } = await supabase
       .from('whatsapp_providers')
       .select('*')
@@ -229,7 +229,7 @@ async function buscarStatus(id: string) {
 
 async function buscarTemplates(id: string) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { data: config } = await supabase
       .from('whatsapp_providers')
       .select('*')

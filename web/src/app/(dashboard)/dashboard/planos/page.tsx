@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import {
   CreditCard, Plus, Trash2, Edit, Save, X, Check,
   Waves, Dumbbell, Goal, PartyPopper, UtensilsCrossed, Users
 } from 'lucide-react'
@@ -35,7 +35,7 @@ type Plano = {
 
 const corPadrao = '#3B82F6'
 const coresDisponiveis = [
-  '#22C55E', '#3B82F6', '#A855F7', '#F59E0B', '#EF4444', 
+  '#22C55E', '#3B82F6', '#A855F7', '#F59E0B', '#EF4444',
   '#EC4899', '#06B6D4', '#6B7280', '#14B8A6', '#8B5CF6'
 ]
 
@@ -45,7 +45,7 @@ export default function PlanosPage() {
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState<Plano | null>(null)
   const [novoBeneficio, setNovoBeneficio] = useState('')
-  
+
   const [form, setForm] = useState({
     nome: '',
     descricao: '',

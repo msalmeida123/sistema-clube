@@ -1,11 +1,11 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 // GET - Listar setores
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
 
     const { data: setores, error } = await supabase
       .from('setores_whatsapp')
@@ -27,7 +27,7 @@ export async function GET() {
 // POST - Criar novo setor
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const body = await request.json()
 
     const { nome, descricao, cor, icone } = body

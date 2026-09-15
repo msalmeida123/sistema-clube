@@ -9,10 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Plus } from 'lucide-react'
 
 // Imports do módulo - tudo organizado
-import { 
-  useAssociados, 
-  AssociadosTable, 
-  AssociadoSearch 
+import {
+  useAssociados,
+  AssociadosTable,
+  AssociadoSearch
 } from '@/modules/associados'
 
 export default function AssociadosPage() {
@@ -45,9 +45,9 @@ export default function AssociadosPage() {
           <CardTitle>Associados ({associados.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <AssociadosTable 
-            associados={associados} 
-            loading={loading} 
+          <AssociadosTable
+            associados={associados}
+            loading={loading}
           />
         </CardContent>
       </Card>

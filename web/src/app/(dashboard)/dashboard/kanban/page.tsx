@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import { 
+import {
   MessageSquare, User, Phone, Clock, AlertCircle, CheckCircle2,
   Filter, RefreshCw, Loader2, MoreVertical, Inbox,
   ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder, PlayCircle,
@@ -74,25 +74,25 @@ export default function KanbanPage() {
   const [prioridadeFiltro, setPrioridadeFiltro] = useState<string>('todas')
   const [showFiltros, setShowFiltros] = useState(false)
   const [menuAberto, setMenuAberto] = useState<string | null>(null)
-  
+
   // Estado do drag and drop
   const [draggedItem, setDraggedItem] = useState<Conversa | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  
+
   const supabase = createClientComponentClient()
 
   // Carregar dados
   const carregarDados = useCallback(async () => {
     setLoading(true)
-    
+
     // Carregar setores do WhatsApp
     const { data: setoresData } = await supabase
       .from('setores_whatsapp')
       .select('id, nome, cor, icone')
       .eq('ativo', true)
       .order('ordem')
-    
+
     setSetores(setoresData || [])
 
     // Carregar conversas
@@ -165,9 +165,9 @@ export default function KanbanPage() {
   const atualizarOrdem = async (conversaId: string, novoStatus: string, novaOrdem: number) => {
     const { error } = await supabase
       .from('conversas_whatsapp')
-      .update({ 
+      .update({
         status_kanban: novoStatus,
-        ordem_kanban: novaOrdem 
+        ordem_kanban: novaOrdem
       })
       .eq('id', conversaId)
 
@@ -194,7 +194,7 @@ export default function KanbanPage() {
     setDraggedItem(conversa)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', conversa.id)
-    
+
     // Adicionar classe visual
     const target = e.target as HTMLElement
     setTimeout(() => {
@@ -222,11 +222,11 @@ export default function KanbanPage() {
   const handleDragOverCard = (e: React.DragEvent, colunaId: string, index: number) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     const midY = rect.top + rect.height / 2
     const insertIndex = e.clientY < midY ? index : index + 1
-    
+
     setDragOverColumn(colunaId)
     setDragOverIndex(insertIndex)
   }
@@ -234,7 +234,7 @@ export default function KanbanPage() {
   // Drop
   const handleDrop = async (e: React.DragEvent, colunaId: string, dropIndex?: number) => {
     e.preventDefault()
-    
+
     if (!draggedItem) return
 
     const conversasDestino = getConversasColuna(colunaId)
@@ -259,7 +259,7 @@ export default function KanbanPage() {
 
       // Atualizar ordem de todas as conversas da coluna
       const atualizacoes = novaLista.map((c, i) => ({ id: c.id, ordem_kanban: i * 10 }))
-      
+
       // Atualizar estado local imediatamente
       setConversas(prev => {
         const outras = prev.filter(c => c.status_kanban !== colunaId)
@@ -269,21 +269,21 @@ export default function KanbanPage() {
 
       // Persistir no banco
       await reordenarConversas(atualizacoes)
-      
+
     } else {
       // Movendo para outra coluna
       const novaOrdem = indexDestino * 10
 
       // Atualizar estado local imediatamente
-      setConversas(prev => prev.map(c => 
-        c.id === draggedItem.id 
+      setConversas(prev => prev.map(c =>
+        c.id === draggedItem.id
           ? { ...c, status_kanban: colunaId, ordem_kanban: novaOrdem }
           : c
       ))
 
       // Persistir no banco
       const sucesso = await atualizarOrdem(draggedItem.id, colunaId, novaOrdem)
-      
+
       if (sucesso) {
         toast.success(`Movido para ${COLUNAS_KANBAN.find(c => c.id === colunaId)?.nome}`)
       }
@@ -306,7 +306,7 @@ export default function KanbanPage() {
       return
     }
 
-    setConversas(prev => prev.map(c => 
+    setConversas(prev => prev.map(c =>
       c.id === conversaId ? { ...c, prioridade: novaPrioridade } : c
     ))
     setMenuAberto(null)
@@ -326,7 +326,7 @@ export default function KanbanPage() {
     }
 
     const setor = setores.find(s => s.id === setorId)
-    setConversas(prev => prev.map(c => 
+    setConversas(prev => prev.map(c =>
       c.id === conversaId ? { ...c, setor_id: setorId, setor: setor || undefined } : c
     ))
     setMenuAberto(null)
@@ -340,9 +340,9 @@ export default function KanbanPage() {
 
     const { error } = await supabase
       .from('conversas_whatsapp')
-      .update({ 
+      .update({
         status_kanban: colunaId,
-        ordem_kanban: novaOrdem 
+        ordem_kanban: novaOrdem
       })
       .eq('id', conversaId)
 
@@ -351,7 +351,7 @@ export default function KanbanPage() {
       return
     }
 
-    setConversas(prev => prev.map(c => 
+    setConversas(prev => prev.map(c =>
       c.id === conversaId ? { ...c, status_kanban: colunaId, ordem_kanban: novaOrdem } : c
     ))
     setMenuAberto(null)
@@ -445,8 +445,8 @@ export default function KanbanPage() {
               </select>
             </div>
             <div className="flex items-end">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => { setSetorFiltro('todos'); setPrioridadeFiltro('todas') }}
               >
@@ -515,7 +515,7 @@ export default function KanbanPage() {
                           {showDropIndicator && (
                             <div className="h-1 bg-blue-400 rounded-full mb-2 animate-pulse" />
                           )}
-                          
+
                           <Card
                             draggable
                             onDragStart={(e) => handleDragStart(e, conversa)}
@@ -558,7 +558,7 @@ export default function KanbanPage() {
                                 >
                                   <MoreVertical className="h-3 w-3" />
                                 </Button>
-                                
+
                                 {/* Menu Dropdown */}
                                 {menuAberto === conversa.id && (
                                   <div className="absolute right-0 top-6 bg-white border rounded-lg shadow-lg py-1 z-50 min-w-[200px]">
@@ -578,7 +578,7 @@ export default function KanbanPage() {
                                         {conversa.prioridade === p.id && <span className="ml-auto">✓</span>}
                                       </button>
                                     ))}
-                                    
+
                                     <div className="border-t my-1" />
                                     <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
                                       Setor
@@ -605,7 +605,7 @@ export default function KanbanPage() {
                                         {conversa.setor_id === s.id && <span className="ml-auto">✓</span>}
                                       </button>
                                     ))}
-                                    
+
                                     <div className="border-t my-1" />
                                     <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
                                       Mover para
@@ -623,7 +623,7 @@ export default function KanbanPage() {
                                         </button>
                                       )
                                     })}
-                                    
+
                                     <div className="border-t my-1" />
                                     <Link href="/dashboard/crm">
                                       <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-blue-600">
@@ -652,11 +652,11 @@ export default function KanbanPage() {
                                 </span>
                                 {/* Badge de setor */}
                                 {conversa.setor && (
-                                  <span 
+                                  <span
                                     className="text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
-                                    style={{ 
+                                    style={{
                                       backgroundColor: conversa.setor.cor + '20',
-                                      color: conversa.setor.cor 
+                                      color: conversa.setor.cor
                                     }}
                                   >
                                     {iconesSetor[conversa.setor.icone]}
@@ -680,7 +680,7 @@ export default function KanbanPage() {
                       )
                     })
                   )}
-                  
+
                   {/* Indicador de drop no final da coluna */}
                   {dragOverColumn === coluna.id && dragOverIndex === conversasColuna.length && conversasColuna.length > 0 && (
                     <div className="h-1 bg-blue-400 rounded-full animate-pulse" />
@@ -694,8 +694,8 @@ export default function KanbanPage() {
 
       {/* Click outside to close menu */}
       {menuAberto && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setMenuAberto(null)}
         />
       )}

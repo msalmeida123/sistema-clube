@@ -1,4 +1,5 @@
 'use client'
+import AtendimentoConvidado from '@/components/AtendimentoConvidado'
 
 import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
 import { codigoCarteirinha } from '@/lib/carteirinha-qr'
@@ -8,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
-  Waves, Search, CheckCircle, XCircle, AlertCircle, 
+import {
+  Waves, Search, CheckCircle, XCircle, AlertCircle,
   LogIn, LogOut, QrCode, User, History, Stethoscope, Calendar
 } from 'lucide-react'
 
@@ -42,6 +43,7 @@ type Acesso = {
 }
 
 export default function PiscinaPortariaPage() {
+  const [conviteQR,setConviteQR]=useState('')
   const [opcoes, setOpcoes] = useState<any[]>([])
   const [busca, setBusca] = useState('')
   const [associado, setAssociado] = useState<Associado | null>(null)
@@ -60,20 +62,20 @@ export default function PiscinaPortariaPage() {
     carregarAcessosHoje()
     // Focar no input ao carregar
     inputRef.current?.focus()
-    
+
     // Manter foco no input (para scanner USB)
     const interval = setInterval(() => {
-      if (modoScanner && document.activeElement !== inputRef.current) {
+      if (modoScanner && !conviteQR && document.activeElement !== inputRef.current) {
         inputRef.current?.focus()
       }
     }, 500)
-    
+
     return () => clearInterval(interval)
-  }, [modoScanner])
+  }, [modoScanner,conviteQR])
 
   const carregarAcessosHoje = async () => {
     const hoje = new Date().toISOString().split('T')[0]
-    
+
     const { data, count } = await supabase
       .from('acessos_piscina')
       .select(`
@@ -102,10 +104,12 @@ export default function PiscinaPortariaPage() {
     if (loading) return
     const termoBusca = codigo || busca
     if (!termoBusca.trim()) {
-      toast.error('Digite um código QR, nome ou matrícula')
+      toast.error('Digite o QR do convite, da carteirinha, nome ou título')
       return
     }
 
+    setConviteQR('')
+    if(termoBusca.trim().toUpperCase().startsWith('CONV-')){setAssociado(null);setExame(null);setOpcoes([]);setConviteQR(termoBusca.trim().toUpperCase());return}
     setLoading(true)
     setAssociado(null)
     setExame(null)
@@ -137,7 +141,7 @@ export default function PiscinaPortariaPage() {
     setExame(exameData)
     setLoading(false)
     setBusca('')
-    
+
     // Som de feedback
     if (exameData) {
       // Liberado - som positivo
@@ -203,7 +207,7 @@ export default function PiscinaPortariaPage() {
 
     toast.success(`${tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada!`)
     playBeep(1000, 100)
-    
+
     setAssociado(null)
     setExame(null)
     carregarAcessosHoje()
@@ -214,9 +218,9 @@ export default function PiscinaPortariaPage() {
   const registrarEntradaAutomatica = async () => {
     if (!associado || !exame) return
     if (associado.status !== 'ativo') return
-    
+
     setRegistrando(true)
-    
+
     const { error } = await supabase
       .from('acessos_piscina')
       .insert({
@@ -242,22 +246,22 @@ export default function PiscinaPortariaPage() {
     if (!associado) return null
 
     if (associado.status !== 'ativo') {
-      return { 
-        cor: 'bg-gray-100 border-gray-300', 
-        texto: 'ASSOCIADO INATIVO', 
-        icone: XCircle, 
-        corIcone: 'text-gray-500', 
-        podeEntrar: false 
+      return {
+        cor: 'bg-gray-100 border-gray-300',
+        texto: 'ASSOCIADO INATIVO',
+        icone: XCircle,
+        corIcone: 'text-gray-500',
+        podeEntrar: false
       }
     }
 
     if (!exame) {
-      return { 
-        cor: 'bg-red-100 border-red-500', 
-        texto: '🚫 BLOQUEADO - SEM EXAME MÉDICO', 
-        icone: XCircle, 
-        corIcone: 'text-red-500', 
-        podeEntrar: false 
+      return {
+        cor: 'bg-red-100 border-red-500',
+        texto: '🚫 BLOQUEADO - SEM EXAME MÉDICO',
+        icone: XCircle,
+        corIcone: 'text-red-500',
+        podeEntrar: false
       }
     }
 
@@ -266,21 +270,21 @@ export default function PiscinaPortariaPage() {
     const diasRestantes = Math.ceil((dataValidade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
     if (diasRestantes <= 15) {
-      return { 
-        cor: 'bg-yellow-100 border-yellow-500', 
-        texto: `⚠️ LIBERADO - EXAME VENCE EM ${diasRestantes} DIAS`, 
-        icone: AlertCircle, 
-        corIcone: 'text-yellow-600', 
-        podeEntrar: true 
+      return {
+        cor: 'bg-yellow-100 border-yellow-500',
+        texto: `⚠️ LIBERADO - EXAME VENCE EM ${diasRestantes} DIAS`,
+        icone: AlertCircle,
+        corIcone: 'text-yellow-600',
+        podeEntrar: true
       }
     }
 
-    return { 
-      cor: 'bg-green-100 border-green-500', 
-      texto: '✅ LIBERADO', 
-      icone: CheckCircle, 
-      corIcone: 'text-green-500', 
-      podeEntrar: true 
+    return {
+      cor: 'bg-green-100 border-green-500',
+      texto: '✅ LIBERADO',
+      icone: CheckCircle,
+      corIcone: 'text-green-500',
+      podeEntrar: true
     }
   }
 
@@ -308,7 +312,7 @@ export default function PiscinaPortariaPage() {
           </label>
           <div className="text-right">
             <p className="text-2xl font-bold text-blue-500">{totalHoje}</p>
-            <p className="text-sm text-muted-foreground">acessos hoje</p>
+            <p className="text-sm text-muted-foreground">acessos de associados hoje</p>
           </div>
         </div>
       </div>
@@ -322,7 +326,7 @@ export default function PiscinaPortariaPage() {
               <Input
                 ref={inputRef}
                 disabled={loading}
-                placeholder={modoScanner ? "QR Code ou número do título..." : "Nome, CPF ou número do título..."}
+                placeholder={modoScanner ? "QR do convite, carteirinha ou título..." : "Nome, CPF ou número do título..."}
                 value={busca}
                 onChange={e => setBusca(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && buscarAssociado()}
@@ -339,7 +343,7 @@ export default function PiscinaPortariaPage() {
           </div>
           {modoScanner && (
             <p className="text-sm text-blue-600 mt-2 text-center">
-              📱 Scanner USB ativo - O foco permanece neste campo automaticamente
+              Scanner USB ativo — leia a carteirinha ou o convite no campo de busca
             </p>
           )}
         </CardContent>
@@ -362,7 +366,7 @@ export default function PiscinaPortariaPage() {
               {/* Info */}
               <div className="flex-1">
                 <h2 className="text-3xl font-bold mb-2">{associado.nome}</h2>
-                
+
                 {/* Status Grande */}
                 <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-2xl font-bold mb-4 ${statusInfo.cor}`}>
                   <statusInfo.icone className={`h-8 w-8 ${statusInfo.corIcone}`} />
@@ -442,17 +446,18 @@ export default function PiscinaPortariaPage() {
       )}
 
       {/* Últimos Acessos */}
+      {conviteQR && <AtendimentoConvidado key={conviteQR} qr={conviteQR} modo="piscina"/>}
       {opcoes.length>0 && <Card><CardContent className="pt-4 space-y-2"><p>Selecione o associado:</p>{opcoes.map(p=><Button key={p.id} variant="outline" onClick={()=>buscarAssociado(codigoCarteirinha(p.id,p.qr_code))}>{p.nome} — Título {p.numero_titulo}</Button>)}</CardContent></Card>}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
-            Últimos Acessos Hoje
+            Últimos acessos de associados hoje
           </CardTitle>
         </CardHeader>
         <CardContent>
           {acessosHoje.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">Nenhum acesso registrado hoje</p>
+            <p className="text-center py-8 text-muted-foreground">Nenhum acesso de associado registrado hoje</p>
           ) : (
             <div className="space-y-2">
               {acessosHoje.map(acesso => (

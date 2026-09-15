@@ -1,0 +1,170 @@
+version: '3.8'
+services:
+  sistema-clube:
+    image: sistema-clube:next15-09126aa2b937
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL}
+      NEXT_PUBLIC_SUPABASE_LOCAL_PROXY: ${NEXT_PUBLIC_SUPABASE_LOCAL_PROXY}
+      CERTIFICADO_ENCRYPTION_KEY: ${CERTIFICADO_ENCRYPTION_KEY}
+      REDIS_URL: ${REDIS_URL}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+      APP_SMTP_HOST: ${APP_SMTP_HOST}
+      APP_SMTP_PORT: ${APP_SMTP_PORT}
+      APP_SMTP_SECURE: ${APP_SMTP_SECURE}
+      APP_SMTP_USER: ${APP_SMTP_USER}
+      APP_SMTP_PASSWORD: ${APP_SMTP_PASSWORD}
+      APP_SMTP_FROM: ${APP_SMTP_FROM}
+    networks:
+    - supabase
+    - redis
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.hostname == debianserver
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  crm-redis:
+    image: redis:7.4-alpine
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    - --maxmemory
+    - 256mb
+    - --maxmemory-policy
+    - noeviction
+    networks:
+    - redis
+    volumes:
+    - redis-data:/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.hostname == debianserver
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  web-proxy:
+    image: nginx:1.28-alpine
+    configs:
+    - source: clube-sistema-nginx-conf-c73bc6d527
+      target: /etc/nginx/conf.d/default.conf
+    networks:
+    - supabase
+    - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.hostname == debianserver
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+      labels:
+        traefik.enable: 'true'
+        traefik.swarm.network: traefik_swarm_proxy
+        traefik.http.routers.clube.rule: Host(`sistema.intellia.ia.br`)
+        traefik.http.routers.clube.entrypoints: websecure
+        traefik.http.routers.clube.tls: 'true'
+        traefik.http.routers.clube.tls.certresolver: cloudflare
+        traefik.http.routers.clube.service: clube
+        traefik.http.services.clube.loadbalancer.server.port: '8080'
+        traefik.http.routers.clube-http.rule: Host(`sistema.intellia.ia.br`)
+        traefik.http.routers.clube-http.entrypoints: web
+        traefik.http.routers.clube-http.service: clube
+        traefik.http.routers.clube-http.middlewares: clube-https
+        traefik.http.middlewares.clube-https.redirectscheme.scheme: https
+        traefik.http.middlewares.clube-https.redirectscheme.permanent: 'true'
+  app-associado-proxy:
+    image: nginx:1.28-alpine
+    configs:
+    - source: clube-associado-nginx-conf-5d1b0a8c7c
+      target: /etc/nginx/conf.d/default.conf
+    networks:
+    - supabase
+    - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.hostname == debianserver
+      restart_policy:
+        condition: any
+        delay: 5s
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+      labels:
+        traefik.enable: 'true'
+        traefik.swarm.network: traefik_swarm_proxy
+        traefik.http.routers.clube-associado.rule: Host(`app.intellia.ia.br`)
+        traefik.http.routers.clube-associado.entrypoints: websecure
+        traefik.http.routers.clube-associado.tls: 'true'
+        traefik.http.routers.clube-associado.tls.certresolver: cloudflare
+        traefik.http.routers.clube-associado.service: clube-associado
+        traefik.http.services.clube-associado.loadbalancer.server.port: '8080'
+        traefik.http.routers.clube-associado-http.rule: Host(`app.intellia.ia.br`)
+        traefik.http.routers.clube-associado-http.entrypoints: web
+        traefik.http.routers.clube-associado-http.service: clube-associado
+        traefik.http.routers.clube-associado-http.middlewares: clube-associado-https
+        traefik.http.middlewares.clube-associado-https.redirectscheme.scheme: https
+        traefik.http.middlewares.clube-associado-https.redirectscheme.permanent: 'true'
+networks:
+  supabase:
+    external: true
+    name: supabase_backend
+  public:
+    external: true
+    name: traefik_swarm_proxy
+  redis:
+    driver: overlay
+    internal: true
+volumes:
+  redis-data: {}
+configs:
+  clube-sistema-nginx-conf-c73bc6d527:
+    external: true
+  clube-associado-nginx-conf-5d1b0a8c7c:
+    external: true

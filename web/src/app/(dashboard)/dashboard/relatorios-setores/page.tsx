@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { 
+import {
   FileText, Download, Loader2, Calendar, Filter,
   Waves, DoorOpen, Dumbbell, Droplets, Ticket, Users,
   Printer, Eye
@@ -26,7 +26,7 @@ export default function RelatoriosSetoresPage() {
     const hoje = new Date()
     const inicioMes = new Date(hoje)
     inicioMes.setDate(inicioMes.getDate() - 30)
-    
+
     setDataInicio(inicioMes.toISOString().split('T')[0])
     setDataFim(hoje.toISOString().split('T')[0])
   }, [])
@@ -53,12 +53,12 @@ export default function RelatoriosSetoresPage() {
       .order('data_hora', { ascending: false })
 
     const dados = acessos || []
-    
+
     // Estatísticas
     const totalAcessos = dados.length
     const acessosAssociados = dados.filter(a => a.associado).length
     const acessosDependentes = dados.filter(a => a.dependente).length
-    
+
     // Acessos por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(a => {
@@ -111,7 +111,7 @@ export default function RelatoriosSetoresPage() {
           tr:hover { background: #f1f5f9; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print { 
+          @media print {
             body { padding: 15px; }
             .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -230,12 +230,12 @@ export default function RelatoriosSetoresPage() {
       .order('data_hora', { ascending: false })
 
     const dados = acessos || []
-    
+
     // Estatísticas
     const totalAcessos = dados.length
     const entradas = dados.filter(a => a.tipo === 'entrada').length
     const saidas = dados.filter(a => a.tipo === 'saida').length
-    
+
     // Por dia
     const porDia: { [key: string]: { entradas: number; saidas: number } } = {}
     dados.forEach(a => {
@@ -280,7 +280,7 @@ export default function RelatoriosSetoresPage() {
           .saida { color: #ef4444; font-weight: 600; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print { 
+          @media print {
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -390,10 +390,10 @@ export default function RelatoriosSetoresPage() {
       .order('data_hora', { ascending: false })
 
     const dados = acessos || []
-    
+
     // Estatísticas
     const totalAcessos = dados.length
-    
+
     // Por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(a => {
@@ -445,7 +445,7 @@ export default function RelatoriosSetoresPage() {
           tr:nth-child(even) { background: #f8fafc; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print { 
+          @media print {
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -568,12 +568,12 @@ export default function RelatoriosSetoresPage() {
 
     const dados = usos || []
     const multasList = multas || []
-    
+
     // Estatísticas
     const totalUsos = dados.length
     const chavesPerdidas = dados.filter(u => u.chave_perdida).length
     const totalMultas = multasList.reduce((acc, m) => acc + (m.valor || 0), 0)
-    
+
     // Por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(u => {
@@ -620,7 +620,7 @@ export default function RelatoriosSetoresPage() {
           .devolvida { color: #10b981; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print { 
+          @media print {
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -748,14 +748,14 @@ export default function RelatoriosSetoresPage() {
       .order('created_at', { ascending: false })
 
     const dados = convites || []
-    
+
     // Estatísticas
     const totalConvites = dados.length
     const usados = dados.filter(c => c.status === 'utilizado').length
     const ativos = dados.filter(c => c.status === 'ativo').length
     const expirados = dados.filter(c => c.status === 'expirado').length
     const receita = dados.reduce((acc, c) => acc + (c.valor_pago || 0), 0)
-    
+
     // Por dia
     const porDia: { [key: string]: { vendidos: number; usados: number } } = {}
     dados.forEach(c => {
@@ -805,7 +805,7 @@ export default function RelatoriosSetoresPage() {
           .status-expirado { color: #f59e0b; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print { 
+          @media print {
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -1009,7 +1009,7 @@ export default function RelatoriosSetoresPage() {
           .status-pendente { color: #f59e0b; font-weight: 600; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .page-break { page-break-before: always; }
-          @media print { 
+          @media print {
             body { padding: 15px; font-size: 10px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .section { page-break-inside: avoid; }
@@ -1070,13 +1070,13 @@ export default function RelatoriosSetoresPage() {
         </div>
 
         ${gerarTabelaAssociados(individuais, '👤 Associados Individual', '#3b82f6')}
-        
+
         ${familiares.length > 0 ? '<div class="page-break"></div>' : ''}
         ${gerarTabelaAssociados(familiares, '👨‍👩‍👧‍👦 Associados Familiar', '#10b981')}
-        
+
         ${patrimoniais.length > 0 ? '<div class="page-break"></div>' : ''}
         ${gerarTabelaAssociados(patrimoniais, '🏛️ Associados Patrimonial', '#f59e0b')}
-        
+
         ${outros.length > 0 ? `
           <div class="page-break"></div>
           ${gerarTabelaAssociados(outros, '📋 Outros Planos', '#6b7280')}
@@ -1320,7 +1320,7 @@ export default function RelatoriosSetoresPage() {
             <div>
               <h3 className="font-medium text-blue-900">Dica: Salvando como PDF</h3>
               <p className="text-sm text-blue-700 mt-1">
-                Ao clicar em "Imprimir/PDF", uma janela de impressão será aberta. 
+                Ao clicar em "Imprimir/PDF", uma janela de impressão será aberta.
                 Selecione "Salvar como PDF" como destino para baixar o relatório em formato PDF.
               </p>
             </div>

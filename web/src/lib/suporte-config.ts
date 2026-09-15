@@ -1,0 +1,3 @@
+import {z} from 'zod'
+export const suporteSchema=z.object({nome:z.string().trim().min(2).max(120),telefone:z.string().trim().min(8).max(40).regex(/^[+\d ()-]+$/),horario:z.string().trim().min(3).max(300),contagem:z.enum(['horas_uteis','horas_corridas']),observacoes:z.string().trim().max(2000),prazos:z.array(z.object({prioridade:z.enum(['critica','alta','normal','baixa']),resposta:z.number().positive().max(8760),solucao:z.number().positive().max(8760)}).refine(p=>p.solucao>=p.resposta,'Prazo de solução deve ser maior ou igual ao de resposta')).length(4)}).refine(d=>new Set(d.prazos.map(p=>p.prioridade)).size===4,'Informe as quatro prioridades')
+export type SuporteConfig=z.infer<typeof suporteSchema>

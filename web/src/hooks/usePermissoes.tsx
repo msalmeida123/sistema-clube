@@ -22,8 +22,9 @@ const ROTAS_PERMISSOES: Record<string, string> = {
   '/dashboard/financeiro': 'financeiro',
   '/dashboard/compras': 'compras',
   '/dashboard/portaria': 'portaria',
-  '/dashboard/piscina-portaria': 'portaria',
-  '/dashboard/academia-portaria': 'portaria',
+  '/dashboard/portaria-sauna': 'portaria_sauna',
+  '/dashboard/piscina-portaria': 'portaria_piscina',
+  '/dashboard/academia-portaria': 'portaria_academia',
   '/dashboard/academia': 'academia',
   '/dashboard/exames-medicos': 'exames',
   '/dashboard/infracoes': 'infracoes',
@@ -74,7 +75,8 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         ])
       } else {
         setIsAdmin(false)
-        setPermissoes(userData?.permissoes || [])
+        const {data: regras, error} = await supabase.rpc('minhas_permissoes')
+        setPermissoes(error ? [] : (regras || []).filter((r:any) => r.pode_visualizar).map((r:any) => r.codigo))
       }
     } catch (error) {
       console.error('Erro ao carregar permissões:', error)
@@ -126,13 +128,13 @@ export function usePermissoes() {
 // Hook auxiliar para verificar permissão de rota
 export function usePermissaoRota(rota: string): boolean {
   const { isAdmin, permissoes } = usePermissoes()
-  
+
   if (isAdmin) return true
-  
+
   // Encontrar o código de permissão para a rota
-  const rotaBase = Object.keys(ROTAS_PERMISSOES).find(r => rota.startsWith(r))
-  if (!rotaBase) return true // Rota não mapeada, permitir
-  
+  const rotaBase = Object.keys(ROTAS_PERMISSOES).sort((a,b) => b.length-a.length).find(r => rota === r || (r !== '/dashboard' && rota.startsWith(r + '/')))
+  if (!rotaBase) return false
+
   const codigo = ROTAS_PERMISSOES[rotaBase]
   return permissoes.includes(codigo)
 }

@@ -38,15 +38,15 @@ export default function InfracoesPage() {
       }
 
       const { data } = await query
-      
+
       let resultado = data || []
       if (search) {
-        resultado = resultado.filter((i: any) => 
+        resultado = resultado.filter((i: any) =>
           i.associado?.nome?.toLowerCase().includes(search.toLowerCase()) ||
           i.local_ocorrencia?.toLowerCase().includes(search.toLowerCase())
         )
       }
-      
+
       setInfracoes(resultado as any)
       setLoading(false)
     }
@@ -121,6 +121,7 @@ export default function InfracoesPage() {
 
   return (
     <PaginaProtegida codigoPagina="infracoes">
+      <div className="px-6 pt-4"><Link className="text-blue-700 underline" href="/dashboard/infracoes/relatos">Relatos enviados pelo aplicativo dos associados →</Link></div>
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Registro de Infrações</h1>
@@ -135,11 +136,11 @@ export default function InfracoesPage() {
       <div className="flex gap-4 flex-wrap">
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por associado ou local..." 
-            className="pl-10" 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
+          <Input
+            placeholder="Buscar por associado ou local..."
+            className="pl-10"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <div className="flex gap-2">

@@ -1,6 +1,6 @@
 import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { verificarPermissao } from '@/lib/usuario-atual'
@@ -10,10 +10,10 @@ import { reservarNumeroNFCe } from '@/lib/nfce-numero'
 
 /**
  * POST /api/bar/nfce/emitir
- * 
+ *
  * Envia comando NFe.CriarEnviarNFe ao ACBrMonitor via TCP Socket.
  * O ACBrMonitor deve estar configurado para comunicação TCP/IP (porta 3434 por padrão).
- * 
+ *
  * Fluxo:
  *  1. Recebe pedido_id e cpf_cnpj (opcional)
  *  2. Busca dados do pedido, config NFC-e e monta o arquivo INI da NFC-e
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   try {
     // Este handler usa a service role key (ignora RLS) e emite documento fiscal
     // real: exige sessão válida e permissão do módulo.
-    const auth = createRouteHandlerClient({ cookies })
+    const auth = await createRouteHandlerClient({ cookies })
     const { data: { user } } = await auth.auth.getUser()
     if (!user) {
       return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
@@ -202,7 +202,7 @@ function enviarComandoACBr(host: string, port: number, comando: string): Promise
 
     client.on('data', (data) => {
       buffer += data.toString()
-      
+
       // ACBrMonitor termina a resposta com \x03 (ETX - End of Text)
       if (buffer.includes('\x03')) {
         clearTimeout(timer)
@@ -229,7 +229,7 @@ function enviarComandoACBr(host: string, port: number, comando: string): Promise
 /**
  * Monta o conteúdo do arquivo INI no formato esperado pelo ACBrMonitor
  * para uma NFC-e (modelo 65).
- * 
+ *
  * Referência: https://acbr.sourceforge.io/ACBrMonitor/ModeloNFeINICompleto.html
  */
 function montarININFCe(
@@ -241,9 +241,9 @@ function montarININFCe(
   const itens = pedido.bar_itens_pedido || []
   const pagamentos = pedido.bar_pagamentos || []
   const agora = new Date()
-  
+
   // Formato de data do ACBr: DD/MM/YYYY HH:MM:SS
-  const dhEmi = agora.toLocaleString('pt-BR', { 
+  const dhEmi = agora.toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -340,7 +340,7 @@ function montarININFCe(
 
     // ── ICMS do item ──────────────────────────────────────
     const crt = config.crt || 1
-    
+
     ini += `[ICMS${num}]\n`
     ini += 'orig=0\n'                  // 0 = Nacional
 
@@ -348,7 +348,7 @@ function montarININFCe(
       // Simples Nacional
       const csosn = item.produto_cst || '102'
       ini += `CSOSN=${csosn}\n`
-      
+
       if (csosn === '500') {
         // ICMS ST cobrado anteriormente
         ini += 'vBCSTRet=0.00\n'
@@ -362,7 +362,7 @@ function montarININFCe(
       // Regime Normal
       const cst = item.produto_cst || '00'
       ini += `CST=${cst}\n`
-      
+
       if (cst === '00') {
         ini += 'modBC=0\n'
         ini += `vBC=${vProd.toFixed(2)}\n`
@@ -471,11 +471,11 @@ function montarININFCe(
 
 /**
  * Parseia a resposta do ACBrMonitor.
- * 
+ *
  * Respostas do ACBrMonitor começam com:
  *   - "OK:" para sucesso
  *   - "ERRO:" para falhas
- * 
+ *
  * Para NFe.CriarEnviarNFe, resposta de sucesso contém (quando TipoResposta=INI):
  *   [Retorno]
  *   CStat=100
@@ -495,7 +495,7 @@ function parsearRespostaACBr(resposta: string): {
   // Verifica se é resposta de sucesso
   if (resposta.startsWith('OK:')) {
     const conteudo = resposta.substring(3).trim()
-    
+
     // Tenta extrair campos no formato INI
     const chave = extrairCampo(conteudo, 'ChNFe')
     const protocolo = extrairCampo(conteudo, 'NProt')
@@ -594,7 +594,7 @@ function getCodigoUF(uf: string): string {
  */
 export async function GET(req: NextRequest) {
   // Também usa a service role key e abre conexão TCP com o ACBrMonitor.
-  const auth = createRouteHandlerClient({ cookies })
+  const auth = await createRouteHandlerClient({ cookies })
   const { data: { user } } = await auth.auth.getUser()
   if (!user) {
     return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
@@ -625,7 +625,7 @@ export async function GET(req: NextRequest) {
 
       // Testa conexão com comando simples
       const resposta = await enviarComandoACBr(host, port, 'NFe.StatusServico')
-      
+
       return NextResponse.json({
         status: 'conectado',
         resposta: resposta.substring(0, 200) // Limita tamanho

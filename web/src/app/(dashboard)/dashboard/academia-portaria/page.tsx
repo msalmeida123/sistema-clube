@@ -1,5 +1,6 @@
 'use client'
 
+import PagamentoMensalidade from '@/components/PagamentoMensalidade'
 import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
 import { codigoCarteirinha } from '@/lib/carteirinha-qr'
 import { useState, useEffect, useRef } from 'react'
@@ -8,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
-  Dumbbell, Search, CheckCircle, XCircle, AlertCircle, 
+import {
+  Dumbbell, Search, CheckCircle, XCircle, AlertCircle,
   LogIn, LogOut, QrCode, User, Clock, Calendar, History
 } from 'lucide-react'
 
@@ -40,6 +41,8 @@ type Acesso = {
 }
 
 export default function AcademiaPortariaPage() {
+  const [financeiroOk,setFinanceiroOk]=useState(false)
+  const [pendencias,setPendencias]=useState<any[]>([])
   const [opcoes, setOpcoes] = useState<any[]>([])
   const [busca, setBusca] = useState('')
   const [associado, setAssociado] = useState<Associado | null>(null)
@@ -57,20 +60,20 @@ export default function AcademiaPortariaPage() {
   useEffect(() => {
     carregarAcessosHoje()
     inputRef.current?.focus()
-    
+
     // Manter foco no input (para scanner USB)
     const interval = setInterval(() => {
-      if (modoScanner && document.activeElement !== inputRef.current) {
+      if (modoScanner && document.activeElement !== inputRef.current && !document.querySelector('[data-pagamento-modal]')) {
         inputRef.current?.focus()
       }
     }, 500)
-    
+
     return () => clearInterval(interval)
   }, [modoScanner])
 
   const carregarAcessosHoje = async () => {
     const hoje = new Date().toISOString().split('T')[0]
-    
+
     const { data, count } = await supabase
       .from('acessos_academia')
       .select(`
@@ -120,6 +123,7 @@ export default function AcademiaPortariaPage() {
     setLoading(true)
     setAssociado(null)
     setAssinatura(null)
+    setFinanceiroOk(false);setPendencias([])
 
     setOpcoes([])
     let assocData: any
@@ -145,9 +149,16 @@ export default function AcademiaPortariaPage() {
       .single()
 
     setAssinatura(assData as any)
+    if (assData) {
+      const {data:contas,error:erroContas}=await supabase.from('mensalidades').select('*').eq('assinatura_academia_id',assData.id)
+      const hoje=new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})
+      const mes=hoje.slice(0,7)
+      setPendencias((contas||[]).filter(m=>['pendente','atrasado'].includes(m.status)))
+      setFinanceiroOk(!erroContas && !!contas?.some(m=>m.status==='pago'&&m.periodo_inicio<=hoje&&m.periodo_fim>hoje) && !contas?.some(m=>['pendente','atrasado'].includes(m.status)&&m.data_vencimento<hoje))
+    }
     setLoading(false)
     setBusca('')
-    
+
     // Som de feedback
     if (assData && assData.status === 'ativa' && new Date(assData.data_fim) >= new Date()) {
       playBeep(800, 150)
@@ -159,10 +170,11 @@ export default function AcademiaPortariaPage() {
 
   const registrarAcesso = async (tipo: 'entrada' | 'saida') => {
     if (!associado || !assinatura) return
+    if(tipo==='entrada'&&!financeiroOk){toast.error('Mensalidade da academia pendente.');return}
 
     const hoje = new Date()
     const dataFim = new Date(assinatura.data_fim)
-    
+
     if (assinatura.status !== 'ativa') {
       toast.error('Assinatura da academia não está ativa!')
       return
@@ -192,7 +204,7 @@ export default function AcademiaPortariaPage() {
 
     toast.success(`${tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada!`)
     playBeep(1000, 100)
-    
+
     setAssociado(null)
     setAssinatura(null)
     carregarAcessosHoje()
@@ -222,6 +234,7 @@ export default function AcademiaPortariaPage() {
       return { cor: 'bg-red-100 border-red-500', texto: '🚫 ASSINATURA VENCIDA', icone: XCircle, corIcone: 'text-red-500', podeEntrar: false }
     }
 
+    if (!financeiroOk) return {cor:'bg-red-100 border-red-500',texto:'MENSALIDADE DA ACADEMIA PENDENTE',icone:XCircle,corIcone:'text-red-500',podeEntrar:false}
     if (diasRestantes <= 7) {
       return { cor: 'bg-yellow-100 border-yellow-500', texto: `⚠️ VENCE EM ${diasRestantes} DIAS`, icone: AlertCircle, corIcone: 'text-yellow-600', podeEntrar: true }
     }
@@ -291,6 +304,7 @@ export default function AcademiaPortariaPage() {
       </Card>
 
       {/* Resultado */}
+      {associado && pendencias.length>0 && <Card><CardContent className="p-4 space-y-3"><h2>Mensalidades da academia</h2>{pendencias.map(m=><PagamentoMensalidade key={m.id} mensalidade={m} onPago={()=>{setAssociado(null);setAssinatura(null);setPendencias([]);toast.info('Leia novamente a carteirinha para verificar a liberação.')}}/>)}</CardContent></Card>}
       {associado && statusInfo && (
         <Card className={`border-4 ${statusInfo.cor}`}>
           <CardContent className="p-6">
@@ -305,7 +319,7 @@ export default function AcademiaPortariaPage() {
 
               <div className="flex-1">
                 <h2 className="text-3xl font-bold mb-2">{associado.nome}</h2>
-                
+
                 <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-2xl font-bold mb-4 ${statusInfo.cor}`}>
                   <statusInfo.icone className={`h-8 w-8 ${statusInfo.corIcone}`} />
                   {statusInfo.texto}

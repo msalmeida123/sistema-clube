@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
-  Droplets, Plus, Trash2, Settings, Loader2, Key, 
+import {
+  Droplets, Plus, Trash2, Settings, Loader2, Key,
   AlertTriangle, CheckCircle, Wrench, RefreshCw
 } from 'lucide-react'
 
@@ -23,11 +23,11 @@ export default function ConfiguracaoSaunaPage() {
   const [armarios, setArmarios] = useState<Armario[]>([])
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  
+
   // Adicionar armários
   const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('5')
   const [numeroInicial, setNumeroInicial] = useState('')
-  
+
   // Edição
   const [modalExcluir, setModalExcluir] = useState(false)
   const [armarioExcluir, setArmarioExcluir] = useState<Armario | null>(null)
@@ -267,8 +267,8 @@ export default function ConfiguracaoSaunaPage() {
                 className="mt-1"
               />
             </div>
-            <Button 
-              onClick={adicionarArmarios} 
+            <Button
+              onClick={adicionarArmarios}
               disabled={salvando}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -282,8 +282,8 @@ export default function ConfiguracaoSaunaPage() {
           </div>
           <p className="text-sm text-gray-500 mt-2">
             Serão criados armários do número {numeroInicial || '?'} ao {
-              numeroInicial && quantidadeAdicionar 
-                ? parseInt(numeroInicial) + parseInt(quantidadeAdicionar) - 1 
+              numeroInicial && quantidadeAdicionar
+                ? parseInt(numeroInicial) + parseInt(quantidadeAdicionar) - 1
                 : '?'
             }
           </p>
@@ -313,7 +313,7 @@ export default function ConfiguracaoSaunaPage() {
                 {armarios.map(armario => {
                   const statusInfo = getStatusInfo(armario.status)
                   const StatusIcon = statusInfo.icon
-                  
+
                   return (
                     <tr key={armario.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
@@ -402,8 +402,8 @@ export default function ConfiguracaoSaunaPage() {
             </p>
 
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setModalExcluir(false)}
                 className="flex-1"
               >

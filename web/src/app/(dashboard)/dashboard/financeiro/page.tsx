@@ -1,5 +1,7 @@
 'use client'
 
+import LogPagamentosMensalidades from '@/components/LogPagamentosMensalidades'
+import PagamentoMensalidade from '@/components/PagamentoMensalidade'
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -7,8 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { PaginaProtegida, ComPermissao, usePermissaoPagina } from '@/components/ui/permissao'
-import { 
-  CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye, 
+import {
+  CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye,
   Trash2, X, TrendingUp, TrendingDown, Calendar, Users, Receipt,
   Ticket, ShoppingCart, FileText, Wallet, PiggyBank, BarChart3,
   ChevronDown, ChevronUp, Filter, Download, Printer
@@ -110,7 +112,7 @@ export default function FinanceiroPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-    
+
     const hoje = new Date()
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0]
     const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0]
@@ -257,8 +259,8 @@ export default function FinanceiroPage() {
   const marcarComoPago = async (tabela: string, id: string) => {
     const { error } = await supabase
       .from(tabela)
-      .update({ 
-        status: 'pago', 
+      .update({
+        status: 'pago',
         data_pagamento: new Date().toISOString().split('T')[0],
         updated_at: new Date().toISOString()
       })
@@ -271,7 +273,7 @@ export default function FinanceiroPage() {
 
     toast.success('Marcado como pago!')
     carregarDados()
-    
+
     if (tab === 'mensalidades') carregarMensalidades()
     if (tab === 'carnes') carregarParcelas()
     if (tab === 'contas') carregarContasPagar()
@@ -289,7 +291,7 @@ export default function FinanceiroPage() {
 
   const filtrarPorBusca = (items: any[], campos: string[]) => {
     if (!busca) return items
-    return items.filter(item => 
+    return items.filter(item =>
       campos.some(campo => {
         const valor = campo.split('.').reduce((obj, key) => obj?.[key], item)
         return valor?.toString().toLowerCase().includes(busca.toLowerCase())
@@ -343,8 +345,8 @@ export default function FinanceiroPage() {
             key={t.id}
             onClick={() => setTab(t.id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-              tab === t.id 
-                ? 'bg-white shadow text-green-600' 
+              tab === t.id
+                ? 'bg-white shadow text-green-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -476,6 +478,7 @@ export default function FinanceiroPage() {
         </div>
       )}
 
+      <LogPagamentosMensalidades/>
       {/* Mensalidades */}
       {tab === 'mensalidades' && (
         <div className="space-y-4">
@@ -531,14 +534,7 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="p-3 text-right">
                         {m.status !== 'pago' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => marcarComoPago('mensalidades', m.id)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Pagar
-                          </Button>
+                          <PagamentoMensalidade mensalidade={m} onPago={()=>{carregarMensalidades();carregarDados()}}/>
                         )}
                       </td>
                     </tr>
@@ -617,8 +613,8 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="p-3 text-right">
                         {p.status !== 'pago' && (
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={() => marcarComoPago('parcelas_carne', p.id)}
                             className="bg-green-600 hover:bg-green-700"
                           >
@@ -761,8 +757,8 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="p-3 text-right">
                         {c.status !== 'pago' && (
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={() => marcarComoPago('contas_pagar', c.id)}
                             className="bg-green-600 hover:bg-green-700"
                           >

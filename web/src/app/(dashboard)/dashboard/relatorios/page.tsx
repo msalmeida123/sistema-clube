@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import { 
-  FileText, Users, DollarSign, Calendar, Download, Printer, 
+import {
+  FileText, Users, DollarSign, Calendar, Download, Printer,
   TrendingUp, TrendingDown, BarChart3, PieChart, UserCheck,
   AlertTriangle, CreditCard, ShoppingCart, Vote
 } from 'lucide-react'
@@ -50,7 +50,7 @@ export default function RelatoriosPage() {
     // Financeiro
     const { count: mensalidadesPendentes } = await supabase.from('mensalidades').select('*', { count: 'exact', head: true }).eq('status', 'pendente')
     const { count: mensalidadesAtrasadas } = await supabase.from('mensalidades').select('*', { count: 'exact', head: true }).eq('status', 'atrasado')
-    
+
     const mesAtual = new Date().toISOString().slice(0, 7)
     const { data: receitaData } = await supabase
       .from('mensalidades')
@@ -256,9 +256,9 @@ export default function RelatoriosPage() {
       {/* Tabs */}
       <div className="flex gap-2 border-b print:hidden">
         {tabs.map((t) => (
-          <button 
-            key={t.id} 
-            onClick={() => { setTab(t.id as any); setDados(null) }} 
+          <button
+            key={t.id}
+            onClick={() => { setTab(t.id as any); setDados(null) }}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${tab === t.id ? 'border-primary text-primary' : 'border-transparent'}`}
           >
             <t.icon className="h-4 w-4" />{t.label}
@@ -507,8 +507,8 @@ export default function RelatoriosPage() {
                         <td className="py-2 px-3">{formatDate(m.data_vencimento)}</td>
                         <td className="py-2 px-3">
                           <span className={`px-2 py-1 rounded-full text-xs ${
-                            m.status === 'pago' ? 'bg-green-100 text-green-800' : 
-                            m.status === 'atrasado' ? 'bg-red-100 text-red-800' : 
+                            m.status === 'pago' ? 'bg-green-100 text-green-800' :
+                            m.status === 'atrasado' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
                             {m.status}

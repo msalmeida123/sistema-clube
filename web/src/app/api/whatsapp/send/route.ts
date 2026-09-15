@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
  try {
   const parsed=entrada.safeParse(await request.json())
   if(!parsed.success) return NextResponse.json({error:'Mensagem inválida'},{status:400})
-  const supabase=createRouteHandlerClient({cookies})
+  const supabase=await createRouteHandlerClient({cookies})
   const {data:{user}}=await supabase.auth.getUser()
   if(!user) return NextResponse.json({error:'Não autenticado'},{status:401})
   const {requestId,conversaId,...payload}=parsed.data

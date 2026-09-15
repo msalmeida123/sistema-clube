@@ -1,12 +1,17 @@
+import {fetchInterno} from '@/lib/supabase/fetch-interno'
+import { buscarUsuarioAtual } from '@/lib/usuario-atual'
+import { permiteRota } from '@/lib/permissao-rota'
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Rotas públicas que não precisam de autenticação
 const publicRoutes = [
+  '/api/impressao-local/agente',
   '/login',
   '/forgot-password',
   '/reset-password',
+  '/auth/callback',
   '/api/webhooks',
   '/api/whatsapp-webhook',
   '/api/health',
@@ -29,6 +34,14 @@ export async function middleware(req: NextRequest) {
     return res
   }
 
+  // Estas rotas validam sessão, usuário ativo e autorização no próprio handler.
+  // Correspondência exata: não dispensa autenticação de subrotas.
+  if ((pathname === '/api/suporte' && ['GET','PUT'].includes(req.method)) ||
+      (pathname === '/api/compras/uso-clube' && ['GET','POST'].includes(req.method))) return res
+
+  // Portal de associados usa sessão própria e não concede acesso administrativo.
+  if (pathname === '/associado' || pathname.startsWith('/associado/') || pathname === '/api/associado-app' || pathname.startsWith('/api/associado-app/')) return res
+
   // Headers de segurança estão no next.config.js (fonte única)
 
   // Permite rotas de API com autenticação própria
@@ -45,14 +58,14 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
-    pathname.includes('.') // arquivos com extensão
+    (!pathname.startsWith('/dashboard') && !pathname.startsWith('/api/') && pathname.includes('.')) // arquivos com extensão
   ) {
     return res
   }
 
   // Verifica autenticação para rotas protegidas
   try {
-    const supabase = createMiddlewareClient({ req, res })
+    const supabase = createMiddlewareClient({ req, res }, {options:{global:{fetch:fetchInterno}}})
     const { data: { session } } = await supabase.auth.getSession()
 
     // Se não autenticado, redireciona para login
@@ -62,6 +75,25 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/')) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      const atual = await buscarUsuarioAtual<any>(supabase, user.id, 'ativo,is_admin')
+      if (!atual?.ativo) return NextResponse.json({ error: 'Usuário inativo ou sem acesso.' }, { status: 403 })
+      if (!atual.is_admin) {
+        if (pathname.startsWith('/dashboard') && pathname !== '/dashboard') {
+          const { data, error } = await supabase.rpc('minhas_permissoes')
+          if (error || !permiteRota(data || [], pathname)) return NextResponse.redirect(new URL('/dashboard', req.url))
+        }
+        const segmento = pathname.split('/')[2]
+        const modulos: Record<string,string> = { bar:'bar', associados:'associados', dependentes:'dependentes', convites:'convites', servicos:'servicos', financeiro:'financeiro', compras:'compras', 'exames-medicos':'exames', crm:'whatsapp' }
+        if (modulos[segmento] && pathname.startsWith('/api/')) {
+          const acao = ['GET','HEAD'].includes(req.method) || /impress|comprovante|atendimento/.test(pathname) ? 'visualizar' : req.method === 'DELETE' ? 'excluir' : req.method === 'POST' && (pathname.endsWith('/' + segmento) || pathname === '/api/compras/uso-clube') ? 'criar' : 'editar'
+          const {data,error} = await supabase.rpc('sistema_pode', {codigo:modulos[segmento],acao})
+          if (error || data !== true) return NextResponse.json({error:'Sem permissão para esta operação.'},{status:403})
+        }
+      }
+    }
     // Usuário autenticado, continua
     return res
   } catch (error) {

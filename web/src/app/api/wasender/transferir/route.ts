@@ -1,11 +1,11 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 // POST - Transferir conversa para outro setor
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const body = await request.json()
 
     const { conversa_id, setor_id, motivo } = body
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 // GET - Buscar histórico de transferências de uma conversa
 export async function GET(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createRouteHandlerClient({ cookies })
     const { searchParams } = new URL(request.url)
     const conversa_id = searchParams.get('conversa_id')
 

@@ -12,16 +12,16 @@ interface RegistrosRecentesProps {
 }
 
 function formatTime(date: string): string {
-  return new Date(date).toLocaleTimeString('pt-BR', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return new Date(date).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
-export function RegistrosRecentes({ 
-  registros, 
-  loading, 
-  maxItems = 10 
+export function RegistrosRecentes({
+  registros,
+  loading,
+  maxItems = 10
 }: RegistrosRecentesProps) {
   if (loading) {
     return (
@@ -50,15 +50,15 @@ export function RegistrosRecentes({
   return (
     <div className="space-y-1">
       {registros.slice(0, maxItems).map((registro) => (
-        <div 
-          key={registro.id} 
+        <div
+          key={registro.id}
           className="flex items-center gap-3 p-2 rounded hover:bg-gray-50"
         >
           <Avatar className="h-10 w-10">
             <AvatarImage src={registro.pessoa_foto} />
             <AvatarFallback>{registro.pessoa_nome?.[0] || '?'}</AvatarFallback>
           </Avatar>
-          
+
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{registro.pessoa_nome}</p>
             <p className="text-xs text-muted-foreground capitalize">

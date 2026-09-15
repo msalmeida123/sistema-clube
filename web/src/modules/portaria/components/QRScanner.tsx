@@ -13,11 +13,11 @@ interface QRScannerProps {
   autoFocus?: boolean
 }
 
-export function QRScanner({ 
-  onScan, 
-  loading, 
+export function QRScanner({
+  onScan,
+  loading,
   placeholder = 'Aguardando leitura do QR Code...',
-  autoFocus = true 
+  autoFocus = true
 }: QRScannerProps) {
   const [value, setValue] = useState('')
   const [mode, setMode] = useState<'scanner' | 'manual'>('scanner')
@@ -81,8 +81,8 @@ export function QRScanner({
           autoComplete="off"
         />
         {mode === 'manual' && (
-          <Button 
-            onClick={handleManualSubmit} 
+          <Button
+            onClick={handleManualSubmit}
             disabled={loading || !value.trim()}
             className="px-8"
           >

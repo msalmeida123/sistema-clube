@@ -1,5 +1,5 @@
 import {servicoAuditado} from '@/lib/supabase/servico-auditado'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@/lib/supabase/route-client'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -10,15 +10,15 @@ export async function POST(request: Request) {
     // Verificar se a service role key está configurada
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!serviceRoleKey) {
-      return NextResponse.json({ 
-        error: 'SUPABASE_SERVICE_ROLE_KEY não configurada no servidor' 
+      return NextResponse.json({
+        error: 'SUPABASE_SERVICE_ROLE_KEY não configurada no servidor'
       }, { status: 500 })
     }
 
     // Cliente admin para criar usuários sem fazer login
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
+    const cookieStore = await cookies()
+    const supabase = await createRouteHandlerClient({ cookies: () => cookieStore })
+
     // Verificar se o usuário atual é admin
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) {
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const supabaseAdmin=servicoAuditado(currentUser.id)
     // Dados do novo usuário - sanitização XSS
     const rawBody = await request.json()
-    
+
     if (!rawBody || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
       return NextResponse.json({ error: 'Corpo inválido' }, { status: 400 })
     }
@@ -55,6 +55,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nome, email e senha são obrigatórios' }, { status: 400 })
     }
 
+    // Validar antes de criar a conta no Auth (usuarios.telefone é varchar(20)).
+    if (telefone != null && (typeof telefone !== 'string' || telefone.trim().length > 20)) {
+      return NextResponse.json({ error: 'Telefone deve ter no máximo 20 caracteres, incluindo DDD e formatação.' }, { status: 400 })
+    }
+
     // Valida email
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'Formato de email inválido' }, { status: 400 })
@@ -63,7 +68,7 @@ export async function POST(request: Request) {
     // Valida força da senha
     const passwordValidation = validatePassword(senha)
     if (!passwordValidation.valid) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: passwordValidation.errors.join('. '),
         strength: passwordValidation.strength
       }, { status: 400 })
@@ -125,8 +130,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: userError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Usuário criado com sucesso!',
       user: { id: authData.user.id, email: email.toLowerCase().trim() }
     })
@@ -140,9 +145,9 @@ export async function POST(request: Request) {
 // GET - Listar usuários (para admins)
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
+    const cookieStore = await cookies()
+    const supabase = await createRouteHandlerClient({ cookies: () => cookieStore })
+
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (!currentUser) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })

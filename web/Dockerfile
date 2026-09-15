@@ -1,12 +1,14 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 # Build arguments para variáveis de ambiente
-ARG NEXT_PUBLIC_SUPABASE_URL=https://fkjjjpgxkjhqkhmdpmzk.supabase.co
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrampqcGd4a2pocWtobWRwbXprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDI0NTYsImV4cCI6MjA4MjE3ODQ1Nn0.c0wUGT2Ah2RW5lPJ5EhS738349AdvXsnnsoQvNjM5PY
-ARG SUPABASE_SERVICE_ROLE_KEY
+ARG NEXT_PUBLIC_SUPABASE_URL=http://localhost:3000/supabase
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG SUPABASE_SERVICE_ROLE_KEY=build-only-placeholder
+ARG NEXT_PUBLIC_SUPABASE_LOCAL_PROXY=0
+ENV NEXT_PUBLIC_SUPABASE_LOCAL_PROXY=$NEXT_PUBLIC_SUPABASE_LOCAL_PROXY
 
 # Converter ARG em ENV para o build do Next.js
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
@@ -15,10 +17,9 @@ ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
 
 # Copiar arquivos de dependências
 COPY package*.json ./
-COPY yarn.lock* ./
 
 # Instalar dependências (usando npm install para atualizar lock se necessário)
-RUN npm install --legacy-peer-deps
+RUN npm ci
 
 # Copiar código fonte
 COPY . .
@@ -30,7 +31,7 @@ RUN mkdir -p public
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 

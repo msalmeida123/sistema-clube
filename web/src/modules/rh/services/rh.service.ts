@@ -7,6 +7,8 @@ import type {
   RHStats
 } from '../types'
 import { RHRepository } from '../repositories/rh.repository'
+import {createClient} from '@/lib/supabase/client'
+import {calcularEncargos} from '../encargos'
 
 export class RHService {
   constructor(private repository: RHRepository) {}
@@ -127,7 +129,7 @@ export class RHService {
     if (existente) {
       // Atualizar registro existente
       const update: Partial<PontoDiario> = { [campo]: hora }
-      
+
       // Calcular horas trabalhadas quando tiver entrada e saída
       const entrada = campo === 'entrada' ? hora : existente.entrada
       const saida = campo === 'saida' ? hora : existente.saida
@@ -268,6 +270,9 @@ export class RHService {
   }
 
   async gerarFolhaMensal(referencia: string): Promise<FolhaPagamento[]> {
+    const resposta=await fetch('/api/rh/encargos')
+    const configuracao=await resposta.json()
+    if(!resposta.ok||!configuracao.config)throw Error(configuracao.error||'Salve os parâmetros em RH → Configuração → Encargos antes de gerar a folha.')
     // Buscar todos funcionários ativos
     const funcionarios = await this.repository.findAllFuncionarios({ status: 'ativo' })
     const folhas: FolhaPagamento[] = []
@@ -281,9 +286,11 @@ export class RHService {
 
       if (existentes.length > 0) continue
 
-      // Calcular INSS simplificado
-      const inss = this.calcularINSS(func.salario)
-      const irrf = this.calcularIRRF(func.salario - inss)
+      const {data:horasBanco,error:erroBanco}=await createClient().rpc('rh_banco_prever',{p_funcionario:func.id,p_referencia:referencia})
+      if(erroBanco)throw erroBanco
+      const detalhes=calcularEncargos({codigo_funcionario:'',sede:'',admissao:func.data_admissao||'',conta:[func.banco,func.agencia,func.conta].filter(Boolean).join(' / '),dependentes:0,salario_contratual:Number(func.salario),base_inss:null,base_irrf:null,base_fgts:null,rubricas:[{campo:'salario_base',codigo:'001',descricao:'Salário',referencia:'Mensal',valor:Number(func.salario),incidencias:{inss:true,irrf:true,fgts:true}},...(horasBanco||[])]},configuracao.config.parametros,referencia)
+      const inss=detalhes.rubricas.find(r=>r.campo==='inss')!.valor
+      const irrf=detalhes.rubricas.find(r=>r.campo==='irrf')!.valor
 
       const folha = await this.calcularFolha({
         funcionario_id: func.id,
@@ -291,30 +298,15 @@ export class RHService {
         salario_base: func.salario,
         inss,
         irrf,
+        horas_extras_valor:(horasBanco||[]).reduce((s:number,r:any)=>s+Number(r.valor),0),
+        detalhes_holerite:detalhes,
+        observacao:'Conferir dependentes do IRRF, mês do pagamento, percentual de FGTS e ocorrências da competência antes de aprovar.',
       })
 
       folhas.push(folha)
     }
 
     return folhas
-  }
-
-  private calcularINSS(salario: number): number {
-    // Faixas INSS 2025 (simplificado)
-    if (salario <= 1518.00) return salario * 0.075
-    if (salario <= 2793.88) return salario * 0.09
-    if (salario <= 4190.83) return salario * 0.12
-    if (salario <= 8157.41) return salario * 0.14
-    return 951.63 // Teto
-  }
-
-  private calcularIRRF(baseCalculo: number): number {
-    // Faixas IRRF 2025 (simplificado)
-    if (baseCalculo <= 2259.20) return 0
-    if (baseCalculo <= 2826.65) return baseCalculo * 0.075 - 169.44
-    if (baseCalculo <= 3751.05) return baseCalculo * 0.15 - 381.44
-    if (baseCalculo <= 4664.68) return baseCalculo * 0.225 - 662.77
-    return baseCalculo * 0.275 - 896.00
   }
 
   // ==================== FÉRIAS E AFASTAMENTOS ====================

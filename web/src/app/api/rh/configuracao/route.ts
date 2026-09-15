@@ -1,6 +1,6 @@
 import {servicoAuditado} from '@/lib/supabase/servico-auditado'
 import {NextRequest,NextResponse} from 'next/server'
-import {createRouteHandlerClient} from '@supabase/auth-helpers-nextjs'
+import {createRouteHandlerClient} from '@/lib/supabase/route-client'
 import {createClient} from '@supabase/supabase-js'
 import {cookies} from 'next/headers'
 import {verificarPermissao} from '@/lib/usuario-atual'
@@ -8,7 +8,7 @@ import {validarConfigPonto,testarControlId} from '@/lib/rh-controlid'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 async function autorizar(admin=false){
- const auth=createRouteHandlerClient({cookies});const {data:{user}}=await auth.auth.getUser()
+ const auth=await createRouteHandlerClient({cookies});const {data:{user}}=await auth.auth.getUser()
  if(!user)return {status:401 as const}
  const p=await verificarPermissao(auth,user.id,'rh')
  if(!p.autorizado||(admin&&!p.isAdmin))return {status:403 as const}

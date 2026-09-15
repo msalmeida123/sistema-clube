@@ -61,8 +61,8 @@ export async function verificarPermissao(
 
   const isAdmin = Boolean(usuario?.is_admin)
 
-  return {
-    autorizado: isAdmin || Boolean(usuario?.permissoes?.includes(codigo)),
-    isAdmin
-  }
+  if (isAdmin) return { autorizado: true, isAdmin }
+  const pagina = codigo === 'crm' ? 'whatsapp' : codigo
+  const { data, error } = await supabase.rpc('sistema_pode', { codigo: pagina, acao: 'visualizar' })
+  return { autorizado: !error && data === true, isAdmin }
 }

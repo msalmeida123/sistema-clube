@@ -1,10 +1,13 @@
 'use client'
+import ConfiguracaoImpressaoDireta from '@/components/ConfiguracaoImpressaoDireta'
+import ConfiguracaoCozinhaUSB from '@/components/ConfiguracaoCozinhaUSB'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 const inicial = { nome:'Cozinha', ip:'', porta:9100, colunas:48, protocolo:'texto', cortar:false, ativo:false }
 export default function ImpressoraPage() {
+  const [aba,setAba]=useState<'usb'|'rede'>('usb')
   const [form, setForm] = useState(inicial)
   const [carregando, setCarregando] = useState(true)
   const [carregado, setCarregado] = useState(false)
@@ -26,6 +29,8 @@ export default function ImpressoraPage() {
   }
   return <div className="p-6 max-w-2xl space-y-6">
     <h1 className="text-2xl font-bold">Impressora da Cozinha</h1>
+    <div role="tablist" aria-label="Conexão da impressora" className="flex gap-3"><Button role="tab" aria-selected={aba==='usb'} variant={aba==='usb'?'default':'outline'} onClick={()=>setAba('usb')}>USB</Button><Button role="tab" aria-selected={aba==='rede'} variant={aba==='rede'?'default':'outline'} onClick={()=>setAba('rede')}>Rede / IP</Button></div>
+    {aba==='usb'?<><ConfiguracaoImpressaoDireta/><details><summary>Impressão manual pelo navegador</summary><ConfiguracaoCozinhaUSB/></details></>:<>
     <p className="text-gray-600">Configure uma impressora térmica de rede com impressão RAW TCP. Use o endereço IP exibido na configuração da impressora.</p>
     {carregando ? <p>Carregando...</p> : <fieldset disabled={ocupado || !carregado} className="bg-white border rounded-xl p-6 space-y-4 disabled:opacity-60">
       <label className="block">Nome / modelo<Input value={form.nome} maxLength={60} onChange={e=>alterar({nome:e.target.value})}/></label>
@@ -44,5 +49,6 @@ export default function ImpressoraPage() {
     </fieldset>}
     <p role="status" className="text-sm">{mensagem}</p>
     <p className="text-sm text-gray-500">O teste imprime uma mensagem curta. O sistema confirma o envio dos dados; confira o papel para confirmar a impressão. Para os pedidos, use “Enviar à cozinha” após finalizar a venda.</p>
+    </>}
   </div>
 }

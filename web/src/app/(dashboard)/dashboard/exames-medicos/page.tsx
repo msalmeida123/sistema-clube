@@ -42,7 +42,7 @@ export default function ExamesMedicosPage() {
       .order('data_validade', { ascending: true })
 
     let resultado = data || []
-    
+
     // Filtrar por busca
     if (search) {
       resultado = resultado.filter((e: any) =>
@@ -121,7 +121,7 @@ export default function ExamesMedicosPage() {
   hoje.setHours(0, 0, 0, 0)
   const em30dias = new Date()
   em30dias.setDate(em30dias.getDate() + 30)
-  
+
   const totalValidos = exames.filter(e => new Date(e.data_validade) >= hoje).length
   const totalVencidos = exames.filter(e => new Date(e.data_validade) < hoje).length
   const totalAVencer = exames.filter(e => {

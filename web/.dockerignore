@@ -1,36 +1,4 @@
-# Dependencies
 node_modules
-npm-debug.log
-
-# Build
 .next
-out
-build
-dist
-
-# Git
-.git
-.gitignore
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.idea
-.vscode
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Misc
-*.md
-LICENSE
-
-# Artefatos locais de deploy
-deploy/portainer/*.tar
-graphify-out/
-
-deploy/supabase-local/
+.env*
+*.tsbuildinfo

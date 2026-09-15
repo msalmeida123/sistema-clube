@@ -36,9 +36,9 @@ async function verificarAutenticacao(body: any): Promise<{ valido: boolean; meto
       return { valido: true, metodo: 'sem_config' }
     }
 
-    const sessionId = body.sessionId || 
-                      body.session_id || 
-                      body.apiKey || 
+    const sessionId = body.sessionId ||
+                      body.session_id ||
+                      body.apiKey ||
                       body.api_key ||
                       body.data?.sessionId ||
                       body.data?.session_id
@@ -51,7 +51,7 @@ async function verificarAutenticacao(body: any): Promise<{ valido: boolean; meto
       .from('config_wasender')
       .select('device_id')
       .single()
-    
+
     const deviceId = body.deviceId || body.device_id || body.data?.deviceId || body.data?.device_id
     if (deviceId && configFull?.device_id && String(deviceId) === String(configFull.device_id)) {
       return { valido: true, metodo: 'device_id' }
@@ -102,7 +102,7 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
   try {
     const payloadStr = JSON.stringify(payload)
     const sanitizedPayload = sanitizeForDatabase(payloadStr).substring(0, 50000)
-    
+
     await getSupabase()
       .from('webhook_logs')
       .insert({
@@ -119,7 +119,7 @@ async function salvarLogWebhook(payload: unknown, tipo: string, ip?: string) {
 async function verificarDuplicataRecente(conversaId: string, conteudo: string): Promise<boolean> {
   try {
     const trintaSegundosAtras = new Date(Date.now() - 30000).toISOString()
-    
+
     const { data } = await getSupabase()
       .from('mensagens_whatsapp')
       .select('id')
@@ -133,7 +133,7 @@ async function verificarDuplicataRecente(conversaId: string, conteudo: string): 
       console.log(`🔄 Duplicata detectada: mensagem de saída já existe na conversa ${conversaId}`)
       return true
     }
-    
+
     return false
   } catch (error) {
     console.error('Erro ao verificar duplicata:', error)
@@ -156,7 +156,7 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
     // Identificar o tipo de mídia e extrair dados
     let mediaMessage: any = null
     let mediaType = ''
-    
+
     if (message.imageMessage) {
       mediaMessage = message.imageMessage
       mediaType = 'imageMessage'
@@ -226,7 +226,7 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`❌ Erro ao decriptar mídia: ${response.status} - ${errorText}`)
-      
+
       // Se falhou, tentar usar URL original se existir
       if (mediaMessage.url) {
         console.log('⚠️ Tentando usar URL original como fallback')
@@ -236,19 +236,19 @@ async function decryptarMidia(messageData: any, apiKey: string): Promise<string 
     }
 
     const result = await response.json()
-    
+
     if (result.success && result.publicUrl) {
       console.log(`✅ Mídia decriptada: ${result.publicUrl}`)
       return result.publicUrl
     }
 
     console.warn('⚠️ Resposta de decrypt sem URL:', result)
-    
+
     // Fallback para URL original
     if (mediaMessage.url) {
       return mediaMessage.url
     }
-    
+
     return null
   } catch (error) {
     console.error('Erro ao decriptar mídia:', error)
@@ -283,12 +283,12 @@ async function buscarFotoPerfil(telefone: string): Promise<string | null> {
     }
 
     const result = await response.json()
-    
+
     if (result.success && result.data?.imgUrl) {
       console.log(`📷 Foto encontrada para ${numero}: ${result.data.imgUrl}`)
       return result.data.imgUrl
     }
-    
+
     return null
   } catch (error) {
     console.error('Erro ao buscar foto de perfil:', error)
@@ -308,13 +308,13 @@ async function atualizarFotoPerfilConversa(conversaId: string, telefone: string)
     if (conversa?.foto_perfil_url) return
 
     const fotoUrl = await buscarFotoPerfil(telefone)
-    
+
     if (fotoUrl) {
       await getSupabase()
         .from('conversas_whatsapp')
         .update({ foto_perfil_url: fotoUrl })
         .eq('id', conversaId)
-      
+
       console.log(`📷 Foto de perfil salva para conversa ${conversaId}`)
     }
   } catch (error) {
@@ -325,31 +325,31 @@ async function atualizarFotoPerfilConversa(conversaId: string, telefone: string)
 async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string | null> {
   try {
     if (!audioUrl.startsWith('http')) return null
-    
-    const audioResponse = await fetch(audioUrl, { 
+
+    const audioResponse = await fetch(audioUrl, {
       signal: AbortSignal.timeout(30000)
     })
     if (!audioResponse.ok) return null
-    
+
     const audioBlob = await audioResponse.blob()
-    
+
     if (audioBlob.size > 25 * 1024 * 1024) {
       console.warn('Áudio muito grande para transcrição')
       return null
     }
-    
+
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.ogg')
     formData.append('model', 'whisper-1')
     formData.append('language', 'pt')
-    
+
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}` },
       body: formData,
       signal: AbortSignal.timeout(60000)
     })
-    
+
     if (!response.ok) return null
     const result = await response.json()
     return sanitizarTexto(result.text)
@@ -444,12 +444,12 @@ async function processarComIA(
     }
 
     const respostaIA = await gerarRespostaIA(textoProcessar, configIA as ConfigIA)
-    
+
     if (respostaIA) {
       await new Promise(r => setTimeout(r, 2000))
-      
+
       const enviada = await enviarMensagem(conversaId, telefone, respostaIA)
-      
+
       if (enviada) {
 
         await getSupabase()
@@ -501,7 +501,7 @@ async function processarRespostasAutomaticas(
           break
         case 'palavra_chave':
           if (regra.palavras_chave && regra.palavras_chave.length > 0) {
-            deveResponder = regra.palavras_chave.some((p: string) => 
+            deveResponder = regra.palavras_chave.some((p: string) =>
               mensagemLower.includes(p.toLowerCase())
             )
           }
@@ -522,7 +522,7 @@ async function processarRespostasAutomaticas(
         }
 
         const enviada = await enviarMensagem(conversaId, telefone, regra.resposta)
-        
+
         if (enviada) {
 
           await getSupabase()
@@ -664,18 +664,18 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
     if (body.data?.direction === 'outgoing' || body.data?.direction === 'out') return true
     if (body.outgoing === true) return true
     if (body.data?.outgoing === true) return true
-    
+
     const event = body.event || body.type || body.action || ''
     const eventosEnviados = [
-      'message.sent', 
+      'message.sent',
       'messages.sent',
-      'message_sent', 
+      'message_sent',
       'outgoing_message',
       'message.create',
       'messages.create'
     ]
     if (eventosEnviados.includes(event.toLowerCase())) return true
-    
+
     return false
   }
 
@@ -696,13 +696,13 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
     const msg = body.data.messages
     const key = msg.key || {}
     const message = msg.message
-    
+
     // Detectar tipo e extrair informações da mídia
     let tipo = 'texto'
     let mediaUrl: string | undefined
     let caption = ''
     let hasEncryptedMedia = false
-    
+
     if (message?.imageMessage) {
       tipo = 'imagem'
       mediaUrl = message.imageMessage.url
@@ -727,20 +727,20 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       mediaUrl = message.stickerMessage.url
       hasEncryptedMedia = !!message.stickerMessage.mediaKey
     }
-    
+
     // Para mídia, usar messageBody ou caption como mensagem
     let mensagemFinal = sanitizarTexto(
-      msg.messageBody || 
-      message?.conversation || 
+      msg.messageBody ||
+      message?.conversation ||
       message?.extendedTextMessage?.text ||
       caption
     )
-    
+
     // Se é mídia e não tem texto, criar indicador IMEDIATAMENTE
     if (!mensagemFinal && tipo !== 'texto') {
       mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
     }
-    
+
     return {
       telefone: sanitizarTelefone(
         key.cleanedSenderPn ||
@@ -757,22 +757,22 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       hasEncryptedMedia // Flag para indicar que é mídia criptografada
     }
   }
-  
+
   // Formato padrão
   if (body.data) {
     const data = body.data
     const tipo = data.type || 'texto'
     const mediaUrl = data.mediaUrl || data.media?.url
-    
+
     let mensagemFinal = sanitizarTexto(data.message || data.body || data.text || data.content || data.caption)
-    
+
     if (!mensagemFinal && (mediaUrl || tipo !== 'texto')) {
       mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
     }
-    
+
     return {
       telefone: sanitizarTelefone(
-        data.from?.replace('@c.us', '') || 
+        data.from?.replace('@c.us', '') ||
         data.sender?.replace('@c.us', '') ||
         data.phone
       ),
@@ -784,20 +784,20 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
       fromMe: detectarFromMe()
     }
   }
-  
+
   // Dados direto no body
   const tipo = body.type || 'texto'
   const mediaUrl = body.mediaUrl || body.media?.url
-  
+
   let mensagemFinal = sanitizarTexto(body.message || body.body || body.text || body.content || body.caption)
-  
+
   if (!mensagemFinal && (mediaUrl || tipo !== 'texto')) {
     mensagemFinal = tipoLabels[tipo] || '📎 Mídia'
   }
-  
+
   return {
     telefone: sanitizarTelefone(
-      body.from?.replace('@c.us', '') || 
+      body.from?.replace('@c.us', '') ||
       body.sender?.replace('@c.us', '') ||
       body.phone
     ),
@@ -813,7 +813,7 @@ function extrairDadosMensagem(body: WebhookBody): DadosMensagem {
 function isEventoMensagem(body: WebhookBody): boolean {
   const event = body.event || body.type || body.action
   const eventosValidos = [
-    'message', 
+    'message',
     'message.received',
     'messages.received',
     'messages.upsert',
@@ -821,7 +821,7 @@ function isEventoMensagem(body: WebhookBody): boolean {
     'incoming_message',
     'new_message'
   ]
-  
+
   // Verificar se tem conteúdo de mensagem
   if (!event) {
     if (body.message || body.body || body.text || body.data?.message || body.data?.messages) {
@@ -835,7 +835,7 @@ function isEventoMensagem(body: WebhookBody): boolean {
       }
     }
   }
-  
+
   return eventosValidos.includes(event?.toLowerCase() || '')
 }
 
@@ -844,8 +844,8 @@ function isEventoMensagem(body: WebhookBody): boolean {
 // ==========================================
 
 export async function POST(request: Request) {
-  const headersList = headers()
-  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+  const headersList = await headers()
+  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
              headersList.get('x-real-ip') ||
              'unknown'
 
@@ -858,7 +858,7 @@ export async function POST(request: Request) {
 
     // Ler body
     const bodyText = await request.text()
-    
+
     // Parse do JSON
     let body: WebhookBody
     try {
@@ -868,16 +868,16 @@ export async function POST(request: Request) {
     }
 
     // Salvar payload original para debug
-    await salvarLogWebhook({ 
+    await salvarLogWebhook({
       _ip: ip,
-      _raw: body 
+      _raw: body
     }, 'webhook_raw', ip)
 
     // Validação de segurança
     const auth = await verificarAutenticacao(body)
     if (!auth.valido) {
       console.warn(`❌ Autenticação falhou. IP: ${ip}, Método: ${auth.metodo}`)
-      await salvarLogWebhook({ 
+      await salvarLogWebhook({
         motivo: 'Autenticação falhou',
         ip,
         metodo: auth.metodo,
@@ -909,7 +909,7 @@ export async function POST(request: Request) {
         }
         return NextResponse.json({ success: true, type: 'ack' })
       }
-      
+
       return NextResponse.json({ success: true, message: 'Evento ignorado' })
     }
 
@@ -922,8 +922,8 @@ export async function POST(request: Request) {
     if (fromMe) {
       console.log(`📤 Ignorando mensagem de saída (fromMe=true): ${mensagem?.substring(0, 50)}...`)
       await salvarLogWebhook({ mensagem, fromMe, motivo: 'fromMe=true' }, 'ignorado_fromme', ip)
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Mensagem de saída ignorada (fromMe=true)',
         ignored: true
       })
@@ -934,7 +934,7 @@ export async function POST(request: Request) {
     // ==========================================
     if (rawMessageData && !mediaUrl && tipo !== 'texto') {
       console.log(`🔐 Mídia criptografada detectada (${tipo}), tentando decriptar...`)
-      
+
       // Log detalhado para debug
       await salvarLogWebhook({
         tipo,
@@ -946,7 +946,7 @@ export async function POST(request: Request) {
                      !!rawMessageData.message?.audioMessage?.mediaKey ||
                      !!rawMessageData.message?.documentMessage?.mediaKey
       }, 'debug_media_decrypt', ip)
-      
+
       const { data: config } = await getSupabase()
         .from('config_wasender')
         .select('api_key')
@@ -969,16 +969,16 @@ export async function POST(request: Request) {
       await salvarLogWebhook({ erro: 'Telefone não encontrado', payload_preview: JSON.stringify(body).substring(0, 500) }, 'erro_telefone', ip)
       return NextResponse.json({ error: 'Telefone não encontrado' }, { status: 400 })
     }
-    
+
     // Validação flexível - aceita mídia mesmo sem URL decriptada
     // Só rejeita se for texto E não tiver mensagem
     if (!mensagem && tipo === 'texto') {
-      await salvarLogWebhook({ 
-        erro: 'Mensagem de texto vazia', 
-        telefone, 
+      await salvarLogWebhook({
+        erro: 'Mensagem de texto vazia',
+        telefone,
         tipo,
         mensagem,
-        mediaUrl 
+        mediaUrl
       }, 'erro_mensagem_vazia', ip)
       return NextResponse.json({ error: 'Mensagem vazia' }, { status: 400 })
     }
@@ -1013,7 +1013,7 @@ export async function POST(request: Request) {
 
     if (erroProcessamento || !resultado || resultado.length === 0) {
       console.error('Erro ao processar mensagem:', erroProcessamento)
-      await salvarLogWebhook({ 
+      await salvarLogWebhook({
         erro: erroProcessamento?.message || 'Sem resultado',
         telefone,
         tipo,
@@ -1035,10 +1035,10 @@ export async function POST(request: Request) {
         .from('mensagens_whatsapp')
         .delete()
         .eq('id', mensagemId)
-      
+
       await salvarLogWebhook({ mensagem, motivo: 'duplicata de saída' }, 'ignorado_duplicata', ip)
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Duplicata de mensagem de saída ignorada',
         ignored: true
       })
@@ -1061,8 +1061,8 @@ export async function POST(request: Request) {
         .catch(err => console.error('Erro processamento:', err))
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       conversa_id: conversaId,
       mensagem_id: mensagemId,
       is_nova_conversa: isPrimeiraMsg,
@@ -1080,13 +1080,13 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const challenge = searchParams.get('hub.challenge') || searchParams.get('challenge')
-  
+
   if (challenge) {
     return new Response(challenge, { status: 200 })
   }
-  
-  return NextResponse.json({ 
-    status: 'ok', 
+
+  return NextResponse.json({
+    status: 'ok',
     message: 'Webhook WhatsApp ativo',
     timestamp: new Date().toISOString()
   })

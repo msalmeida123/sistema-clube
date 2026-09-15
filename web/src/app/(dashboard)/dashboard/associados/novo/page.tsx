@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { ArrowLeft, Save, Upload } from 'lucide-react'
 import Link from 'next/link'
+import {useCep} from '@/hooks/useCep'
 
 export default function NovoAssociadoPage() {
   const [loading, setLoading] = useState(false)
@@ -27,16 +28,7 @@ export default function NovoAssociadoPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const buscarCEP = async () => {
-    if (form.cep.length < 8) return
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${form.cep}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm({ ...form, endereco: data.logradouro, bairro: data.bairro, cidade: data.localidade, estado: data.uf })
-      }
-    } catch (e) { console.error(e) }
-  }
+  const {buscarCEP,mensagemCep}=useCep(data => setForm(prev => ({...prev,endereco:data.endereco||prev.endereco,bairro:data.bairro||prev.bairro,cidade:data.cidade,estado:data.estado})))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,7 +89,7 @@ export default function NovoAssociadoPage() {
             <CardHeader><CardTitle>Endereço</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>CEP</Label><Input name="cep" value={form.cep} onChange={handleChange} onBlur={buscarCEP} placeholder="00000-000" /></div>
+                <div><Label>CEP</Label><Input name="cep" value={form.cep} onChange={e => {handleChange(e); void buscarCEP(e.target.value)}} inputMode="numeric" maxLength={9} placeholder="00000-000" /><p role="status" className="text-xs text-muted-foreground mt-1">{mensagemCep}</p></div>
                 <div>
                   <Label>Tipo</Label>
                   <select name="tipo_residencia" value={form.tipo_residencia} onChange={handleChange} className="w-full h-10 border rounded-md px-3">

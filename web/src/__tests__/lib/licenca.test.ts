@@ -1,0 +1,5 @@
+import {diasLicenca,estadoLicenca,mensagemLicenca,validarAntecedencias,linkLicenca} from '@/lib/licenca'
+test('dias em Brasília, incluindo a virada de UTC',()=>{expect(diasLicenca('2026-09-30',new Date('2026-09-24T01:00:00Z'))).toBe(7);expect(diasLicenca('2026-09-30',new Date('2026-09-30T03:00:00Z'))).toBe(0);expect(diasLicenca('2026-09-30',new Date('2026-10-01T03:00:00Z'))).toBe(-1)})
+test('status e mensagem nos limites',()=>{expect(estadoLicenca(16)).toBe('VÁLIDA');expect(estadoLicenca(15)).toBe('VENCENDO');expect(estadoLicenca(0)).toBe('VENCENDO');expect(estadoLicenca(-1)).toBe('VENCIDA');expect(mensagemLicenca('2026-09-30',7)).toContain('vence em 7 dias, no dia 30/09/2026');expect(mensagemLicenca('2026-09-30',0)).toContain('vence hoje')})
+test('configuração não aceita dias negativos, fracionários ou vazios',()=>{expect(validarAntecedencias([0,7,7,15])).toEqual([15,7,0]);for(const valor of [[],[-1],[1.2],['7'],[366]])expect(()=>validarAntecedencias(valor)).toThrow()})
+test('rejeita URL executável e data inexistente',()=>{expect(linkLicenca('javascript:alert(1)')).toBeNull();expect(()=>diasLicenca('2026-02-30')).toThrow()})

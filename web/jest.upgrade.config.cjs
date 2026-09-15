@@ -1,0 +1,1 @@
+module.exports={testEnvironment:'node',transform:{'^.+\\.tsx?$':['ts-jest',{tsconfig:{esModuleInterop:true,jsx:'react-jsx'},diagnostics:false}]},moduleNameMapper:{'^@/(.*)$':'<rootDir>/src/$1'},testMatch:['**/enviar-acesso*.test.ts','**/associado-app.test.ts','**/permissao-rota.test.ts','**/route-client.test.ts','**/cep.test.ts','**/imprimir-venda.test.ts'],maxWorkers:1}

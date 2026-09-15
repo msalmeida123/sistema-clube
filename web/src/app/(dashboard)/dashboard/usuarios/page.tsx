@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { toast } from 'sonner'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import {
-  Users, Search, Plus, Edit, Trash2, Save, Loader2, X, 
+  Users, Search, Plus, Edit, Trash2, Save, Loader2, X,
   Shield, Mail, Phone, Building2, Eye, EyeOff, KeyRound,
   UserCog, Check
 } from 'lucide-react'
@@ -51,7 +51,10 @@ const permissoesDisponiveis = [
   { value: 'financeiro_contas', label: '↳ Contas a Pagar', grupo: 'financeiro' },
   { value: 'financeiro_compras', label: '↳ Compras', grupo: 'financeiro' },
   { value: 'compras', label: 'Compras (módulo)', grupo: null },
-  { value: 'portaria', label: 'Portaria', grupo: null },
+  { value: 'portaria', label: 'Portaria Clube', grupo: null },
+  { value: 'portaria_piscina', label: 'Portaria Piscina', grupo: null },
+  { value: 'portaria_academia', label: 'Portaria Academia', grupo: null },
+  { value: 'portaria_sauna', label: 'Portaria Sauna', grupo: null },
   { value: 'exames', label: 'Exames Médicos', grupo: null },
   { value: 'infracoes', label: 'Infrações', grupo: null },
   { value: 'eleicoes', label: 'Eleições', grupo: null },
@@ -167,13 +170,13 @@ export default function UsuariosPage() {
   const togglePermissao = (permissao: string) => {
     setForm(prev => {
       const estaMarcada = prev.permissoes.includes(permissao)
-      
+
       if (estaMarcada) {
         // Ao desmarcar, remove a permissão e todas as subpermissões
         const subPermissoes = permissoesDisponiveis
           .filter(p => p.grupo === permissao)
           .map(p => p.value)
-        
+
         return {
           ...prev,
           permissoes: prev.permissoes.filter(p => p !== permissao && !subPermissoes.includes(p))
@@ -205,6 +208,11 @@ export default function UsuariosPage() {
   const salvar = async () => {
     if (!form.nome || !form.email) {
       toast.error('Nome e email são obrigatórios')
+      return
+    }
+
+    if (form.telefone.trim().length > 20) {
+      toast.error('Telefone deve ter no máximo 20 caracteres, incluindo DDD e formatação.')
       return
     }
 
@@ -487,6 +495,8 @@ export default function UsuariosPage() {
                 <div>
                   <label className="text-sm font-medium">Telefone</label>
                   <Input
+                    type="tel"
+                    maxLength={20}
                     value={form.telefone}
                     onChange={e => setForm(prev => ({ ...prev, telefone: e.target.value }))}
                     placeholder="(00) 00000-0000"
@@ -578,7 +588,7 @@ export default function UsuariosPage() {
                     {permissoesDisponiveis.map(p => {
                       const isSubPermissao = p.grupo !== null
                       const paiMarcado = !isSubPermissao || form.permissoes.includes(p.grupo!)
-                      
+
                       return (
                         <label
                           key={p.value}

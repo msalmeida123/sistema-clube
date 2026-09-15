@@ -1,0 +1,4 @@
+import {suporteSchema} from '@/lib/suporte-config'
+import {permiteRota} from '@/lib/permissao-rota'
+test('somente a página informativa de suporte independe de permissão de módulo',()=>{expect(permiteRota([],'/dashboard/suporte')).toBe(true);expect(permiteRota([],'/dashboard/suporte/editar')).toBe(false);expect(permiteRota([],'/dashboard/configuracoes')).toBe(false)})
+test('prazos completos e telefone válido são necessários para publicar SLA',()=>{const d={nome:'Suporte',telefone:'(11) 99999-0000',horario:'Segunda a sexta, 9h às 18h',contagem:'horas_uteis',observacoes:'',prazos:['critica','alta','normal','baixa'].map(prioridade=>({prioridade,resposta:1,solucao:8}))};expect(suporteSchema.safeParse(d).success).toBe(true);expect(suporteSchema.safeParse({...d,telefone:'javascript:alert(1)'}).success).toBe(false);expect(suporteSchema.safeParse({...d,prazos:d.prazos.map(p=>({...p,solucao:0.5}))}).success).toBe(false)})

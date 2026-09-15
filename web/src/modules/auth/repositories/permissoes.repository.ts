@@ -1,11 +1,11 @@
 // Repositório de Permissões CRUD
 import { createClientComponentClient } from '@/lib/supabase/client'
-import type { 
-  PaginaSistema, 
-  PermissaoUsuario, 
-  PermissaoPerfil, 
+import type {
+  PaginaSistema,
+  PermissaoUsuario,
+  PermissaoPerfil,
   PerfilAcesso,
-  PermissaoCRUD 
+  PermissaoCRUD
 } from '../types'
 
 const supabase = createClientComponentClient()
@@ -110,7 +110,7 @@ export async function findPermissoesUsuario(usuarioId: string): Promise<Permissa
 }
 
 export async function savePermissoesUsuario(
-  usuarioId: string, 
+  usuarioId: string,
   permissoes: PermissaoCRUD[]
 ): Promise<void> {
   // Deletar permissões antigas
@@ -123,7 +123,6 @@ export async function savePermissoesUsuario(
 
   // Inserir novas permissões
   const novasPermissoes = permissoes
-    .filter(p => p.pode_visualizar || p.pode_criar || p.pode_editar || p.pode_excluir)
     .map(p => ({
       usuario_id: usuarioId,
       pagina_id: p.pagina_id,
@@ -157,7 +156,7 @@ export async function findPermissoesPerfil(perfilId: string): Promise<PermissaoP
 }
 
 export async function savePermissoesPerfil(
-  perfilId: string, 
+  perfilId: string,
   permissoes: PermissaoCRUD[]
 ): Promise<void> {
   // Deletar permissões antigas
@@ -170,7 +169,6 @@ export async function savePermissoesPerfil(
 
   // Inserir novas permissões
   const novasPermissoes = permissoes
-    .filter(p => p.pode_visualizar || p.pode_criar || p.pode_editar || p.pode_excluir)
     .map(p => ({
       perfil_id: perfilId,
       pagina_id: p.pagina_id,
@@ -194,7 +192,7 @@ export async function savePermissoesPerfil(
 // ==========================================
 
 export async function findPermissoesCompletas(
-  usuarioId: string, 
+  usuarioId: string,
   perfilId?: string | null
 ): Promise<Record<string, PermissaoCRUD>> {
   const permissoesMap: Record<string, PermissaoCRUD> = {}

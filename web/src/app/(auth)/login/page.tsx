@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,6 +56,7 @@ export default function LoginPage() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
+          <Link href="/forgot-password" className="mt-4 block text-center text-sm text-blue-700 underline">Esqueci minha senha</Link>
         </CardContent>
       </Card>
     </div>

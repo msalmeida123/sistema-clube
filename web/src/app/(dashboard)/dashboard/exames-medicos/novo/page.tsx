@@ -1,4 +1,5 @@
 'use client'
+import AtendimentoConvidado from '@/components/AtendimentoConvidado'
 
 import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
 import { useRef, useState } from 'react'
@@ -14,6 +15,7 @@ import { ArrowLeft, Save, Search, Stethoscope, Upload } from 'lucide-react'
 import Link from 'next/link'
 
 export default function NovoExameMedicoPage() {
+  const [conviteQR,setConviteQR]=useState('')
   const router = useRouter()
   const [supabase] = useState(() => createClientComponentClient())
   const [modoBusca, setModoBusca] = useState<'qr' | 'cadastro'>('qr')
@@ -44,6 +46,8 @@ export default function NovoExameMedicoPage() {
     setAssociados([])
     setErroBusca('')
     try {
+      setConviteQR('')
+      if(valor.toUpperCase().startsWith('CONV-')){setAssociadoSelecionado(null);setConviteQR(valor.toUpperCase());return}
       if (modoBusca === 'qr') {
         const pessoas = await buscarPessoasClube(supabase, valor)
         const ativos=pessoas.filter(p=>p.status==='ativo')
@@ -69,6 +73,7 @@ export default function NovoExameMedicoPage() {
 
   const selecionarAssociado = (a: any) => {
     setErroBusca('')
+    setConviteQR('')
     setAssociadoSelecionado(a)
     setAssociados([])
     setBuscaAssociado('')
@@ -165,7 +170,7 @@ export default function NovoExameMedicoPage() {
         {/* Busca de Associado */}
         <Card>
           <CardHeader>
-            <CardTitle>Associado</CardTitle>
+            <CardTitle>Associado ou convidado</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {!associadoSelecionado ? (
@@ -174,7 +179,7 @@ export default function NovoExameMedicoPage() {
                   <Label htmlFor="modo-busca">Consultar associado por</Label>
                   <select id="modo-busca" className="w-full h-10 border rounded-md px-3" value={modoBusca} disabled={buscando}
                     onChange={e=>{setModoBusca(e.target.value as 'qr' | 'cadastro');setBuscaAssociado('');setAssociados([]);setErroBusca('')}}>
-                    <option value="qr">QR Code ou número do título</option>
+                    <option value="qr">QR do convite, carteirinha ou título</option>
                     <option value="cadastro">Nome ou CPF</option>
                   </select>
                 </div>
@@ -185,7 +190,7 @@ export default function NovoExameMedicoPage() {
                       aria-label="Buscar associado"
                       autoFocus
                       disabled={buscando}
-                      placeholder={modoBusca === 'qr' ? 'Escaneie o QR Code ou digite o título...' : 'Buscar por nome ou CPF...'}
+                      placeholder={modoBusca === 'qr' ? 'QR do convite, carteirinha ou título...' : 'Buscar por nome ou CPF...'}
                       className="pl-10"
                       value={buscaAssociado}
                       onChange={(e) => setBuscaAssociado(e.target.value)}
@@ -244,6 +249,7 @@ export default function NovoExameMedicoPage() {
           </CardContent>
         </Card>
 
+        {conviteQR ? <AtendimentoConvidado key={conviteQR} qr={conviteQR} modo="exame"/> : <>
         {/* Dados do Exame */}
         <Card>
           <CardHeader>
@@ -372,6 +378,7 @@ export default function NovoExameMedicoPage() {
             {loading ? 'Salvando...' : 'Salvar Exame'}
           </Button>
         </div>
+        </>}
       </form>
     </div>
   )

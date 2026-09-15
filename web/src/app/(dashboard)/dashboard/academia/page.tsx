@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { 
+import {
   Dumbbell, Plus, Trash2, Edit, Save, X, Users, Calendar,
   Clock, Award, CheckCircle, XCircle, AlertCircle, Search, QrCode
 } from 'lucide-react'
@@ -71,11 +71,11 @@ export default function AcademiaPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-    
+
     const [planosRes, assinaturasRes, associadosRes] = await Promise.all([
       supabase.from('planos_academia').select('*').order('ordem'),
       supabase.from('assinaturas_academia').select(`
-        *, 
+        *,
         associado:associados(nome, numero_titulo, telefone, qr_code),
         plano:planos_academia(nome)
       `).order('created_at', { ascending: false }),
@@ -98,7 +98,7 @@ export default function AcademiaPage() {
         const inicio = new Date(formAssinatura.data_inicio)
         const fim = new Date(inicio)
         fim.setMonth(fim.getMonth() + plano.duracao_meses)
-        
+
         setFormAssinatura(f => ({
           ...f,
           data_fim: fim.toISOString().split('T')[0],
@@ -187,16 +187,16 @@ export default function AcademiaPage() {
         .insert(dados)
         .select()
         .single()
-      
+
       if (error) { toast.error('Erro: ' + error.message); return }
-      
+
       // Gerar QR Code único
       const qrCode = 'ACAD-' + novaAssinatura.id.substring(0, 8).toUpperCase()
       await supabase
         .from('assinaturas_academia')
         .update({ qr_code: qrCode })
         .eq('id', novaAssinatura.id)
-      
+
       toast.success('Assinatura criada!')
     }
     resetFormAssinatura()
@@ -233,16 +233,16 @@ export default function AcademiaPage() {
   }
 
   const assinaturasFiltradas = assinaturas.filter(a => {
-    const matchBusca = !busca || 
+    const matchBusca = !busca ||
       a.associado?.nome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.associado?.numero_titulo?.includes(busca)
-    
+
     const isVencida = new Date(a.data_fim) < new Date()
-    const matchStatus = filtroStatus === 'todas' || 
+    const matchStatus = filtroStatus === 'todas' ||
       (filtroStatus === 'vencidas' && isVencida) ||
       (filtroStatus === 'ativas' && a.status === 'ativa' && !isVencida) ||
       (filtroStatus === a.status && !isVencida)
-    
+
     return matchBusca && matchStatus
   })
 

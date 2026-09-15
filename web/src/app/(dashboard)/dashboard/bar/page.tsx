@@ -1,8 +1,9 @@
 'use client'
 
+import {BotaoUSBLocal,enviarUSBLocal} from '@/components/ImpressaoUSBLocal'
 import { useState } from 'react'
-import { ImprimirCozinha } from '@/components/ImprimirCozinha'
-import { ShoppingCart, CreditCard, Wallet, Banknote, QrCode, Gift, Plus, Minus, Trash2, Search, User, Receipt, RefreshCw, Printer } from 'lucide-react'
+
+import { ShoppingCart, CreditCard, Wallet, Banknote, QrCode, Gift, Plus, Minus, Trash2, Search, User, Receipt, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBarProdutos, useCarrinho, useFinalizarVenda, useCarteirinhaSaldo, useEmitirNFCe } from '@/modules/bar/hooks/useBar'
@@ -49,6 +50,7 @@ export default function BarPDVPage() {
   const [valorFormaPag, setValorFormaPag] = useState('')
   const [showPagamento, setShowPagamento] = useState(false)
   const [pedidoCriado, setPedidoCriado] = useState<string | null>(null)
+  const [mensagemImpressao, setMensagemImpressao] = useState('')
   const [cpfNFCe, setCpfNFCe] = useState('')
   const [desconto, setDesconto] = useState(0)
   const [mesa, setMesa] = useState('')
@@ -135,8 +137,12 @@ export default function BarPDVPage() {
     }
 
     const pedido = await finalizarVenda.mutateAsync({ payload, operadorId: user?.id ?? '' })
+    setMensagemImpressao('Enviando comprovante e pedido à impressora...')
+    const impressao = enviarUSBLocal(pedido.id, 'automatico')
     setPedidoCriado(pedido.id)
     setShowPagamento(false)
+    try { setMensagemImpressao(await impressao) }
+    catch (e: any) { setMensagemImpressao('Venda salva. Não foi possível confirmar a impressão: ' + e.message) }
   }
 
   async function handleNovoPedido() {
@@ -169,6 +175,8 @@ export default function BarPDVPage() {
         </div>
         <h2 className="text-2xl font-bold text-green-600">Venda Finalizada!</h2>
         <p className="text-gray-500">Pedido registrado com sucesso</p>
+        <p role="status" className="text-sm">{mensagemImpressao}</p>
+        <BotaoUSBLocal pedidoId={pedidoCriado} destino="balcao" reimpressao/>
 
         <div className="flex flex-col gap-3 w-full max-w-sm">
           <div className="flex gap-2">
@@ -189,16 +197,9 @@ export default function BarPDVPage() {
             </Button>
           </div>
 
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => window.open(`/api/bar/comprovante?pedido_id=${pedidoCriado}`, '_blank')}
-          >
-            <Printer size={16} />
-            Imprimir Comprovante
-          </Button>
 
-          {carrinho.some(item => item.produto.enviar_cozinha) && <ImprimirCozinha pedidoId={pedidoCriado} />}
+
+          {carrinho.some(item => item.produto.enviar_cozinha) && <BotaoUSBLocal pedidoId={pedidoCriado} destino="cozinha" reimpressao />}
           <Button onClick={handleNovoPedido} className="gap-2 bg-blue-600 hover:bg-blue-700">
             <RefreshCw size={18} />
             Nova Venda

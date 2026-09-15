@@ -1,0 +1,8 @@
+import {fetchInterno} from '@/lib/supabase/fetch-interno'
+const original=global.fetch
+beforeEach(()=>{global.fetch=jest.fn().mockResolvedValue(new Response('{}'));process.env.NEXT_PUBLIC_SUPABASE_URL='http://localhost:3000/supabase';process.env.SUPABASE_INTERNAL_URL='http://api-gw:8000'})
+afterEach(()=>{global.fetch=original;delete process.env.SUPABASE_INTERNAL_URL})
+test('muda somente transporte preservando credencial, query e método',async()=>{const init={method:'POST',body:'{}',headers:{Authorization:'Bearer exemplo'}};await fetchInterno('http://localhost:3000/supabase/rest/v1/rpc/x?y=1',init);expect(fetch).toHaveBeenCalledWith('http://api-gw:8000/rest/v1/rpc/x?y=1',init);expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe('http://localhost:3000/supabase')})
+test('não redireciona outro host nem prefixo semelhante',async()=>{for(const url of ['http://example.com/supabase/rest/v1/x','http://localhost:3000/supabase-falso/x']){await fetchInterno(url);expect(fetch).toHaveBeenLastCalledWith(url,undefined)}})
+test('sem configuração mantém comportamento existente',async()=>{delete process.env.SUPABASE_INTERNAL_URL;const url='http://localhost:3000/supabase/auth/v1/user';await fetchInterno(url);expect(fetch).toHaveBeenCalledWith(url,undefined)})
+test('aceita Request preservando corpo e cabeçalhos',async()=>{await fetchInterno(new Request('http://localhost:3000/supabase/rest/v1/x',{method:'POST',body:'teste',headers:{Authorization:'Bearer exemplo'}}));const sent=(fetch as jest.Mock).mock.calls[0][0];expect(sent.url).toBe('http://api-gw:8000/rest/v1/x');expect(sent.headers.get('Authorization')).toBe('Bearer exemplo');expect(await sent.text()).toBe('teste')})
