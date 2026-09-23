@@ -68,7 +68,10 @@ export function useDashboardData(paineis: PainelDashboard[], configurando: boole
   }, [chave, configurando])
 
   useEffect(() => {
-    fetchAll()
+    void fetchAll()
+    const atualizar = () => { if (document.visibilityState === 'visible') void fetchAll() }
+    window.addEventListener('focus', atualizar)
+    return () => window.removeEventListener('focus', atualizar)
   }, [fetchAll])
 
   return { data, loading, error, refetch: fetchAll }

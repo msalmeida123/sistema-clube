@@ -132,7 +132,7 @@ export default function EleicoesPage() {
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm">Total</CardTitle>
@@ -245,7 +245,7 @@ export default function EleicoesPage() {
 
       {/* Modal Nova Eleição */}
       {showNovaEleicao && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 clube-modal-overlay">
           <Card className="w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Nova Eleição</CardTitle>
@@ -270,7 +270,7 @@ export default function EleicoesPage() {
                   placeholder="Descrição da eleição"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <Label>Início da Votação *</Label>
                   <Input

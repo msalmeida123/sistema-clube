@@ -1,1 +1,71 @@
-.socio-app{min-height:100dvh;background:#f4f3ed;color:#203b34;padding-bottom:110px;font-family:system-ui,sans-serif}.socio-header{height:88px;background:#103f35;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:20px max(24px,calc((100vw - 560px)/2));padding-top:max(20px,env(safe-area-inset-top))}.socio-brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:2px}.socio-brand span span{display:block;font-size:9px;letter-spacing:1.6px;font-weight:500;margin-top:3px;color:#c3d8c4}.socio-content{max-width:600px;margin:auto;padding:28px 22px}.socio-app h1{font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-1px;margin:10px 0 14px}.socio-intro h1{font-size:36px;max-width:430px}.socio-app h2{font-size:21px;font-weight:700;margin-bottom:14px}.socio-app h3{font-size:16px;font-weight:700;margin:9px 0}.socio-app p{font-size:14px;line-height:1.65}.socio-eyebrow{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#527366}.socio-intro{padding:12px 0 24px}.socio-card{display:block;background:#fff;border:1px solid #dfe5dc;border-radius:18px;padding:22px;margin:18px 0}.socio-app label{display:block;font-size:13px;font-weight:600;margin:17px 0}.socio-app input,.socio-app textarea,.socio-app select{display:block;width:100%;background:#fafbf7;border:1px solid #c9d6ca;border-radius:10px;padding:13px;color:#213f34;font-size:16px;margin-top:7px}.socio-app input:focus,.socio-app textarea:focus{outline:2px solid #507859;outline-offset:2px}.socio-app button{cursor:pointer}.socio-app button:disabled{opacity:.5;cursor:wait}.socio-primary{display:flex;align-items:center;justify-content:center;gap:12px;background:#174c3d;color:white;border-radius:12px;padding:15px 20px;width:100%;font-weight:700}.socio-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;color:#2f6149;margin:18px auto;text-decoration:underline;text-underline-offset:4px}.socio-help{color:#66796b;font-size:12px!important;margin:15px 0}.socio-welcome,.socio-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.socio-pass{background:#fff;border-radius:22px;overflow:hidden;text-align:center;box-shadow:0 12px 30px #284f3210;border:1px solid #dae1d6}.socio-pass-head{background:#dce8cf;display:flex;justify-content:space-between;align-items:center;padding:17px 20px;font-size:10px;font-weight:700;letter-spacing:1px}.socio-badge{background:#fff9;padding:4px 9px;border-radius:15px;text-transform:uppercase}.socio-qr{display:flex;justify-content:center;padding:12px}.socio-qr img{width:280px;max-width:100%;height:auto}.socio-pass h2{margin:0 16px 4px}.socio-pass-footer{display:flex;align-items:center;justify-content:center;gap:10px;border-top:1px dashed #d3dfce;margin-top:22px;padding:17px;font-size:12px;color:#4d6c52}.socio-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}.socio-shortcuts button{border:1px solid #d8dfd1;background:#e9eddf;border-radius:16px;padding:18px;text-align:left;display:flex;flex-direction:column;gap:12px}.socio-shortcuts strong{font-size:14px}.socio-shortcuts span{font-size:11px;color:#64745f}.socio-incident{display:flex;align-items:center;gap:14px;width:100%;text-align:left}.socio-incident strong{font-size:13px}.socio-incident small{display:block;font-size:11px;color:#64745f;margin-top:7px}.socio-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:600px;width:100%;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #dbe2d6;padding:12px 8px max(14px,env(safe-area-inset-bottom));z-index:10}.socio-nav button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 2px;color:#839080;font-size:10px;border-radius:10px}.socio-nav .selected{color:#174c3d;background:#edf2e5;font-weight:700}.socio-tag{font-size:11px;border-radius:14px;background:#e2efdb;padding:4px 9px;white-space:nowrap}.socio-amount{font-size:27px;font-weight:700;display:block;margin:12px 0}.socio-expiry{margin:14px 0;background:#edf2e5;padding:12px;border-radius:10px;font-weight:600}.socio-app .late{background:#fff0e9;color:#a34420}.socio-alert{background:#fff0e9;color:#a34420;border:1px solid #eed2c1;border-radius:12px;padding:14px;margin-bottom:15px;font-size:13px}.socio-notice{background:#e4eed8;border-radius:12px;padding:14px;margin-bottom:15px;font-size:13px}.socio-notice button{float:right;padding:0 5px}.socio-text{white-space:pre-wrap;overflow-wrap:anywhere}.socio-reply{background:#f2f5ec;border-radius:12px;padding:14px;margin-top:18px}.socio-app small{font-size:11px;color:#60725c}
+/* Área do associado: identidade do clube, navegação acessível e superfícies semânticas. */
+.socio-app{--club:#103f35;--canvas:#f5f8f6;--surface:#fff;--ink:#183b32;--muted:#52665e;--line:#d5e1da;--field-line:#71867a;--soft:#e7f0e9;--danger:#9b3328;--danger-bg:#fff1ed;min-height:100dvh;background:var(--canvas);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:flex;flex-direction:column;isolation:isolate}
+.socio-app *{box-sizing:border-box}
+.socio-header{min-height:76px;background:var(--club);color:white;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px max(20px,calc((100% - 640px)/2));padding-top:max(16px,env(safe-area-inset-top))}
+.socio-brand{display:flex;align-items:center;gap:12px;font-weight:750;font-size:20px;letter-spacing:1px;min-width:0}
+.socio-brand svg{flex-shrink:0}
+.socio-brand span span{display:block;font-size:12px;letter-spacing:.06em;font-weight:500;margin-top:2px;color:#d3e5d9}
+.socio-header button{flex-shrink:0;border:1px solid #ffffff50;border-radius:50%;padding:10px;display:grid;place-items:center}
+.socio-content{width:100%;max-width:680px;margin:0 auto;padding:24px 20px 32px;flex:1;min-width:0}
+.socio-app h1{font-size:clamp(26px,6vw,34px);line-height:1.2;font-weight:750;letter-spacing:-.035em;margin:8px 0 12px;overflow-wrap:anywhere}
+.socio-intro h1{font-size:clamp(30px,7vw,40px);max-width:520px}
+.socio-app h2{font-size:22px;line-height:1.3;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.socio-app h3{font-size:17px;line-height:1.4;font-weight:650;margin:8px 0}
+.socio-app p{font-size:16px;line-height:1.55;overflow-wrap:anywhere}
+.socio-eyebrow{font-size:12px;font-weight:650;letter-spacing:.07em;color:var(--muted)}
+.socio-intro{padding:12px 0 16px}
+.socio-card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;margin:16px 0;min-width:0}
+.socio-app label{display:block;font-size:15px;font-weight:600;margin:18px 0}
+.socio-app input,.socio-app textarea,.socio-app select{display:block;width:100%;min-width:0;max-width:100%;background:var(--surface);border:1px solid var(--field-line);border-radius:12px;padding:13px;color:var(--ink);font-size:16px;line-height:1.5;margin-top:8px}
+.socio-password-field{display:block;position:relative}.socio-password-field input{padding-right:48px}.socio-password-toggle{position:absolute;right:8px;top:8px;display:grid;place-items:center;width:40px;height:40px;border:0;background:transparent;color:var(--muted);border-radius:8px}.socio-password-toggle:hover{background:var(--soft)}
+.socio-app input::placeholder,.socio-app textarea::placeholder{color:var(--muted);opacity:1}
+.socio-app :is(button,a,input,textarea,select):focus-visible{outline:3px solid #2b8565;outline-offset:3px}
+.socio-header :is(button,a):focus-visible{outline-color:#e6f4e8}
+.socio-app button{cursor:pointer;min-height:44px;min-width:44px;touch-action:manipulation}
+.socio-app button:disabled{opacity:.55;cursor:default}
+.socio-primary{display:flex;align-items:center;justify-content:center;gap:12px;background:var(--club);color:#fff;border-radius:14px;padding:14px 20px;width:100%;font-weight:650;min-height:50px!important}
+.socio-link{display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;color:var(--ink);margin:16px auto;text-decoration:underline;text-underline-offset:4px}
+.socio-help{color:var(--muted);font-size:14px!important;margin:16px 0;line-height:1.55}
+.socio-welcome,.socio-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0}
+.socio-welcome{margin-bottom:14px}
+.socio-welcome>div{flex:1;min-width:0}
+.socio-welcome>button{display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);border-radius:50%}
+.socio-pass{background:var(--surface);border-radius:24px;overflow:hidden;text-align:center;box-shadow:0 8px 28px #103f350a;border:1px solid var(--line)}
+.socio-pass-head{background:var(--club);color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:16px 20px;font-size:12px;font-weight:650;letter-spacing:.04em}
+.socio-badge{background:#fff;color:#103f35;padding:5px 10px;border-radius:30px;letter-spacing:0;text-transform:capitalize;font-size:13px;overflow-wrap:anywhere}
+.socio-qr{display:flex;justify-content:center;padding:20px 16px 12px;background:#fff}
+.socio-qr img{display:block;width:240px;max-width:100%;height:auto;aspect-ratio:1;background:#fff}
+.socio-pass h2{margin:16px 20px 6px;overflow-wrap:anywhere;font-size:22px}
+.socio-pass>p{color:var(--muted);font-variant-numeric:tabular-nums}
+.socio-pass-footer{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--soft);margin-top:20px;padding:16px;font-size:14px;color:var(--ink)}
+.socio-pass-footer svg{flex-shrink:0}
+.socio-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0}
+.socio-shortcuts button{min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:18px;padding:18px;text-align:left;display:flex;flex-direction:column;gap:10px}
+.socio-shortcuts svg{color:var(--ink)}
+.socio-shortcuts strong{font-size:16px;overflow-wrap:anywhere}
+.socio-shortcuts span{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.socio-incident{display:flex;align-items:center;gap:14px;width:100%;text-align:left}
+.socio-incident>svg{flex-shrink:0}
+.socio-incident>span{min-width:0}
+.socio-incident strong{font-size:16px}
+.socio-incident small{display:block;font-size:14px;color:var(--muted);margin-top:6px}
+.socio-nav{position:sticky;bottom:0;margin-top:auto;align-self:center;max-width:680px;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding:8px 8px max(8px,env(safe-area-inset-bottom));z-index:10;box-shadow:0 -6px 24px #103f3508}
+.socio-nav button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;padding:10px 2px;color:var(--muted);font-size:12px;line-height:1.4;border-radius:14px;min-width:0;min-height:64px;overflow-wrap:anywhere}
+.socio-nav button span{max-width:100%}
+.socio-nav .selected{color:var(--ink);background:var(--soft);font-weight:700}
+.socio-tag{font-size:13px;border-radius:20px;background:var(--soft);padding:5px 10px;overflow-wrap:anywhere}
+.socio-amount{font-size:30px;line-height:1.2;font-weight:700;display:block;margin:14px 0;font-variant-numeric:tabular-nums}
+.socio-expiry{margin:14px 0;background:var(--soft);padding:14px;border-radius:12px;font-weight:600}
+.socio-app .late{background:var(--danger-bg);color:var(--danger)}
+.socio-alert{background:var(--danger-bg);color:var(--danger);border:1px solid currentColor;border-radius:14px;padding:16px;margin-bottom:16px;font-size:15px;overflow-wrap:anywhere}
+.socio-notice{background:var(--soft);border-radius:14px;padding:16px;margin-bottom:16px;font-size:15px;display:flex;align-items:center;gap:12px;overflow-wrap:anywhere}
+.socio-notice button{margin-left:auto;flex-shrink:0}
+.socio-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.socio-reply{background:var(--soft);border-radius:14px;padding:16px;margin-top:18px}
+.socio-app small{font-size:13px;color:var(--muted)}
+.socio-row>button{border:1px solid var(--field-line);border-radius:12px;padding:8px 12px;background:var(--surface)}
+@media(max-width:359px){.socio-content{padding-inline:16px}.socio-shortcuts{grid-template-columns:1fr}.socio-pass-head{padding-inline:16px}.socio-nav{padding-inline:4px}}
+@media(prefers-color-scheme:dark){.socio-app{--canvas:#0d1915;--surface:#172a23;--ink:#edf5ef;--muted:#b2c7ba;--line:#344d40;--field-line:#8da496;--soft:#243e30;--danger:#ffc2b5;--danger-bg:#43231e;color-scheme:dark}.socio-primary{background:#d3e7d7;color:#103f35}.socio-app :is(button,a,input,textarea,select):focus-visible{outline-color:#a6d5b4}.socio-header{background:#103f35}}
+@media(prefers-reduced-motion:no-preference){.socio-app button{transition:background-color .15s ease,box-shadow .15s ease}.socio-app button:active:not(:disabled){box-shadow:inset 0 0 0 2px currentColor}}
+
+.socio-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}.socio-header-actions .clube-mensagens-atalho{border-radius:12px}

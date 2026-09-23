@@ -80,7 +80,7 @@ export default function Carteirinha({ associado, clubeConfig }: CarteirinhaProps
             {/* Foto */}
             <div className="w-24 h-28 bg-white rounded-lg overflow-hidden flex-shrink-0">
               {associado.foto_url ? (
-                <img src={associado.foto_url} alt="Foto" className="w-full h-full object-cover" />
+                <img src={associado.foto_url} alt="Foto" className="w-full h-full object-contain object-center bg-gray-100" />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
                   Foto

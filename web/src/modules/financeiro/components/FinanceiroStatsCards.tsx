@@ -20,7 +20,7 @@ function formatCurrency(value: number): string {
 export function FinanceiroStatsCards({ stats, loading }: FinanceiroStatsCardsProps) {
   if (loading) {
     return (
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[1, 2, 3, 4].map(i => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -68,7 +68,7 @@ export function FinanceiroStatsCards({ stats, loading }: FinanceiroStatsCardsPro
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -81,8 +81,8 @@ export function FinanceiroStatsCards({ stats, loading }: FinanceiroStatsCardsPro
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {card.isCurrency === false
-                ? card.value
+              {card.isCurrency === false 
+                ? card.value 
                 : formatCurrency(card.value)}
             </div>
           </CardContent>

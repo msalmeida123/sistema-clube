@@ -1,3 +1,4 @@
+/** Cliente de serviço exclusivo do servidor, depois de validar usuário, permissão e tenant. */
 import {fetchInterno} from './fetch-interno'
 import {createClient} from '@supabase/supabase-js'
 /** Somente no servidor, após validar a sessão e a permissão do usuário. */

@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirPagina} from '@/lib/impressao'
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -156,7 +158,7 @@ export default function InfracaoDetalhesPage() {
     setSalvando(false)
   }
 
-  const imprimir = () => window.print()
+  const imprimir = () => imprimirPagina()
 
   const gerarPDF = async () => {
     if (!documentoRef.current) return
@@ -194,7 +196,7 @@ export default function InfracaoDetalhesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -205,7 +207,7 @@ export default function InfracaoDetalhesPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={imprimir}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
+          <BotaoImpressao type="button" variant="outline" onClick={imprimir}><Printer className="h-4 w-4 mr-2" />Imprimir</BotaoImpressao>
           <Button variant="outline" onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />PDF</Button>
         </div>
       </div>
@@ -248,7 +250,7 @@ export default function InfracaoDetalhesPage() {
               <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                 <User className="h-5 w-5" /> IDENTIFICAÇÃO DO ASSOCIADO
               </h3>
-              <div className="grid grid-cols-2 gap-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="grid gap-4 p-4 bg-red-50 border border-red-200 rounded-lg grid-cols-1 sm:grid-cols-2">
                 <div><span className="font-semibold">Nome:</span> {infracao.associado?.nome}</div>
                 <div><span className="font-semibold">Título:</span> {infracao.associado?.numero_titulo}</div>
                 <div><span className="font-semibold">CPF:</span> {infracao.associado?.cpf}</div>
@@ -261,7 +263,7 @@ export default function InfracaoDetalhesPage() {
               <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                 <Calendar className="h-5 w-5" /> DADOS DA OCORRÊNCIA
               </h3>
-              <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+              <div className="grid gap-4 p-4 border rounded-lg grid-cols-1 sm:grid-cols-2">
                 <div><span className="font-semibold">Data/Hora:</span> {formatarDataHora(infracao.data_ocorrencia)}</div>
                 <div><span className="font-semibold">Local:</span> {infracao.local_ocorrencia}</div>
                 <div><span className="font-semibold">Registrado em:</span> {formatarData(infracao.data_registro)}</div>
@@ -282,7 +284,7 @@ export default function InfracaoDetalhesPage() {
             {(infracao.testemunha1_nome || infracao.testemunha2_nome) && (
               <div className="mb-6">
                 <h3 className="font-bold text-lg mb-3">TESTEMUNHAS</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   {infracao.testemunha1_nome && (
                     <div className="p-3 border rounded-lg">
                       <p className="font-medium">{infracao.testemunha1_nome}</p>
@@ -373,7 +375,7 @@ export default function InfracaoDetalhesPage() {
                 <>
                   <div>
                     <Label className="text-base font-semibold">Penalidade a ser Aplicada *</Label>
-                    <div className="grid grid-cols-5 gap-3 mt-2">
+                    <div className="grid gap-3 mt-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                       {[
                         { valor: 'absolvido', label: 'Absolvido', cor: 'border-green-500 bg-green-50' },
                         { valor: 'admoestacao', label: 'Admoestação', cor: 'border-blue-500 bg-blue-50' },

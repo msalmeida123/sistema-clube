@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Plus, Search, Eye, Edit, CreditCard, FileText } from 'lucide-react'
+import {formatarCnpj} from '@/lib/cnpj'
 import { formatCPF } from '@/lib/utils'
 import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 import type { Associado } from '@/types/database'
@@ -21,7 +22,7 @@ export default function AssociadosPage() {
   useEffect(() => {
     const fetchAssociados = async () => {
       let query = supabase.from('associados').select('*').order('nome')
-      if (search) query = query.or(`nome.ilike.%${search}%,cpf.ilike.%${search}%`)
+      if (search) {const termo=search.replace(/[^A-Za-zÀ-ÿ0-9 .\/-]/g,'').slice(0,200);const doc=termo.replace(/[.\/\-\s]/g,'');query=query.or(`nome.ilike.%${termo}%,cpf.ilike.%${doc}%,cnpj.ilike.%${doc}%`)}
       const { data } = await query
       setAssociados(data || [])
       setLoading(false)
@@ -45,7 +46,7 @@ export default function AssociadosPage() {
         <div className="flex justify-between items-center">
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nome ou CPF..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Buscar por nome, CPF ou CNPJ..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <ComPermissao codigoPagina="associados" acao="criar">
             <Link href="/dashboard/associados/novo">
@@ -64,7 +65,7 @@ export default function AssociadosPage() {
                     <tr className="border-b">
                       <th className="text-left py-3 px-4">Associado</th>
                       <th className="text-left py-3 px-4">Título</th>
-                      <th className="text-left py-3 px-4">CPF</th>
+                      <th className="text-left py-3 px-4">CPF / CNPJ</th>
                       <th className="text-left py-3 px-4">Plano</th>
                       <th className="text-left py-3 px-4">Status</th>
                       <th className="text-left py-3 px-4">Ações</th>
@@ -83,7 +84,7 @@ export default function AssociadosPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4 font-mono">{a.numero_titulo}</td>
-                        <td className="py-3 px-4">{formatCPF(a.cpf)}</td>
+                        <td className="py-3 px-4">{a.tipo_cadastro==='pj'?formatarCnpj(a.cnpj||''):formatCPF(a.cpf)}</td>
                         <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getPlanoColor(a.plano)}`}>{a.plano}</span></td>
                         <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(a.status)}`}>{a.status}</span></td>
                         <td className="py-3 px-4">

@@ -5,6 +5,7 @@ const __impeccableLiveDev =
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['ioredis', 'argon2'],
 
   // Proxy opcional da instalação local: navegador e servidor usam a mesma URL.
   async rewrites() {
@@ -12,7 +13,7 @@ const nextConfig = {
       ? [{ source: '/supabase/:path*', destination: 'http://api-gw:8000/:path*' }]
       : []
   },
-
+  
   // Headers de segurança
   async headers() {
     return [

@@ -7,10 +7,11 @@ import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { listarConvitesFinanceiro, convitesFinanceiroMes } from '@/lib/financeiro-convites'
 import { toast } from 'sonner'
 import { PaginaProtegida, ComPermissao, usePermissaoPagina } from '@/components/ui/permissao'
-import {
-  CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye,
+import { 
+  CreditCard, DollarSign, AlertCircle, CheckCircle, Search, Plus, Eye, 
   Trash2, X, TrendingUp, TrendingDown, Calendar, Users, Receipt,
   Ticket, ShoppingCart, FileText, Wallet, PiggyBank, BarChart3,
   ChevronDown, ChevronUp, Filter, Download, Printer
@@ -47,9 +48,9 @@ type Parcela = {
 type Convite = {
   id: string
   associado_id: string
-  convidado_nome: string
+  nome_convidado: string
   valor_pago: number
-  data_validade: string
+  data_visita: string
   status: string
   associado?: { nome: string; numero_titulo: string }
 }
@@ -79,6 +80,8 @@ export default function FinanceiroPage() {
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([])
   const [parcelas, setParcelas] = useState<Parcela[]>([])
   const [convites, setConvites] = useState<Convite[]>([])
+  const [erroConvites, setErroConvites] = useState('')
+  const [carregandoConvites, setCarregandoConvites] = useState(false)
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([])
   const [compras, setCompras] = useState<Compra[]>([])
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -112,7 +115,7 @@ export default function FinanceiroPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-
+    
     const hoje = new Date()
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0]
     const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0]
@@ -132,12 +135,14 @@ export default function FinanceiroPage() {
       .lte('data_vencimento', fimMes)
 
     // Convites do mês
-    const { data: convitesMes } = await supabase
-      .from('convites')
-      .select('valor_pago, status')
-      .gte('data_validade', inicioMes)
-      .lte('data_validade', fimMes)
-      .in('status', ['pago', 'utilizado'])
+    let convitesMes: {valor_pago: number; status: string}[] = []
+    try {
+      convitesMes = await convitesFinanceiroMes(supabase, inicioMes, fimMes)
+    } catch {
+      toast.error('Não foi possível carregar os valores de convites. Atualize para tentar novamente.')
+      setLoading(false)
+      return
+    }
 
     // Contas a pagar do mês
     const { data: contasMes } = await supabase
@@ -210,7 +215,7 @@ export default function FinanceiroPage() {
   const carregarParcelas = async () => {
     let query = supabase
       .from('parcelas_carne')
-      .select('*, carne:carnes(tipo, descricao), associado:associados(nome, numero_titulo)')
+      .select('*, carne:carnes!inner(tipo, descricao, associado:associados(nome, numero_titulo))')
       .order('data_vencimento', { ascending: false })
 
     if (filtroStatus !== 'todos') {
@@ -218,18 +223,19 @@ export default function FinanceiroPage() {
     }
 
     const { data } = await query.limit(200)
-    setParcelas(data || [])
+    setParcelas((data || []).map((p: any) => ({...p, associado:p.carne?.associado})))
   }
 
   const carregarConvites = async () => {
-    let query = supabase
-      .from('convites')
-      .select('*, associado:associados(nome, numero_titulo)')
-      .in('status', ['pago', 'utilizado'])
-      .order('data_validade', { ascending: false })
-
-    const { data } = await query.limit(200)
-    setConvites(data || [])
+    setCarregandoConvites(true)
+    setErroConvites('')
+    try {
+      setConvites(await listarConvitesFinanceiro(supabase))
+    } catch {
+      setErroConvites('Não foi possível carregar os convites. Clique em Atualizar para tentar novamente.')
+    } finally {
+      setCarregandoConvites(false)
+    }
   }
 
   const carregarContasPagar = async () => {
@@ -259,8 +265,8 @@ export default function FinanceiroPage() {
   const marcarComoPago = async (tabela: string, id: string) => {
     const { error } = await supabase
       .from(tabela)
-      .update({
-        status: 'pago',
+      .update({ 
+        status: 'pago', 
         data_pagamento: new Date().toISOString().split('T')[0],
         updated_at: new Date().toISOString()
       })
@@ -273,7 +279,7 @@ export default function FinanceiroPage() {
 
     toast.success('Marcado como pago!')
     carregarDados()
-
+    
     if (tab === 'mensalidades') carregarMensalidades()
     if (tab === 'carnes') carregarParcelas()
     if (tab === 'contas') carregarContasPagar()
@@ -291,7 +297,7 @@ export default function FinanceiroPage() {
 
   const filtrarPorBusca = (items: any[], campos: string[]) => {
     if (!busca) return items
-    return items.filter(item =>
+    return items.filter(item => 
       campos.some(campo => {
         const valor = campo.split('.').reduce((obj, key) => obj?.[key], item)
         return valor?.toString().toLowerCase().includes(busca.toLowerCase())
@@ -324,7 +330,7 @@ export default function FinanceiroPage() {
     <PaginaProtegida codigoPagina="financeiro">
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Wallet className="h-6 w-6 text-green-600" />
@@ -332,7 +338,7 @@ export default function FinanceiroPage() {
           </h1>
           <p className="text-muted-foreground">Gestão financeira centralizada</p>
         </div>
-        <Button variant="outline" onClick={carregarDados}>
+        <Button variant="outline" onClick={() => { carregarDados(); if (tab === 'convites') carregarConvites() }}>
           <TrendingUp className="h-4 w-4 mr-2" />
           Atualizar
         </Button>
@@ -345,8 +351,8 @@ export default function FinanceiroPage() {
             key={t.id}
             onClick={() => setTab(t.id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-              tab === t.id
-                ? 'bg-white shadow text-green-600'
+              tab === t.id 
+                ? 'bg-white shadow text-green-600' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -360,10 +366,10 @@ export default function FinanceiroPage() {
       {tab === 'dashboard' && (
         <div className="space-y-6">
           {/* Cards Principais */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-green-100 text-sm">Receita do Mês</p>
                     <p className="text-2xl font-bold">{formatCurrency(stats.receitaMes)}</p>
@@ -375,7 +381,7 @@ export default function FinanceiroPage() {
 
             <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-red-100 text-sm">Despesas do Mês</p>
                     <p className="text-2xl font-bold">{formatCurrency(stats.despesaMes)}</p>
@@ -387,7 +393,7 @@ export default function FinanceiroPage() {
 
             <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-blue-100 text-sm">A Receber</p>
                     <p className="text-2xl font-bold">{formatCurrency(stats.aReceber)}</p>
@@ -399,7 +405,7 @@ export default function FinanceiroPage() {
 
             <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-orange-100 text-sm">A Pagar</p>
                     <p className="text-2xl font-bold">{formatCurrency(stats.aPagar)}</p>
@@ -411,7 +417,7 @@ export default function FinanceiroPage() {
           </div>
 
           {/* Cards Secundários */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-3 bg-green-100 rounded-full">
@@ -464,7 +470,7 @@ export default function FinanceiroPage() {
           {/* Saldo */}
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-muted-foreground">Saldo do Mês (Receitas - Despesas)</p>
                   <p className={`text-4xl font-bold ${stats.receitaMes - stats.despesaMes >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -506,7 +512,7 @@ export default function FinanceiroPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Associado</th>
@@ -547,7 +553,7 @@ export default function FinanceiroPage() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>
@@ -583,7 +589,7 @@ export default function FinanceiroPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Associado</th>
@@ -613,8 +619,8 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="p-3 text-right">
                         {p.status !== 'pago' && (
-                          <Button
-                            size="sm"
+                          <Button 
+                            size="sm" 
                             onClick={() => marcarComoPago('parcelas_carne', p.id)}
                             className="bg-green-600 hover:bg-green-700"
                           >
@@ -633,7 +639,7 @@ export default function FinanceiroPage() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>
@@ -660,7 +666,7 @@ export default function FinanceiroPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Convidado</th>
@@ -671,14 +677,14 @@ export default function FinanceiroPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrarPorBusca(convites, ['convidado_nome', 'associado.nome']).map(c => (
+                  {filtrarPorBusca(convites, ['nome_convidado', 'associado.nome']).map(c => (
                     <tr key={c.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{c.convidado_nome}</td>
+                      <td className="p-3 font-medium">{c.nome_convidado}</td>
                       <td className="p-3">
                         <div>{c.associado?.nome || '-'}</div>
                         <div className="text-sm text-muted-foreground">{c.associado?.numero_titulo}</div>
                       </td>
-                      <td className="p-3">{formatDate(c.data_validade)}</td>
+                      <td className="p-3">{formatDate(c.data_visita)}</td>
                       <td className="p-3 font-medium text-green-600">{formatCurrency(c.valor_pago)}</td>
                       <td className="p-3">
                         <span className={`text-xs px-2 py-1 rounded font-medium ${
@@ -689,15 +695,15 @@ export default function FinanceiroPage() {
                       </td>
                     </tr>
                   ))}
-                  {convites.length === 0 && (
+                  {(erroConvites || carregandoConvites || convites.length === 0) && (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-muted-foreground">
-                        Nenhum convite encontrado
+                      <td colSpan={5} className="text-center py-8 text-muted-foreground" role={erroConvites ? 'alert' : 'status'}>
+                        {erroConvites || (carregandoConvites ? 'Carregando convites...' : 'Nenhum convite encontrado')}
                       </td>
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>
@@ -730,7 +736,7 @@ export default function FinanceiroPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Descrição</th>
@@ -757,8 +763,8 @@ export default function FinanceiroPage() {
                       </td>
                       <td className="p-3 text-right">
                         {c.status !== 'pago' && (
-                          <Button
-                            size="sm"
+                          <Button 
+                            size="sm" 
                             onClick={() => marcarComoPago('contas_pagar', c.id)}
                             className="bg-green-600 hover:bg-green-700"
                           >
@@ -777,7 +783,7 @@ export default function FinanceiroPage() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>
@@ -804,7 +810,7 @@ export default function FinanceiroPage() {
 
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Descrição</th>
@@ -830,13 +836,13 @@ export default function FinanceiroPage() {
                   ))}
                   {compras.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <td colSpan={5} className="text-center py-8 text-muted-foreground" role={erroConvites ? 'alert' : 'status'}>
                         Nenhuma compra encontrada
                       </td>
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>

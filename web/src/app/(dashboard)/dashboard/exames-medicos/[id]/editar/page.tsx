@@ -139,7 +139,7 @@ export default function EditarExamePage() {
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                   {associado.foto_url ? (
-                    <img src={associado.foto_url} alt={associado.nome} className="h-full w-full object-cover" />
+                    <img src={associado.foto_url} alt={associado.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                   ) : (
                     <span className="text-xl font-medium">{associado.nome?.[0]}</span>
                   )}
@@ -159,7 +159,7 @@ export default function EditarExamePage() {
             <CardTitle>Dados do Exame</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Tipo de Exame *</Label>
                 <select
@@ -185,7 +185,7 @@ export default function EditarExamePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Data do Exame *</Label>
                 <Input
@@ -212,7 +212,7 @@ export default function EditarExamePage() {
             <CardTitle>Médico Responsável</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Nome do Médico *</Label>
                 <Input

@@ -197,7 +197,7 @@ export default function BarPDVPage() {
             </Button>
           </div>
 
-
+          
 
           {carrinho.some(item => item.produto.enviar_cozinha) && <BotaoUSBLocal pedidoId={pedidoCriado} destino="cozinha" reimpressao />}
           <Button onClick={handleNovoPedido} className="gap-2 bg-blue-600 hover:bg-blue-700">
@@ -210,9 +210,9 @@ export default function BarPDVPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] gap-0 bg-gray-50">
+    <div className="flex min-w-0 flex-col xl:flex-row xl:h-[calc(100dvh-64px)] gap-0 bg-gray-50">
       {/* ── LADO ESQUERDO: CARDÁPIO ─────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col xl:overflow-hidden">
         {/* Header cardápio */}
         <div className="bg-white border-b px-4 py-3 flex gap-3 items-center">
           <div className="relative flex-1">
@@ -254,7 +254,7 @@ export default function BarPDVPage() {
           {produtosFiltrados.length === 0 ? (
             <div className="text-center text-gray-400 py-20">Nenhum produto encontrado</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 min-[390px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
@@ -283,7 +283,7 @@ export default function BarPDVPage() {
       </div>
 
       {/* ── LADO DIREITO: CARRINHO ──────────────────────────── */}
-      <div className="w-96 bg-white border-l flex flex-col shadow-xl">
+      <div className="w-full xl:w-96 xl:shrink-0 bg-white border-t xl:border-t-0 xl:border-l flex flex-col shadow-xl">
         {/* Associado */}
         <div className="px-4 py-3 border-b bg-gray-50">
           <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export default function BarPDVPage() {
         </div>
 
         {/* Título carrinho */}
-        <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="px-4 py-3 border-b flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
             <ShoppingCart size={18} />
             Carrinho

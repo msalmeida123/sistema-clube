@@ -130,7 +130,7 @@ export default function ConfiguracaoNFCePage() {
 
       {/* Ativar/Desativar */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-white font-medium">Emissão de NFC-e</h2>
             <p className="text-sm text-gray-400 mt-1">Habilite para emitir notas fiscais pelo PDV via ACBrMonitor</p>

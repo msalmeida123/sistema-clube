@@ -1,3 +1,4 @@
+import {cacheCep} from '@/lib/cache-cep'
 import {NextResponse} from 'next/server'
 import {acessoRota} from '@/lib/supabase/acesso-rota'
 import {z} from 'zod'
@@ -8,13 +9,16 @@ export async function GET(_req:Request,{params}:{params:Promise<{cep:string}>}) 
  const {cep}=await params
  if(!/^\d{8}$/.test(cep)) return NextResponse.json({error:'Informe um CEP com 8 dígitos.'},{status:400})
  try {
+  const data=await cacheCep.obter(cep,async()=>{
   const response=await fetch(`https://viacep.com.br/ws/${cep}/json/`,{signal:AbortSignal.timeout(8000),redirect:'error',next:{revalidate:86400}})
   if(!response.ok) throw Error('provider')
   const body=await response.json()
-  if(body.erro) return NextResponse.json({error:'CEP não encontrado. Confira o número ou preencha o endereço manualmente.'},{status:404})
-  const data=enderecoSchema.parse(body)
+  if(body.erro) throw Error('CEP_NAO_ENCONTRADO')
+  return enderecoSchema.parse(body)
+  })
   return NextResponse.json({endereco:data.logradouro,bairro:data.bairro,cidade:data.localidade,estado:data.uf,ibge:data.ibge||''})
- } catch {
+ } catch (e) {
+  if(e instanceof Error&&e.message==='CEP_NAO_ENCONTRADO')return NextResponse.json({error:'CEP não encontrado. Confira o número ou preencha o endereço manualmente.'},{status:404})
   return NextResponse.json({error:'Consulta de CEP indisponível. Você pode preencher o endereço manualmente.'},{status:502})
  }
 }

@@ -1,0 +1,12 @@
+import sharp from 'sharp'
+import {prepararIcone} from '@/lib/tema/imagem'
+import {padrao,coresSchema,avisos,contraste,sobre,variaveis,MAX_ICONE} from '@/lib/tema/modelo'
+const upload=(data:Buffer,type='image/png')=>({size:data.length,type,arrayBuffer:async()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)}) as File
+async function imagem(w=256,h=256,format:'png'|'jpeg'|'webp'='png'){return sharp({create:{width:w,height:h,channels:4,background:'#103f35'}})[format]().toBuffer()}
+describe('Personalização',()=>{
+ test('cores estritas normalizadas e isolamento do contrato',()=>{expect(coresSchema.parse({...padrao,primaria:'#aabbcc'}).primaria).toBe('#AABBCC');for(const color of ['red','#fff','#zzzzzz','url(x)',''])expect(coresSchema.safeParse({...padrao,menu:color}).success).toBe(false);expect(coresSchema.safeParse({...padrao,clube_id:'outro'}).success).toBe(false)})
+ test('contraste AA e cores padrão',()=>{expect(contraste('#000000','#FFFFFF')).toBe(21);expect(avisos(padrao)).toEqual([]);expect(avisos({...padrao,texto:padrao.fundo}).length).toBeGreaterThan(0);for(const color of Object.values(padrao))expect(contraste(color,sobre(color))).toBeGreaterThanOrEqual(4.5);expect(variaveis(padrao)['--tema-menu']).toBe(padrao.menu)})
+ test.each(['png','jpeg','webp'] as const)('upload %s gera PNGs sem metadados com nomes únicos',async format=>{const data=await imagem(256,300,format);const icons=await prepararIcone(upload(data,`image/${format}`));expect(Object.keys(icons)).toEqual(['s16','s32','s180','s192','s512']);for(const [size,value]of Object.entries(icons)){const meta=await sharp(Buffer.from(value.dados,'base64')).metadata();expect(meta.format).toBe('png');expect(meta.width).toBe(Number(size.slice(1)));expect(meta.height).toBe(Number(size.slice(1)));expect(meta.exif).toBeUndefined();expect(value.nome).toMatch(/^[0-9a-f-]{36}-\d+\.png$/)}})
+ test('rejeita executável, SVG disfarçado, tipo incoerente, imagem pequena, truncada e tamanho excessivo',async()=>{for(const file of [upload(Buffer.from('<svg></svg>')),upload(await imagem(),'image/jpeg'),upload(await imagem(191)),upload(Buffer.from([137,80,78,71,13,10,26,10])),{...upload(Buffer.from('MZ')),size:MAX_ICONE+1} as File])await expect(prepararIcone(file)).rejects.toThrow()})
+ test('restaurar defaults não altera objeto padrão',()=>{const r={...padrao};r.menu='#000000';expect(padrao.menu).toBe('#FFFFFF')})
+})

@@ -54,8 +54,8 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       console.error('Erro WaSender Upload:', result)
-      return NextResponse.json({
-        error: result.message || result.error || 'Erro ao fazer upload'
+      return NextResponse.json({ 
+        error: result.message || result.error || 'Erro ao fazer upload' 
       }, { status: response.status })
     }
 
@@ -63,9 +63,9 @@ export async function POST(request: Request) {
 
     // Retornar URL do arquivo
     const fileUrl = result.data?.url || result.url || result.data?.fileUrl || result.fileUrl
-
-    return NextResponse.json({
-      success: true,
+    
+    return NextResponse.json({ 
+      success: true, 
       url: fileUrl,
       fileName: file.name,
       mediaType: mediaType,

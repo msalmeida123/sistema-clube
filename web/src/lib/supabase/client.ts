@@ -1,3 +1,4 @@
+/** Cliente Supabase do navegador; RLS e a sessão atual limitam cada operação. */
 import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
 import { BrowserCookieAuthStorageAdapter } from '@supabase/auth-helpers-shared'
 import { sessionLock } from './session-lock'

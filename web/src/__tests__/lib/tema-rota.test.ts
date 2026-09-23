@@ -1,0 +1,15 @@
+import {NextRequest} from 'next/server'
+import {GET,PUT} from '@/app/api/configuracoes/personalizacao/route'
+import {padrao} from '@/lib/tema/modelo'
+import {atorTema,lerTema} from '@/lib/tema/servidor'
+import {appDb} from '@/lib/associado-app'
+jest.mock('@/lib/tema/servidor',()=>{const {NextResponse}=require('next/server');class ErroTema extends Error{constructor(public status:number,public mensagem:string){super(mensagem)}}return{atorTema:jest.fn(),lerTema:jest.fn(),ErroTema,origemTema:(r:any)=>{if(r.headers.get('origin')!=='https://clube.test')throw new ErroTema(403,'Origem inválida')},erroTema:(e:any)=>NextResponse.json({error:e.mensagem||'Falha temporária'},{status:e.status||503})}})
+jest.mock('@/lib/associado-app',()=>({appDb:jest.fn(),limite:jest.fn()}))
+const rpc=jest.fn()
+beforeEach(()=>{jest.clearAllMocks();(atorTema as jest.Mock).mockResolvedValue({user:{id:'ator-sessao'},clube:'clube-sessao'});(lerTema as jest.Mock).mockResolvedValue({cores:padrao,versao:1,icone:false,personalizado:true});(appDb as jest.Mock).mockReturnValue({rpc});rpc.mockResolvedValue({error:null})})
+function request(extra?:Record<string,string>,origin='https://clube.test'){const form=new FormData();Object.entries({cores:JSON.stringify(padrao),versao:'0',acao:'manter',...extra}).forEach(([k,v])=>form.set(k,v));return new NextRequest('https://clube.test/api/configuracoes/personalizacao',{method:'PUT',body:form,headers:{origin,host:'clube.test'}})}
+test('GET consulta exclusivamente o clube da sessão',async()=>{expect((await GET()).status).toBe(200);expect(lerTema).toHaveBeenCalledWith('clube-sessao')})
+test('PUT usa ator autenticado, sem aceitar tenant do cliente',async()=>{expect((await PUT(request())).status).toBe(200);expect(rpc).toHaveBeenCalledWith('salvar_personalizacao',expect.objectContaining({p_ator:'ator-sessao',p_cores:padrao,p_versao:0}));rpc.mockClear();expect((await PUT(request({clube_id:'outra-empresa'}))).status).toBe(400);expect(rpc).not.toHaveBeenCalled()})
+test('bloqueia origem externa, cor inválida, contraste e upload ausente',async()=>{expect((await PUT(request({},'https://outro.test'))).status).toBe(403);expect((await PUT(request({cores:JSON.stringify({...padrao,texto:'red'})}))).status).toBe(422);expect((await PUT(request({cores:JSON.stringify({...padrao,texto:padrao.fundo})}))).status).toBe(422);expect((await PUT(request({acao:'substituir'}))).status).toBe(422);expect(rpc).not.toHaveBeenCalled()})
+test('falhas de sessão não acessam banco de tema',async()=>{const {ErroTema}=require('@/lib/tema/servidor');(atorTema as jest.Mock).mockRejectedValue(new ErroTema(403,'Sem permissão'));expect((await GET()).status).toBe(403);expect((await PUT(request())).status).toBe(403);expect(rpc).not.toHaveBeenCalled()})
+test('conflito preserva versão salva e erro técnico não vaza',async()=>{rpc.mockResolvedValue({error:{message:'CONFLITO'}});expect((await PUT(request())).status).toBe(409);rpc.mockResolvedValue({error:{message:'SQL /internal/secret stack'}});const r=await PUT(request());expect(r.status).toBe(503);expect(await r.text()).not.toContain('secret')})

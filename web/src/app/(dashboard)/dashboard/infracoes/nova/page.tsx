@@ -238,7 +238,7 @@ export default function NovaInfracaoPage() {
             <CardDescription>Informações sobre quando e onde aconteceu o fato</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <Label>Data da Ocorrência *</Label>
                 <Input
@@ -304,7 +304,7 @@ export default function NovaInfracaoPage() {
             <CardDescription>Pessoas que presenciaram o fato (opcional)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Nome da Testemunha 1</Label>
                 <Input
@@ -322,7 +322,7 @@ export default function NovaInfracaoPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Nome da Testemunha 2</Label>
                 <Input
@@ -380,7 +380,7 @@ export default function NovaInfracaoPage() {
             <CardDescription>Sugestão da Secretaria para análise da Diretoria</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { valor: 'leve', label: 'Leve', desc: 'Admoestação', cor: 'border-blue-300 bg-blue-50' },
                 { valor: 'media', label: 'Média', desc: 'Suspensão até 30 dias', cor: 'border-yellow-300 bg-yellow-50' },

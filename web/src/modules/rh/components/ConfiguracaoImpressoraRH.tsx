@@ -1,4 +1,5 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
 import {useEffect,useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -58,6 +59,6 @@ export function ConfiguracaoImpressoraRH(){
   <p className="text-sm text-slate-600">Holerites e resumos usam papel A4, em retrato. Selecione uma impressora de documentos ou Salvar como PDF na janela de impressão. A impressora térmica do bar usa outro formato.</p>
   <label className="block max-w-xs">Margens do documento (mm)<Input type="number" required min={5} max={25} step={1} value={margem} onChange={e=>{setMargem(Number(e.target.value));setAlterado(true)}}/></label>
   <p className="text-sm text-slate-600">As margens são salvas somente neste navegador e aplicadas às próximas impressões do RH. A escolha da impressora e das cópias é feita na janela de impressão.</p>
-  <div className="flex flex-wrap gap-2"><Button type="submit">Salvar preferências</Button><Button type="button" variant="outline" disabled={alterado} onClick={testar}>Abrir teste de impressão</Button></div>
+  <div className="flex flex-wrap gap-2"><Button type="submit">Salvar preferências</Button><BotaoImpressao type="button" variant="outline" disabled={alterado} onClick={testar}>Abrir teste de impressão</BotaoImpressao></div>
  </form></div>
 }

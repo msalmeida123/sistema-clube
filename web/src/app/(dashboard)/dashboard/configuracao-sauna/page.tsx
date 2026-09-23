@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import {
-  Droplets, Plus, Trash2, Settings, Loader2, Key,
+import { 
+  Droplets, Plus, Trash2, Settings, Loader2, Key, 
   AlertTriangle, CheckCircle, Wrench, RefreshCw
 } from 'lucide-react'
 
@@ -23,11 +23,11 @@ export default function ConfiguracaoSaunaPage() {
   const [armarios, setArmarios] = useState<Armario[]>([])
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
-
+  
   // Adicionar armários
   const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('5')
   const [numeroInicial, setNumeroInicial] = useState('')
-
+  
   // Edição
   const [modalExcluir, setModalExcluir] = useState(false)
   const [armarioExcluir, setArmarioExcluir] = useState<Armario | null>(null)
@@ -185,7 +185,7 @@ export default function ConfiguracaoSaunaPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Settings className="h-6 w-6 text-blue-600" />
@@ -200,7 +200,7 @@ export default function ConfiguracaoSaunaPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-4">
             <div className="text-center">
@@ -267,8 +267,8 @@ export default function ConfiguracaoSaunaPage() {
                 className="mt-1"
               />
             </div>
-            <Button
-              onClick={adicionarArmarios}
+            <Button 
+              onClick={adicionarArmarios} 
               disabled={salvando}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -282,8 +282,8 @@ export default function ConfiguracaoSaunaPage() {
           </div>
           <p className="text-sm text-gray-500 mt-2">
             Serão criados armários do número {numeroInicial || '?'} ao {
-              numeroInicial && quantidadeAdicionar
-                ? parseInt(numeroInicial) + parseInt(quantidadeAdicionar) - 1
+              numeroInicial && quantidadeAdicionar 
+                ? parseInt(numeroInicial) + parseInt(quantidadeAdicionar) - 1 
                 : '?'
             }
           </p>
@@ -313,7 +313,7 @@ export default function ConfiguracaoSaunaPage() {
                 {armarios.map(armario => {
                   const statusInfo = getStatusInfo(armario.status)
                   const StatusIcon = statusInfo.icon
-
+                  
                   return (
                     <tr key={armario.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
@@ -389,7 +389,7 @@ export default function ConfiguracaoSaunaPage() {
 
       {/* Modal Confirmar Exclusão */}
       {modalExcluir && armarioExcluir && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 clube-modal-overlay">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -402,8 +402,8 @@ export default function ConfiguracaoSaunaPage() {
             </p>
 
             <div className="flex gap-3">
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 onClick={() => setModalExcluir(false)}
                 className="flex-1"
               >

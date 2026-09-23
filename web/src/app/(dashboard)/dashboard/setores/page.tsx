@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import {
-  Plus, Pencil, Trash2, Users, Phone, Check, X, Loader2,
+import { 
+  Plus, Pencil, Trash2, Users, Phone, Check, X, Loader2, 
   Building2, UserPlus, UserMinus
 } from 'lucide-react'
 
@@ -49,7 +49,7 @@ export default function SetoresPage() {
     cor: '#3B82F6',
     telefone_whatsapp: ''
   })
-
+  
   const supabase = createClientComponentClient()
 
   // Carregar setores
@@ -59,7 +59,7 @@ export default function SetoresPage() {
       .from('setores')
       .select('*')
       .order('nome')
-
+    
     if (error) {
       toast.error('Erro ao carregar setores')
       console.error(error)
@@ -76,7 +76,7 @@ export default function SetoresPage() {
       .select('id, email, nome')
       .eq('ativo', true)
       .order('nome')
-
+    
     if (!error) {
       setUsuarios(data || [])
     }
@@ -91,7 +91,7 @@ export default function SetoresPage() {
         usuario:usuario_id (id, email, nome)
       `)
       .eq('setor_id', setorId)
-
+    
     if (!error) {
       setUsuariosSetor(data || [])
     }
@@ -249,13 +249,13 @@ export default function SetoresPage() {
   }
 
   const cores = [
-    '#22C55E', '#3B82F6', '#8B5CF6', '#EAB308',
+    '#22C55E', '#3B82F6', '#8B5CF6', '#EAB308', 
     '#EF4444', '#F97316', '#EC4899', '#14B8A6'
   ]
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Building2 className="h-6 w-6" />
@@ -291,40 +291,40 @@ export default function SetoresPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {setores.map((setor) => (
             <Card key={setor.id} className={`relative ${!setor.ativo ? 'opacity-60' : ''}`}>
-              <div
+              <div 
                 className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
                 style={{ backgroundColor: setor.cor }}
               />
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <div
+                    <div 
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: setor.cor }}
                     />
                     <CardTitle className="text-lg">{setor.nome}</CardTitle>
                   </div>
                   <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
                       className="h-8 w-8"
                       onClick={() => abrirUsuarios(setor.id)}
                       title="Gerenciar usuários"
                     >
                       <Users className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
                       className="h-8 w-8"
                       onClick={() => abrirEdicao(setor)}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
                       className="h-8 w-8 text-red-500"
                       onClick={() => excluirSetor(setor.id)}
                     >
@@ -343,12 +343,12 @@ export default function SetoresPage() {
                     {setor.telefone_whatsapp}
                   </p>
                 )}
-                <div className="flex items-center justify-between pt-2 border-t">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
                   <span className={`text-xs px-2 py-1 rounded-full ${setor.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {setor.ativo ? 'Ativo' : 'Inativo'}
                   </span>
-                  <Button
-                    variant="ghost"
+                  <Button 
+                    variant="ghost" 
                     size="sm"
                     onClick={() => toggleAtivo(setor)}
                   >
@@ -363,7 +363,7 @@ export default function SetoresPage() {
 
       {/* Modal Form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 clube-modal-overlay">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>{editando ? 'Editar Setor' : 'Novo Setor'}</CardTitle>
@@ -411,8 +411,8 @@ export default function SetoresPage() {
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
+                <Button 
+                  variant="outline" 
                   className="flex-1"
                   onClick={() => { setShowForm(false); setEditando(null) }}
                 >
@@ -429,10 +429,10 @@ export default function SetoresPage() {
 
       {/* Modal Usuários do Setor */}
       {showUsuarios && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 clube-modal-overlay">
           <Card className="w-full max-w-lg max-h-[80vh] flex flex-col">
             <CardHeader className="border-b">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   Usuários do Setor
@@ -451,7 +451,7 @@ export default function SetoresPage() {
                 ) : (
                   <div className="space-y-2">
                     {usuariosSetor.map((us) => (
-                      <div key={us.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div key={us.id} className="flex flex-wrap items-center justify-between gap-3 p-2 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">{(us.usuario as any)?.nome || (us.usuario as any)?.email}</p>
                           <p className="text-xs text-muted-foreground">{(us.usuario as any)?.email}</p>
@@ -486,7 +486,7 @@ export default function SetoresPage() {
                   {usuarios
                     .filter(u => !usuariosSetor.some(us => us.usuario_id === u.id))
                     .map((usuario) => (
-                      <div key={usuario.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                      <div key={usuario.id} className="flex flex-wrap items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">{usuario.nome || usuario.email}</p>
                           <p className="text-xs text-muted-foreground">{usuario.email}</p>

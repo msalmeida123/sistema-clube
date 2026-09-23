@@ -128,13 +128,13 @@ export function usePermissoes() {
 // Hook auxiliar para verificar permissão de rota
 export function usePermissaoRota(rota: string): boolean {
   const { isAdmin, permissoes } = usePermissoes()
-
+  
   if (isAdmin) return true
-
+  
   // Encontrar o código de permissão para a rota
   const rotaBase = Object.keys(ROTAS_PERMISSOES).sort((a,b) => b.length-a.length).find(r => rota === r || (r !== '/dashboard' && rota.startsWith(r + '/')))
   if (!rotaBase) return false
-
+  
   const codigo = ROTAS_PERMISSOES[rotaBase]
   return permissoes.includes(codigo)
 }

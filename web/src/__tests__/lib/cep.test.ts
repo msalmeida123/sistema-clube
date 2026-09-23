@@ -1,8 +1,9 @@
 import {GET} from '@/app/api/cep/[cep]/route'
+import {cacheCep} from '@/lib/cache-cep'
 import {acessoRota} from '@/lib/supabase/acesso-rota'
 jest.mock('@/lib/supabase/acesso-rota',()=>({acessoRota:jest.fn()}))
 const fetchMock=jest.fn()
-beforeEach(()=>{jest.clearAllMocks();global.fetch=fetchMock;(acessoRota as jest.Mock).mockResolvedValue({user:{id:'test'}})})
+beforeEach(()=>{cacheCep.limpar();jest.clearAllMocks();global.fetch=fetchMock;(acessoRota as jest.Mock).mockResolvedValue({user:{id:'test'}})})
 const get=(cep='01001000')=>GET(new Request('https://sistema.test/api/cep/'+cep),{params:Promise.resolve({cep})})
 test('consulta exige sessao',async()=>{(acessoRota as jest.Mock).mockResolvedValue(null);expect((await get()).status).toBe(401);expect(fetchMock).not.toHaveBeenCalled()})
 test('valida CEP antes de consultar provedor',async()=>{expect((await get('12')).status).toBe(400);expect(fetchMock).not.toHaveBeenCalled()})

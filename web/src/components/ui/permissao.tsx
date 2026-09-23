@@ -34,7 +34,7 @@ export function BotaoComPermissao({
     )
   }
 
-  const temPermissao =
+  const temPermissao = 
     (acao === 'criar' && podeCriar) ||
     (acao === 'editar' && podeEditar) ||
     (acao === 'excluir' && podeExcluir)
@@ -85,7 +85,7 @@ export function ComPermissao({
     return <>{fallback}</>
   }
 
-  const temPermissao =
+  const temPermissao = 
     (acao === 'visualizar' && podeVisualizar) ||
     (acao === 'criar' && podeCriar) ||
     (acao === 'editar' && podeEditar) ||

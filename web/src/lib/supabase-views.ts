@@ -128,7 +128,7 @@ export async function getKPIs(colunas = '*'): Promise<KPIs | null> {
   
   if (error) {
     console.error('Erro ao buscar KPIs:', error)
-    return null
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data as unknown as KPIs
 }
@@ -141,7 +141,7 @@ export async function getDashboardConversas(): Promise<DashboardConversas | null
   
   if (error) {
     console.error('Erro ao buscar dashboard conversas:', error)
-    return null
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data
 }
@@ -156,7 +156,7 @@ export async function getAlertasConversas(limite = 10): Promise<AlertaConversa[]
   
   if (error) {
     console.error('Erro ao buscar alertas:', error)
-    return []
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data || []
 }
@@ -168,7 +168,7 @@ export async function getConversasPorSetor(): Promise<ConversaPorSetor[]> {
   
   if (error) {
     console.error('Erro ao buscar conversas por setor:', error)
-    return []
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data || []
 }
@@ -194,7 +194,7 @@ export async function getDashboardFinanceiro(): Promise<DashboardFinanceiro | nu
   
   if (error) {
     console.error('Erro ao buscar dashboard financeiro:', error)
-    return null
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data
 }
@@ -247,7 +247,7 @@ export async function getMetricasPorHora(): Promise<MetricaPorHora[]> {
   
   if (error) {
     console.error('Erro ao buscar métricas por hora:', error)
-    return []
+    throw new Error('Não foi possível consultar os indicadores do Dashboard.')
   }
   return data || []
 }

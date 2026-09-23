@@ -129,7 +129,7 @@ export class RHService {
     if (existente) {
       // Atualizar registro existente
       const update: Partial<PontoDiario> = { [campo]: hora }
-
+      
       // Calcular horas trabalhadas quando tiver entrada e saída
       const entrada = campo === 'entrada' ? hora : existente.entrada
       const saida = campo === 'saida' ? hora : existente.saida

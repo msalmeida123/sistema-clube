@@ -163,7 +163,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
   return (
     <div className={somenteMeta ? "space-y-6" : "p-6 max-w-5xl mx-auto space-y-6"}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{somenteMeta ? 'WhatsApp — API Oficial (Meta)' : 'WhatsApp Providers'}</h1>
           <p className="text-muted-foreground">{somenteMeta ? 'Configure as credenciais e o webhook da Meta Cloud API' : 'Gerencie conexões WaSender e Meta Cloud API'}</p>
@@ -194,7 +194,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
           {providers.map(provider => (
             <Card key={provider.id} className={`relative ${!provider.ativo ? 'opacity-60' : ''}`}>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                       provider.tipo === 'meta' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
@@ -309,7 +309,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 clube-modal-overlay">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
             <h2 className="text-xl font-bold mb-4">
               {somenteMeta ? (editingId ? 'Editar conexão Meta' : 'Configurar API oficial') : (editingId ? 'Editar Provider' : 'Novo Provider')}
@@ -331,7 +331,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
               {/* Tipo */}
               {!somenteMeta && <div>
                 <label className="block text-sm font-medium mb-1">Tipo</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <button
                     type="button"
                     className={`border rounded-lg p-3 text-left ${form.tipo === 'meta' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
@@ -367,7 +367,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
                     </ol>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-medium mb-1">Phone Number ID *</label>
                       <input
@@ -402,7 +402,7 @@ export default function ConfiguracaoWhatsAppProviders({ somenteMeta = false }: {
                     <p className="text-xs text-gray-500 mt-1">Use um System User Token permanente, não o token temporário de teste</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-medium mb-1">App ID</label>
                       <input

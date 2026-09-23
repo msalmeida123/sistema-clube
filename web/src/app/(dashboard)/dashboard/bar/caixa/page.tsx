@@ -96,7 +96,7 @@ export default function CaixaPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Landmark className="text-amber-500" size={28} />
           <h1 className="text-2xl font-bold text-white">Controle de Caixa</h1>
@@ -135,7 +135,7 @@ export default function CaixaPage() {
             <span className="text-sm text-gray-500 ml-auto">Aberto em {fmtData(caixaAberto.aberto_em)}</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             <div className="bg-gray-900 rounded-lg p-4 text-center">
               <p className="text-xs text-gray-400 mb-1">Saldo Inicial</p>
               <p className="text-lg font-bold text-white">{fmt(caixaAberto.saldo_inicial)}</p>
@@ -164,7 +164,7 @@ export default function CaixaPage() {
               <h3 className="text-sm font-medium text-gray-400 mb-2">Movimentos do Caixa</h3>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {movimentos.map(m => (
-                  <div key={m.id} className="flex items-center justify-between py-2 px-3 bg-gray-900/50 rounded text-sm">
+                  <div key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2 px-3 bg-gray-900/50 rounded text-sm">
                     <div className="flex items-center gap-2">
                       {m.tipo === 'sangria' ? (
                         <ArrowUpCircle size={14} className="text-orange-400" />
@@ -208,7 +208,7 @@ export default function CaixaPage() {
           Histórico de Caixas
         </h2>
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
             <thead className="bg-gray-900">
               <tr className="text-gray-400 text-left">
                 <th className="p-3">Operador</th>
@@ -258,13 +258,13 @@ export default function CaixaPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
       {/* Modal Abrir Caixa */}
       {modalAbrir && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 clube-modal-overlay">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <DoorOpen className="text-green-400" size={20} />
@@ -305,7 +305,7 @@ export default function CaixaPage() {
 
       {/* Modal Fechar Caixa */}
       {modalFechar && caixaAberto && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 clube-modal-overlay">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <DoorClosed className="text-red-400" size={20} />
@@ -351,7 +351,7 @@ export default function CaixaPage() {
 
       {/* Modal Sangria / Suprimento */}
       {modalMovimento && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 clube-modal-overlay">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               {modalMovimento === 'sangria' ? (
@@ -406,7 +406,7 @@ export default function CaixaPage() {
 
       {/* Modal Detalhe Caixa Fechado */}
       {detalhe && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 clube-modal-overlay">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg border border-gray-700 max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-white mb-4">Resumo do Caixa</h3>
             <div className="space-y-3 text-sm">

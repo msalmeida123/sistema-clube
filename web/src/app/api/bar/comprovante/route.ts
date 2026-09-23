@@ -4,12 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { gerarComandaCozinha } from '@/lib/comanda-cozinha'
 import { escapeHtml } from '@/lib/security'
-import { verificarPermissao } from '@/lib/usuario-atual'
+import { verificarPermissao, buscarUsuarioAtual } from '@/lib/usuario-atual'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,6 +23,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
     }
 
+    const usuario=await buscarUsuarioAtual<any>(auth,user.id,'clube_id,ativo')
+    if(!usuario?.ativo||!usuario.clube_id)return NextResponse.json({error:'Sem permissão'},{status:403})
+    const supabase=auth
     const pedidoId = req.nextUrl.searchParams.get('pedido_id')
     if (!pedidoId) return NextResponse.json({ error: 'pedido_id obrigatório' }, { status: 400 })
 
@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
         bar_pagamentos (*)
       `)
       .eq('id', pedidoId)
+      .eq('clube_id',usuario.clube_id)
       .single()
 
     if (error || !pedido) {
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
     const { data: configNfce } = await supabase
       .from('bar_config_nfce')
       .select('nome_fantasia, razao_social, cnpj_emitente')
+      .eq('clube_id',usuario.clube_id)
       .limit(1)
       .maybeSingle()
 

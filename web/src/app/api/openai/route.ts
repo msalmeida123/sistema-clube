@@ -49,7 +49,7 @@ function verificarRateLimitUsuario(userId: string): { permitido: boolean; restan
 // Sanitizar e limitar input
 function sanitizarMensagem(mensagem: string): string {
   if (!mensagem) return ''
-
+  
   return mensagem
     .substring(0, MAX_INPUT_LENGTH)
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remover caracteres de controle
@@ -70,25 +70,25 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
     const audioResponse = await fetch(audioUrl, {
       signal: AbortSignal.timeout(30000)
     })
-
+    
     if (!audioResponse.ok) {
       console.error('Erro ao baixar áudio:', audioResponse.status)
       return null
     }
-
+    
     const audioBlob = await audioResponse.blob()
-
+    
     // Validar tamanho (máx 25MB - limite do Whisper)
     if (audioBlob.size > 25 * 1024 * 1024) {
       console.error('Áudio muito grande para transcrição')
       return null
     }
-
+    
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.ogg')
     formData.append('model', 'whisper-1')
     formData.append('language', 'pt')
-
+    
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -97,13 +97,13 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
       body: formData,
       signal: AbortSignal.timeout(60000)
     })
-
+    
     if (!response.ok) {
       const error = await response.text()
       console.error('Erro Whisper:', error)
       return null
     }
-
+    
     const result = await response.json()
     return result.text
   } catch (error) {
@@ -113,7 +113,7 @@ async function transcreveAudio(audioUrl: string, apiKey: string): Promise<string
 }
 
 async function gerarRespostaIA(
-  mensagem: string,
+  mensagem: string, 
   apiKey: string,
   modelo: string,
   instrucoes: string,
@@ -125,7 +125,7 @@ async function gerarRespostaIA(
     // Validar e limitar parâmetros
     const temperaturaSegura = Math.min(Math.max(temperatura || 0.7, 0), 2)
     const maxTokensSeguro = Math.min(maxTokens || 500, MAX_OUTPUT_TOKENS)
-
+    
     const systemPrompt = `${instrucoes || 'Você é um assistente virtual do clube.'}
 
 DOCUMENTO DO CLUBE (use essas informações para responder):
@@ -171,7 +171,7 @@ async function processarMensagemComIA(
   mediaUrl?: string
 ): Promise<{ resposta: string | null; transcricao?: string; erro?: string }> {
   const supabaseAdmin = getSupabaseAdmin()
-
+  
   // Buscar configuração
   const { data: config, error: configError } = await supabaseAdmin
     .from('config_bot_ia')
@@ -220,9 +220,9 @@ export async function POST(request: Request) {
     // Verificar autenticação
     const cookieStore = await cookies()
     const supabase = await createRouteHandlerClient({ cookies: () => cookieStore })
-
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+    
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Não autorizado. Faça login para usar o assistente IA.' },
@@ -232,14 +232,14 @@ export async function POST(request: Request) {
 
     // Verificar rate limit do usuário
     const rateLimit = verificarRateLimitUsuario(user.id)
-
+    
     if (!rateLimit.permitido) {
       return NextResponse.json(
-        {
+        { 
           error: 'Limite de requisições excedido. Aguarde um minuto.',
           retryAfter: 60
         },
-        {
+        { 
           status: 429,
           headers: {
             'Retry-After': '60',
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
       permissoes: string[] | null
     }>(supabase, user.id, 'is_admin, permissoes')
 
-    const temPermissao = userData?.is_admin ||
+    const temPermissao = userData?.is_admin || 
                          userData?.permissoes?.includes('crm') ||
                          userData?.permissoes?.includes('configuracoes')
 
@@ -279,14 +279,14 @@ export async function POST(request: Request) {
 
     // Processar com IA
     const resultado = await processarMensagemComIA(
-      mensagem || '',
-      tipo || 'texto',
+      mensagem || '', 
+      tipo || 'texto', 
       mediaUrl
     )
 
     // Log de uso (para auditoria)
     console.log(`OpenAI API usada por ${user.email} - tipo: ${tipo || 'texto'}`)
-
+    
     return NextResponse.json({
       ...resultado,
       rateLimitRestante: rateLimit.restante

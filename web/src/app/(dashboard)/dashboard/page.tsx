@@ -8,9 +8,10 @@ import {ResumoFinanceiro} from '@/components/dashboard/ResumoFinanceiro'
 import {MetricasWhatsApp} from '@/components/dashboard/MetricasWhatsApp'
 export default function DashboardPage(){
  const config=useDashboardConfiguracao()
- const {data,loading}=useDashboardData(config.paineis,config.loading)
+ const {data,loading,error,refetch}=useDashboardData(config.paineis,config.loading)
  if(config.loading)return <p className="text-muted-foreground">Carregando Dashboard...</p>
  if(config.error)return <p role="alert">Não foi possível carregar as permissões do Dashboard. Recarregue a página.</p>
+ if(error)return <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-800"><p>Não foi possível consultar os indicadores. Os números estão indisponíveis.</p><button onClick={()=>void refetch()} className="mt-2 underline">Tentar novamente</button></div>
  if(!config.paineis.length)return <p className="text-muted-foreground">Nenhum indicador está habilitado para você no Dashboard desta empresa.</p>
  const tem=(id:typeof config.paineis[number])=>config.paineis.includes(id)
  return <div className="space-y-6">

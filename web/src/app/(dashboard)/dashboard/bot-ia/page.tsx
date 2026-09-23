@@ -177,7 +177,7 @@ export default function BotIAPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             <div>
               <label className="text-sm font-medium">Modelo</label>
               <select

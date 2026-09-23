@@ -7,30 +7,30 @@ import QRCode from 'qrcode'
 export async function GET() {
   try {
     const supabase = await createRouteHandlerClient({ cookies })
-
+    
     const { data: config, error: configError } = await supabase
       .from('config_wasender')
       .select('*')
       .single()
 
     if (configError || !config) {
-      return NextResponse.json({
-        error: 'Configuração não encontrada. Vá em Configurações > WaSenderAPI',
-        device_id: null
+      return NextResponse.json({ 
+        error: 'Configuração não encontrada. Vá em Configurações > WaSenderAPI', 
+        device_id: null 
       }, { status: 400 })
     }
 
     if (!config.personal_token) {
-      return NextResponse.json({
-        error: 'Personal Access Token não configurado',
-        device_id: config.device_id
+      return NextResponse.json({ 
+        error: 'Personal Access Token não configurado', 
+        device_id: config.device_id 
       }, { status: 400 })
     }
 
     if (!config.device_id) {
-      return NextResponse.json({
-        error: 'Device ID não configurado',
-        device_id: null
+      return NextResponse.json({ 
+        error: 'Device ID não configurado', 
+        device_id: null 
       }, { status: 400 })
     }
 
@@ -48,15 +48,15 @@ export async function GET() {
       console.log('WaSender Session Details:', result)
 
       if (response.ok) {
-        return NextResponse.json({
-          success: true,
+        return NextResponse.json({ 
+          success: true, 
           session: result.data || result,
           device_id: config.device_id
         })
       }
 
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json({ 
+        success: true, 
         session: { status: 'disconnected' },
         device_id: config.device_id,
         apiError: result
@@ -64,8 +64,8 @@ export async function GET() {
 
     } catch (apiError: any) {
       console.error('Erro na API WaSender:', apiError)
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json({ 
+        success: true, 
         session: { status: 'unknown' },
         device_id: config.device_id,
         error: apiError.message
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
   try {
     const supabase = await createRouteHandlerClient({ cookies })
     const { action } = await request.json()
-
+    
     const { data: config } = await supabase
       .from('config_wasender')
       .select('*')
@@ -132,16 +132,16 @@ export async function POST(request: Request) {
     console.log('WaSender Response:', result)
 
     if (!response.ok) {
-      return NextResponse.json({
+      return NextResponse.json({ 
         error: result.message || result.error || 'Erro na operação',
-        details: result
+        details: result 
       }, { status: response.status })
     }
 
     // Para QR Code - converter string para imagem base64
     if (action === 'qrcode') {
       const qrData = result.data?.qrCode || result.data?.qr || result.qrCode || result.qr
-
+      
       if (qrData) {
         try {
           // Gerar imagem PNG do QR Code
@@ -153,22 +153,22 @@ export async function POST(request: Request) {
               light: '#ffffff'
             }
           })
-
-          return NextResponse.json({
-            success: true,
+          
+          return NextResponse.json({ 
+            success: true, 
             data: { qr: qrImageBase64 }
           })
         } catch (qrError) {
           console.error('Erro ao gerar QR Code:', qrError)
-          return NextResponse.json({
-            success: true,
+          return NextResponse.json({ 
+            success: true, 
             data: { qr: qrData } // Retorna o dado bruto se falhar
           })
         }
       }
-
-      return NextResponse.json({
-        success: true,
+      
+      return NextResponse.json({ 
+        success: true, 
         data: { qr: null }
       })
     }

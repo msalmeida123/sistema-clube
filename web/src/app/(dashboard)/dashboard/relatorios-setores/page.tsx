@@ -1,12 +1,14 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
 
-import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@/lib/supabase/client'
+import { useState, useEffect, useRef } from 'react'
+import {reservarImpressao, SessaoImpressao} from '@/lib/impressao'
+import {escapeHtml} from '@/lib/security'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import {
+import { 
   FileText, Download, Loader2, Calendar, Filter,
   Waves, DoorOpen, Dumbbell, Droplets, Ticket, Users,
   Printer, Eye
@@ -19,21 +21,34 @@ export default function RelatoriosSetoresPage() {
   const [previewAberto, setPreviewAberto] = useState<string | null>(null)
   const [dadosRelatorio, setDadosRelatorio] = useState<any>(null)
 
-  const supabase = createClientComponentClient()
+  const sessao = useRef<SessaoImpressao|null>(null)
+  const buscarDados = async (setor:string):Promise<Record<string,any[]>> => {
+    const r=await fetch('/api/relatorios/setores?'+new URLSearchParams({setor,inicio:dataInicio,fim:dataFim}),{cache:'no-store',signal:AbortSignal.timeout(60000)})
+    if(!r.ok)throw Error('Falha ao carregar relatório')
+    const escapar=(v:any):any=>typeof v==='string'?escapeHtml(v):Array.isArray(v)?v.map(escapar):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,escapar(x)])):v
+    return escapar(await r.json())
+  }
+  const preparar = async (gerar:(visualizar?:boolean)=>Promise<void>,visualizar:boolean) => {
+    if(sessao.current)return
+    if(!dataInicio||!dataFim||dataInicio>dataFim){toast.error('Informe um período válido.');return}
+    const janela=reservarImpressao();if(!janela)return
+    sessao.current=janela;setLoading(true);const aviso=toast.loading('Preparando impressão...')
+    try{await gerar(visualizar)}catch(e){console.error('Falha no relatório',e);janela.cancelar();toast.error('Não foi possível carregar o relatório. Tente novamente.')}
+    finally{sessao.current=null;setLoading(false);toast.dismiss(aviso)}
+  }
 
   useEffect(() => {
     // Definir período padrão (último mês)
     const hoje = new Date()
     const inicioMes = new Date(hoje)
     inicioMes.setDate(inicioMes.getDate() - 30)
-
+    
     setDataInicio(inicioMes.toISOString().split('T')[0])
     setDataFim(hoje.toISOString().split('T')[0])
   }, [])
 
   const gerarRelatorioPiscina = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório da Piscina...')
 
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
@@ -41,24 +56,15 @@ export default function RelatoriosSetoresPage() {
     fim.setHours(23, 59, 59, 999)
 
     // Buscar acessos da piscina
-    const { data: acessos } = await supabase
-      .from('acessos_piscina')
-      .select(`
-        *,
-        associado:associados(nome, numero_titulo, cpf),
-        dependente:dependentes(nome, cpf)
-      `)
-      .gte('data_hora', inicio.toISOString())
-      .lte('data_hora', fim.toISOString())
-      .order('data_hora', { ascending: false })
+    const {acessos} = await buscarDados('piscina')
 
     const dados = acessos || []
-
+    
     // Estatísticas
     const totalAcessos = dados.length
     const acessosAssociados = dados.filter(a => a.associado).length
     const acessosDependentes = dados.filter(a => a.dependente).length
-
+    
     // Acessos por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(a => {
@@ -84,7 +90,7 @@ export default function RelatoriosSetoresPage() {
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 20)
 
-    const periodo = `${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`
+    const periodo = `${new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')}`
 
     const html = `
       <!DOCTYPE html>
@@ -111,7 +117,7 @@ export default function RelatoriosSetoresPage() {
           tr:hover { background: #f1f5f9; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print {
+          @media print { 
             body { padding: 15px; }
             .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -149,7 +155,7 @@ export default function RelatoriosSetoresPage() {
             <table>
               <thead><tr><th>Data</th><th>Quantidade</th></tr></thead>
               <tbody>
-                ${Object.entries(porDia).slice(0, 15).map(([data, qtd]) => `
+                ${Object.entries(porDia).map(([data, qtd]) => `
                   <tr><td>${data}</td><td><strong>${qtd}</strong></td></tr>
                 `).join('')}
               </tbody>
@@ -182,7 +188,7 @@ export default function RelatoriosSetoresPage() {
         <table>
           <thead><tr><th>Data/Hora</th><th>Nome</th><th>Tipo</th><th>CPF</th></tr></thead>
           <tbody>
-            ${dados.slice(0, 200).map(a => `
+            ${dados.map(a => `
               <tr>
                 <td>${new Date(a.data_hora).toLocaleString('pt-BR')}</td>
                 <td>${a.associado?.nome || a.dependente?.nome || '-'}</td>
@@ -192,7 +198,7 @@ export default function RelatoriosSetoresPage() {
             `).join('')}
           </tbody>
         </table>
-        ${dados.length > 200 ? '<p style="color:#64748b;font-size:12px;margin-top:10px;"><em>Mostrando apenas os primeiros 200 registros de ${dados.length} total</em></p>' : ''}
+        
 
         <div class="footer">
           <p><strong>Sistema Clube</strong> - Relatório gerado automaticamente</p>
@@ -202,15 +208,13 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
   }
 
   const gerarRelatorioPortaria = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório da Portaria...')
 
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
@@ -218,24 +222,15 @@ export default function RelatoriosSetoresPage() {
     fim.setHours(23, 59, 59, 999)
 
     // Buscar acessos da portaria do clube
-    const { data: acessos } = await supabase
-      .from('registros_acesso')
-      .select(`
-        *,
-        associado:associados(nome, numero_titulo, cpf),
-        dependente:dependentes(nome, cpf)
-      `)
-      .gte('data_hora', inicio.toISOString())
-      .lte('data_hora', fim.toISOString())
-      .order('data_hora', { ascending: false })
+    const {acessos} = await buscarDados('portaria')
 
     const dados = acessos || []
-
+    
     // Estatísticas
     const totalAcessos = dados.length
     const entradas = dados.filter(a => a.tipo === 'entrada').length
     const saidas = dados.filter(a => a.tipo === 'saida').length
-
+    
     // Por dia
     const porDia: { [key: string]: { entradas: number; saidas: number } } = {}
     dados.forEach(a => {
@@ -252,7 +247,7 @@ export default function RelatoriosSetoresPage() {
       porHora[`${hora}h`] = (porHora[`${hora}h`] || 0) + 1
     })
 
-    const periodo = `${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`
+    const periodo = `${new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')}`
 
     const html = `
       <!DOCTYPE html>
@@ -280,7 +275,7 @@ export default function RelatoriosSetoresPage() {
           .saida { color: #ef4444; font-weight: 600; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print {
+          @media print { 
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -317,7 +312,7 @@ export default function RelatoriosSetoresPage() {
             <table>
               <thead><tr><th>Data</th><th>Entradas</th><th>Saídas</th></tr></thead>
               <tbody>
-                ${Object.entries(porDia).slice(0, 15).map(([data, v]) => `
+                ${Object.entries(porDia).map(([data, v]) => `
                   <tr>
                     <td>${data}</td>
                     <td class="entrada">${v.entradas}</td>
@@ -344,7 +339,7 @@ export default function RelatoriosSetoresPage() {
         <table>
           <thead><tr><th>Data/Hora</th><th>Nome</th><th>Tipo</th><th>Movimento</th></tr></thead>
           <tbody>
-            ${dados.slice(0, 200).map(a => `
+            ${dados.map(a => `
               <tr>
                 <td>${new Date(a.data_hora).toLocaleString('pt-BR')}</td>
                 <td>${a.associado?.nome || a.dependente?.nome || '-'}</td>
@@ -354,7 +349,6 @@ export default function RelatoriosSetoresPage() {
             `).join('')}
           </tbody>
         </table>
-        ${dados.length > 200 ? `<p style="color:#64748b;font-size:12px;"><em>Mostrando 200 de ${dados.length} registros</em></p>` : ''}
 
         <div class="footer">
           <p><strong>Sistema Clube</strong> - Relatório gerado automaticamente</p>
@@ -363,15 +357,13 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
   }
 
   const gerarRelatorioAcademia = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório da Academia...')
 
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
@@ -379,21 +371,13 @@ export default function RelatoriosSetoresPage() {
     fim.setHours(23, 59, 59, 999)
 
     // Buscar acessos da academia
-    const { data: acessos } = await supabase
-      .from('acessos_academia')
-      .select(`
-        *,
-        associado:associados(nome, numero_titulo, cpf)
-      `)
-      .gte('data_hora', inicio.toISOString())
-      .lte('data_hora', fim.toISOString())
-      .order('data_hora', { ascending: false })
+    const {acessos} = await buscarDados('academia')
 
     const dados = acessos || []
-
+    
     // Estatísticas
     const totalAcessos = dados.length
-
+    
     // Por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(a => {
@@ -419,7 +403,7 @@ export default function RelatoriosSetoresPage() {
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 20)
 
-    const periodo = `${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`
+    const periodo = `${new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')}`
 
     const html = `
       <!DOCTYPE html>
@@ -445,7 +429,7 @@ export default function RelatoriosSetoresPage() {
           tr:nth-child(even) { background: #f8fafc; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print {
+          @media print { 
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -478,7 +462,7 @@ export default function RelatoriosSetoresPage() {
             <table>
               <thead><tr><th>Data</th><th>Quantidade</th></tr></thead>
               <tbody>
-                ${Object.entries(porDia).slice(0, 15).map(([data, qtd]) => `
+                ${Object.entries(porDia).map(([data, qtd]) => `
                   <tr><td>${data}</td><td><strong>${qtd}</strong></td></tr>
                 `).join('')}
               </tbody>
@@ -511,7 +495,7 @@ export default function RelatoriosSetoresPage() {
         <table>
           <thead><tr><th>Data/Hora</th><th>Nome</th><th>Título</th></tr></thead>
           <tbody>
-            ${dados.slice(0, 200).map(a => `
+            ${dados.map(a => `
               <tr>
                 <td>${new Date(a.data_hora).toLocaleString('pt-BR')}</td>
                 <td>${a.associado?.nome || '-'}</td>
@@ -528,15 +512,13 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
   }
 
   const gerarRelatorioSauna = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório da Sauna...')
 
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
@@ -544,36 +526,16 @@ export default function RelatoriosSetoresPage() {
     fim.setHours(23, 59, 59, 999)
 
     // Buscar uso dos armários
-    const { data: usos } = await supabase
-      .from('uso_armarios_sauna')
-      .select(`
-        *,
-        armario:armarios_sauna(numero),
-        associado:associados(nome, cpf),
-        dependente:dependentes(nome)
-      `)
-      .gte('data_entrada', inicio.toISOString())
-      .lte('data_entrada', fim.toISOString())
-      .order('data_entrada', { ascending: false })
-
-    // Buscar multas
-    const { data: multas } = await supabase
-      .from('multas_sauna')
-      .select(`
-        *,
-        associado:associados(nome)
-      `)
-      .gte('created_at', inicio.toISOString())
-      .lte('created_at', fim.toISOString())
+    const {usos,multas} = await buscarDados('sauna')
 
     const dados = usos || []
     const multasList = multas || []
-
+    
     // Estatísticas
     const totalUsos = dados.length
     const chavesPerdidas = dados.filter(u => u.chave_perdida).length
     const totalMultas = multasList.reduce((acc, m) => acc + (m.valor || 0), 0)
-
+    
     // Por dia
     const porDia: { [key: string]: number } = {}
     dados.forEach(u => {
@@ -592,7 +554,7 @@ export default function RelatoriosSetoresPage() {
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 10)
 
-    const periodo = `${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`
+    const periodo = `${new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')}`
 
     const html = `
       <!DOCTYPE html>
@@ -620,7 +582,7 @@ export default function RelatoriosSetoresPage() {
           .devolvida { color: #10b981; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print {
+          @media print { 
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -661,7 +623,7 @@ export default function RelatoriosSetoresPage() {
             <table>
               <thead><tr><th>Data</th><th>Quantidade</th></tr></thead>
               <tbody>
-                ${Object.entries(porDia).slice(0, 15).map(([data, qtd]) => `
+                ${Object.entries(porDia).map(([data, qtd]) => `
                   <tr><td>${data}</td><td><strong>${qtd}</strong></td></tr>
                 `).join('')}
               </tbody>
@@ -701,7 +663,7 @@ export default function RelatoriosSetoresPage() {
         <table>
           <thead><tr><th>Data/Hora</th><th>Armário</th><th>Pessoa</th><th>Status Chave</th></tr></thead>
           <tbody>
-            ${dados.slice(0, 200).map(u => `
+            ${dados.map(u => `
               <tr>
                 <td>${new Date(u.data_entrada).toLocaleString('pt-BR')}</td>
                 <td><strong>${u.armario?.numero || '-'}</strong></td>
@@ -721,15 +683,13 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
   }
 
   const gerarRelatorioConvites = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório de Convites...')
 
     const inicio = new Date(dataInicio)
     inicio.setHours(0, 0, 0, 0)
@@ -737,25 +697,17 @@ export default function RelatoriosSetoresPage() {
     fim.setHours(23, 59, 59, 999)
 
     // Buscar convites
-    const { data: convites } = await supabase
-      .from('convites')
-      .select(`
-        *,
-        associado:associados(nome, numero_titulo)
-      `)
-      .gte('created_at', inicio.toISOString())
-      .lte('created_at', fim.toISOString())
-      .order('created_at', { ascending: false })
+    const {convites} = await buscarDados('convites')
 
     const dados = convites || []
-
+    
     // Estatísticas
     const totalConvites = dados.length
     const usados = dados.filter(c => c.status === 'utilizado').length
     const ativos = dados.filter(c => c.status === 'ativo').length
     const expirados = dados.filter(c => c.status === 'expirado').length
     const receita = dados.reduce((acc, c) => acc + (c.valor_pago || 0), 0)
-
+    
     // Por dia
     const porDia: { [key: string]: { vendidos: number; usados: number } } = {}
     dados.forEach(c => {
@@ -776,7 +728,7 @@ export default function RelatoriosSetoresPage() {
       .sort((a, b) => b.qtd - a.qtd)
       .slice(0, 10)
 
-    const periodo = `${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`
+    const periodo = `${new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')}`
 
     const html = `
       <!DOCTYPE html>
@@ -805,7 +757,7 @@ export default function RelatoriosSetoresPage() {
           .status-expirado { color: #f59e0b; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          @media print {
+          @media print { 
             body { padding: 15px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
@@ -850,7 +802,7 @@ export default function RelatoriosSetoresPage() {
             <table>
               <thead><tr><th>Data</th><th>Vendidos</th><th>Usados</th></tr></thead>
               <tbody>
-                ${Object.entries(porDia).slice(0, 15).map(([data, v]) => `
+                ${Object.entries(porDia).map(([data, v]) => `
                   <tr>
                     <td>${data}</td>
                     <td><strong>${v.vendidos}</strong></td>
@@ -880,7 +832,7 @@ export default function RelatoriosSetoresPage() {
             ${dados.map(c => `
               <tr>
                 <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
-                <td>${c.convidado_nome}</td>
+                <td>${c.nome_convidado}</td>
                 <td>${c.associado?.nome || '-'}</td>
                 <td>R$ ${(c.valor_pago || 0).toFixed(2)}</td>
                 <td class="status-${c.status}">${c.status}</td>
@@ -896,30 +848,16 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
   }
 
   const gerarRelatorioAssociados = async (visualizar = false) => {
     setLoading(true)
-    toast.loading('Gerando relatório de Associados...')
 
     // Buscar todos os associados com plano
-    const { data: associados } = await supabase
-      .from('associados')
-      .select(`
-        *,
-        plano:planos(nome, tipo)
-      `)
-      .order('nome')
-
-    // Buscar dependentes
-    const { data: dependentes } = await supabase
-      .from('dependentes')
-      .select('*, associado:associados(nome)')
-      .order('nome')
+    const {associados,dependentes} = await buscarDados('associados')
 
     const dados = associados || []
     const deps = dependentes || []
@@ -1009,7 +947,7 @@ export default function RelatoriosSetoresPage() {
           .status-pendente { color: #f59e0b; font-weight: 600; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
           .page-break { page-break-before: always; }
-          @media print {
+          @media print { 
             body { padding: 15px; font-size: 10px; }
             .header, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .section { page-break-inside: avoid; }
@@ -1069,14 +1007,15 @@ export default function RelatoriosSetoresPage() {
           </div>
         </div>
 
+        ${!dados.length&&!deps.length?'<p>Nenhum registro encontrado para os filtros selecionados.</p>':''}
         ${gerarTabelaAssociados(individuais, '👤 Associados Individual', '#3b82f6')}
-
+        
         ${familiares.length > 0 ? '<div class="page-break"></div>' : ''}
         ${gerarTabelaAssociados(familiares, '👨‍👩‍👧‍👦 Associados Familiar', '#10b981')}
-
+        
         ${patrimoniais.length > 0 ? '<div class="page-break"></div>' : ''}
         ${gerarTabelaAssociados(patrimoniais, '🏛️ Associados Patrimonial', '#f59e0b')}
-
+        
         ${outros.length > 0 ? `
           <div class="page-break"></div>
           ${gerarTabelaAssociados(outros, '📋 Outros Planos', '#6b7280')}
@@ -1121,21 +1060,9 @@ export default function RelatoriosSetoresPage() {
       </html>
     `
 
-    abrirRelatorio(html, visualizar)
-    toast.dismiss()
+    await sessao.current!.enviar(html, !visualizar)
     toast.success('Relatório gerado!')
     setLoading(false)
-  }
-
-  const abrirRelatorio = (html: string, visualizar: boolean) => {
-    const janela = window.open('', '_blank')
-    if (janela) {
-      janela.document.write(html)
-      janela.document.close()
-      if (!visualizar) {
-        janela.onload = () => janela.print()
-      }
-    }
   }
 
   const relatorios = [
@@ -1208,22 +1135,22 @@ export default function RelatoriosSetoresPage() {
               <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium">Período:</span>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex w-full min-w-0 flex-wrap gap-2 items-center sm:w-auto">
               <Input
                 type="date"
                 value={dataInicio}
                 onChange={e => setDataInicio(e.target.value)}
-                className="w-40"
+                className="w-full sm:w-40"
               />
               <span className="text-gray-500">até</span>
               <Input
                 type="date"
                 value={dataFim}
                 onChange={e => setDataFim(e.target.value)}
-                className="w-40"
+                className="w-full sm:w-40"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -1267,12 +1194,12 @@ export default function RelatoriosSetoresPage() {
       </Card>
 
       {/* Grid de Relatórios */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="clube-relatorios-grid grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
         {relatorios.map(rel => (
-          <Card key={rel.id} className="hover:shadow-lg transition-shadow">
+          <Card key={rel.id} className="flex h-full flex-col hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-lg ${rel.cor}`}>
+                <div className={`shrink-0 p-3 rounded-lg ${rel.cor}`}>
                   <rel.icon className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -1281,20 +1208,22 @@ export default function RelatoriosSetoresPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Button
+            <CardContent className="mt-auto">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2">
+                <BotaoImpressao
                   variant="outline"
                   className="flex-1"
-                  onClick={() => rel.gerar(true)}
+                  type="button"
+                  onClick={() => preparar(rel.gerar,true)}
                   disabled={loading}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Visualizar
-                </Button>
-                <Button
+                </BotaoImpressao>
+                <BotaoImpressao
                   className="flex-1"
-                  onClick={() => rel.gerar(false)}
+                  type="button"
+                  onClick={() => preparar(rel.gerar,false)}
                   disabled={loading}
                 >
                   {loading ? (
@@ -1302,8 +1231,8 @@ export default function RelatoriosSetoresPage() {
                   ) : (
                     <Printer className="h-4 w-4 mr-2" />
                   )}
-                  Imprimir/PDF
-                </Button>
+                  {loading ? 'Preparando impressão...' : 'Imprimir/PDF'}
+                </BotaoImpressao>
               </div>
             </CardContent>
           </Card>
@@ -1320,7 +1249,7 @@ export default function RelatoriosSetoresPage() {
             <div>
               <h3 className="font-medium text-blue-900">Dica: Salvando como PDF</h3>
               <p className="text-sm text-blue-700 mt-1">
-                Ao clicar em "Imprimir/PDF", uma janela de impressão será aberta.
+                Ao clicar em "Imprimir/PDF", uma janela de impressão será aberta. 
                 Selecione "Salvar como PDF" como destino para baixar o relatório em formato PDF.
               </p>
             </div>

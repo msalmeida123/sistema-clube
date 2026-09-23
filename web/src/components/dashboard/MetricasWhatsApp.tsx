@@ -23,7 +23,7 @@ export function MetricasWhatsApp({ conversas, metricas, loading }: MetricasWhats
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="text-center">
                   <Skeleton className="h-8 w-12 mx-auto mb-1" />
@@ -52,7 +52,7 @@ export function MetricasWhatsApp({ conversas, metricas, loading }: MetricasWhats
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid gap-4 mb-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           <div className="text-center p-3 rounded-lg bg-blue-50">
             <p className="text-2xl font-bold text-blue-600">{conversas?.novos || 0}</p>
             <p className="text-xs text-blue-500">Novos</p>
@@ -96,7 +96,7 @@ export function MetricasWhatsApp({ conversas, metricas, loading }: MetricasWhats
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+        <div className="mt-4 pt-4 border-t grid gap-4 grid-cols-1 sm:grid-cols-2">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <div>

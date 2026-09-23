@@ -2,8 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  History, Package, Calendar, Sparkles, Bug, Shield,
+import { 
+  History, Package, Calendar, Sparkles, Bug, Shield, 
   ArrowUp, Minus, AlertTriangle, Trash2, Clock
 } from 'lucide-react'
 
@@ -100,33 +100,33 @@ const releases: Release[] = [
 ]
 
 const tipoConfig: Record<TipoMudanca, { label: string; cor: string; icone: React.ReactNode }> = {
-  added: {
-    label: 'Novo',
+  added: { 
+    label: 'Novo', 
     cor: 'bg-green-100 text-green-700 border-green-200',
     icone: <Sparkles className="h-3 w-3" />
   },
-  changed: {
-    label: 'Alterado',
+  changed: { 
+    label: 'Alterado', 
     cor: 'bg-blue-100 text-blue-700 border-blue-200',
     icone: <ArrowUp className="h-3 w-3" />
   },
-  fixed: {
-    label: 'Corrigido',
+  fixed: { 
+    label: 'Corrigido', 
     cor: 'bg-orange-100 text-orange-700 border-orange-200',
     icone: <Bug className="h-3 w-3" />
   },
-  removed: {
-    label: 'Removido',
+  removed: { 
+    label: 'Removido', 
     cor: 'bg-red-100 text-red-700 border-red-200',
     icone: <Trash2 className="h-3 w-3" />
   },
-  deprecated: {
-    label: 'Depreciado',
+  deprecated: { 
+    label: 'Depreciado', 
     cor: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     icone: <AlertTriangle className="h-3 w-3" />
   },
-  security: {
-    label: 'Segurança',
+  security: { 
+    label: 'Segurança', 
     cor: 'bg-purple-100 text-purple-700 border-purple-200',
     icone: <Shield className="h-3 w-3" />
   },
@@ -136,7 +136,7 @@ export default function VersaoPage() {
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <History className="h-6 w-6 text-blue-600" />
@@ -149,7 +149,7 @@ export default function VersaoPage() {
       {/* Versão Atual */}
       <Card className="border-2 border-blue-200 bg-blue-50/50">
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-full">
                 <Package className="h-8 w-8 text-blue-600" />
@@ -165,10 +165,10 @@ export default function VersaoPage() {
                 Última atualização
               </p>
               <p className="text-lg font-medium">
-                {new Date(DATA_RELEASE).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric'
+                {new Date(DATA_RELEASE).toLocaleDateString('pt-BR', { 
+                  day: '2-digit', 
+                  month: 'long', 
+                  year: 'numeric' 
                 })}
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function VersaoPage() {
         {releases.map((release, index) => (
           <Card key={release.versao} className={index === 0 ? 'border-blue-200' : ''}>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2">
                   <span className={`text-xl ${index === 0 ? 'text-blue-600' : ''}`}>
                     v{release.versao}
@@ -212,8 +212,8 @@ export default function VersaoPage() {
                   const config = tipoConfig[mudanca.tipo]
                   return (
                     <li key={i} className="flex items-start gap-2">
-                      <Badge
-                        variant="outline"
+                      <Badge 
+                        variant="outline" 
                         className={`${config.cor} flex items-center gap-1 shrink-0 mt-0.5`}
                       >
                         {config.icone}
@@ -234,9 +234,9 @@ export default function VersaoPage() {
         <p>Sistema Clube © 2026 - Desenvolvido com ❤️</p>
         <p className="mt-1">
           Veja o changelog completo no{' '}
-          <a
-            href="https://github.com/msalmeida123/sistema-clube/blob/main/CHANGELOG.md"
-            target="_blank"
+          <a 
+            href="https://github.com/msalmeida123/sistema-clube/blob/main/CHANGELOG.md" 
+            target="_blank" 
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline"
           >

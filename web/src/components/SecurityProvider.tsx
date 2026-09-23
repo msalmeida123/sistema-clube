@@ -15,7 +15,7 @@ export function SecurityProvider({ children }: SecurityProviderProps) {
   useEffect(() => {
     // Debug log
     console.log('[SecurityProvider] Iniciando proteções...')
-
+    
     // Aguarda o DOM estar completamente carregado
     if (document.readyState === 'complete') {
       initClientProtection()

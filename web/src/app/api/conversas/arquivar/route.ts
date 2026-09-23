@@ -6,7 +6,7 @@ import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 export async function POST(request: Request) {
   try {
     const supabase = await createRouteHandlerClient({ cookies })
-
+    
     // Verificar autenticação
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {

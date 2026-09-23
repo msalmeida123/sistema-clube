@@ -34,7 +34,7 @@ export default function ImpressoraPage() {
     <p className="text-gray-600">Configure uma impressora térmica de rede com impressão RAW TCP. Use o endereço IP exibido na configuração da impressora.</p>
     {carregando ? <p>Carregando...</p> : <fieldset disabled={ocupado || !carregado} className="bg-white border rounded-xl p-6 space-y-4 disabled:opacity-60">
       <label className="block">Nome / modelo<Input value={form.nome} maxLength={60} onChange={e=>alterar({nome:e.target.value})}/></label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
         <label>Endereço IP<Input placeholder="192.168.1.150" value={form.ip} onChange={e=>alterar({ip:e.target.value})}/></label>
         <label>Porta TCP<Input type="number" min={9100} max={9109} value={form.porta} onChange={e=>alterar({porta:Number(e.target.value)})}/></label>
       </div>

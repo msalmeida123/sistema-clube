@@ -84,7 +84,7 @@ export default function BarProdutosPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <Package size={24} /> Produtos do Bar
@@ -102,7 +102,7 @@ export default function BarProdutosPage() {
       </div>
 
       <div className="bg-white rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">Produto</th>
@@ -140,19 +140,19 @@ export default function BarProdutosPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {/* Modal */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 clube-modal-overlay">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
               <h2 className="text-xl font-bold">{editando ? 'Editar Produto' : 'Novo Produto'}</h2>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="text-sm font-medium text-gray-700">Nome *</label>
                   <Input value={form.nome || ''} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do produto" />
                 </div>
@@ -199,7 +199,7 @@ export default function BarProdutosPage() {
               {/* Campos fiscais */}
               <div className="border rounded-xl p-4 space-y-3 bg-blue-50">
                 <h3 className="font-semibold text-sm text-blue-800">📋 Dados Fiscais (NFC-e)</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-xs font-medium text-gray-600">NCM</label>
                     <div className="flex gap-1 mt-1">
@@ -257,7 +257,7 @@ export default function BarProdutosPage() {
                 <label htmlFor="controla_estoque" className="text-sm">Controlar estoque</label>
               </div>
               {form.controla_estoque && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-xs font-medium text-gray-600">Estoque Atual</label>
                     <Input type="number" value={form.estoque_atual || ''} onChange={e => setForm(f => ({ ...f, estoque_atual: parseFloat(e.target.value) || 0 }))} />

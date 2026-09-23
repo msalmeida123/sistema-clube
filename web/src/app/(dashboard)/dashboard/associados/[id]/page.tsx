@@ -1,4 +1,5 @@
 'use client'
+import {VinculosEmpresa} from '@/components/VinculosEmpresa'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -95,20 +96,20 @@ export default function AssociadoDetalhesPage() {
       {podeEditar && <Card>
         <CardHeader><CardTitle>Acesso ao aplicativo do associado</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">{associado.email ? `Enviar para ${associado.email}. A senha vale por uma hora e precisa ser trocada no primeiro acesso.` : 'Cadastre um e-mail em Editar para enviar o acesso.'}</p>
-          <Button disabled={enviando || !associado.email} onClick={enviarAcesso}>
+          <p className="text-sm text-muted-foreground">{associado.tipo_cadastro==='pj'?'O acesso ao aplicativo é individual, pelo CPF de cada funcionário associado.':associado.email ? `Enviar para ${associado.email}. A senha vale por uma hora e precisa ser trocada no primeiro acesso.` : 'Cadastre um e-mail em Editar para enviar o acesso.'}</p>
+          <Button disabled={enviando || !associado.email || associado.tipo_cadastro==='pj'} onClick={enviarAcesso}>
             <Mail className="h-4 w-4 mr-2" />{enviando ? 'Enviando...' : 'Gerar senha e enviar por e-mail'}
           </Button>
           {avisoAcesso && <p role="status" className="text-sm">{avisoAcesso}</p>}
         </CardContent>
       </Card>}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {/* Card Principal */}
         <Card className="md:col-span-1">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
-              <Avatar className="h-32 w-32 mb-4">
-                <AvatarImage src={associado.foto_url} />
+              <Avatar className="h-32 w-32 mb-4 rounded-full bg-muted p-1">
+                <AvatarImage src={associado.foto_url} alt={`Foto de ${associado.nome}`} />
                 <AvatarFallback className="text-3xl">
                   {associado.nome?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                 </AvatarFallback>
@@ -149,6 +150,7 @@ export default function AssociadoDetalhesPage() {
           </CardContent>
         </Card>
 
+        <VinculosEmpresa id={associado.id} empresaId={associado.empresa_associada_id} pj={associado.tipo_cadastro==='pj'}/>
         {/* Dados Pessoais */}
         <Card className="md:col-span-2">
           <CardHeader>
@@ -160,8 +162,8 @@ export default function AssociadoDetalhesPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <p className="text-sm text-muted-foreground">CPF</p>
-                <p className="font-medium">{associado.cpf || '-'}</p>
+                <p className="text-sm text-muted-foreground">{associado.tipo_cadastro==='pj'?'CNPJ':'CPF'}</p>
+                <p className="font-medium">{associado.cnpj || associado.cpf || '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">RG</p>
@@ -170,7 +172,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Data de Nascimento</p>
                 <p className="font-medium">
-                  {associado.data_nascimento
+                  {associado.data_nascimento 
                     ? new Date(associado.data_nascimento).toLocaleDateString('pt-BR')
                     : '-'}
                 </p>
@@ -182,7 +184,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Data de Associação</p>
                 <p className="font-medium">
-                  {associado.data_associacao
+                  {associado.data_associacao 
                     ? new Date(associado.data_associacao).toLocaleDateString('pt-BR')
                     : '-'}
                 </p>
@@ -235,7 +237,7 @@ export default function AssociadoDetalhesPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Cidade/Estado</p>
                 <p className="font-medium">
-                  {associado.cidade && associado.estado
+                  {associado.cidade && associado.estado 
                     ? `${associado.cidade}/${associado.estado}`
                     : '-'}
                 </p>

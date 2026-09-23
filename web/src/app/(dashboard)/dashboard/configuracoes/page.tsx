@@ -1,4 +1,6 @@
 'use client'
+import ConfiguracaoAvisos from '@/components/avisos/ConfiguracaoAvisos'
+import ConfiguracaoPersonalizacao from '@/components/ConfiguracaoPersonalizacao'
 import {useCep} from '@/hooks/useCep'
 
 import { useState, useEffect } from 'react'
@@ -45,7 +47,7 @@ type Usuario = {
 
 export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'clube' | 'usuarios' | 'sicoob' | 'wasender' | 'meta' | 'dashboard' | 'backup' | 'logs' | 'licenca' | 'certificado' | 'suporte'>('clube')
+  const [tab, setTab] = useState<'personalizacao' | 'clube' | 'usuarios' | 'sicoob' | 'wasender' | 'meta' | 'dashboard' | 'backup' | 'logs' | 'licenca' | 'certificado' | 'suporte'>('personalizacao')
   const [clube, setClube] = useState({
     id: '',
     nome: '',
@@ -74,29 +76,36 @@ export default function ConfiguracoesPage() {
   const [logoPreview, setLogoPreview] = useState<string>('')
   const [sicoob, setSicoob] = useState({ id: '', client_id: '', client_secret: '', ambiente: 'sandbox', pix_chave: '', agencia: '', conta_corrente: '' })
   const [wasender, setWasender] = useState({ id: '', api_key: '', device_id: '', webhook_url: '', personal_token: '' })
-
+  
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loadingUsuarios, setLoadingUsuarios] = useState(false)
   const [showNovoUsuario, setShowNovoUsuario] = useState(false)
   const [editandoUsuario, setEditandoUsuario] = useState<Usuario | null>(null)
   const [novoUsuario, setNovoUsuario] = useState({ nome: '', email: '', senha: '', is_admin: false, permissoes: ['dashboard'] as string[] })
-
+  
   const supabase = createClientComponentClient()
 
   useEffect(() => {
+    if(!['clube','sicoob','wasender'].includes(tab))return
     const fetch = async () => {
+      if(tab==='clube'){
       const { data: c } = await supabase.from('clube_config').select('*').limit(1).single()
       if (c) {
         setClube(c)
         if (c.logo_url) setLogoPreview(c.logo_url)
       }
+      }
+      if(tab==='sicoob'){
       const { data: s } = await supabase.from('config_sicoob').select('*').limit(1).single()
       if (s) setSicoob(s)
+      }
+      if(tab==='wasender'){
       const { data: w } = await supabase.from('config_wasender').select('*').limit(1).single()
       if (w) setWasender(w)
+      }
     }
     fetch()
-  }, [supabase])
+  }, [supabase,tab])
 
   useEffect(() => {
     if (tab === 'usuarios') carregarUsuarios()
@@ -273,7 +282,7 @@ export default function ConfiguracoesPage() {
       }
 
       const dadosClube = { ...clube, logo_url }
-
+      
       // Se não tem ID, remove o campo para o Supabase gerar automaticamente
       if (!dadosClube.id) {
         delete (dadosClube as any).id
@@ -285,13 +294,13 @@ export default function ConfiguracoesPage() {
         if (error) throw error
         setClube(dadosClube)
       }
-
+      
       setLogoFile(null)
       toast.success('Dados do clube salvos com sucesso!')
     } catch (e: any) {
       toast.error('Erro: ' + e.message)
-    } finally {
-      setLoading(false)
+    } finally { 
+      setLoading(false) 
     }
   }
 
@@ -342,6 +351,7 @@ export default function ConfiguracoesPage() {
     {id:'licenca',label:'Licença e assinatura',icon:Shield},
     {id:'backup',label:'Backup',icon:Save},
     {id:'logs',label:'Logs do sistema',icon:Shield},
+    { id: 'personalizacao', label: 'Personalização do Aplicativo', icon: Image },
     { id: 'clube', label: 'Dados do Clube', icon: Building2 },
     { id: 'usuarios', label: 'Usuários', icon: Users },
     { id: 'sicoob', label: 'Sicoob (Pagamentos)', icon: CreditCard },
@@ -352,6 +362,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
+      <ConfiguracaoAvisos />
       <div className="flex flex-wrap gap-2 border-b">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id as any)} className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${tab === t.id ? 'border-primary text-primary' : 'border-transparent hover:text-primary'}`}>
@@ -359,6 +370,8 @@ export default function ConfiguracoesPage() {
           </button>
         ))}
       </div>
+
+      {tab === 'personalizacao' && <ConfiguracaoPersonalizacao />}
 
       {tab === 'clube' && (
         <div className="space-y-6">
@@ -393,27 +406,27 @@ export default function ConfiguracoesPage() {
                 <div className="flex-1 space-y-4">
                   <div>
                     <Label>Nome do Clube (Razão Social) *</Label>
-                    <Input
-                      value={clube.nome}
-                      onChange={(e) => setClube({ ...clube, nome: e.target.value })}
+                    <Input 
+                      value={clube.nome} 
+                      onChange={(e) => setClube({ ...clube, nome: e.target.value })} 
                       placeholder="Ex: Associação Recreativa dos Funcionários..."
                       className="text-lg"
                     />
                   </div>
                   <div>
                     <Label>Nome Fantasia</Label>
-                    <Input
-                      value={clube.nome_fantasia}
-                      onChange={(e) => setClube({ ...clube, nome_fantasia: e.target.value })}
+                    <Input 
+                      value={clube.nome_fantasia} 
+                      onChange={(e) => setClube({ ...clube, nome_fantasia: e.target.value })} 
                       placeholder="Ex: Clube dos Funcionários"
                     />
                   </div>
                   <div>
                     <Label>Data de Fundação</Label>
-                    <Input
+                    <Input 
                       type="date"
-                      value={clube.data_fundacao}
-                      onChange={(e) => setClube({ ...clube, data_fundacao: e.target.value })}
+                      value={clube.data_fundacao} 
+                      onChange={(e) => setClube({ ...clube, data_fundacao: e.target.value })} 
                     />
                   </div>
                 </div>
@@ -428,28 +441,28 @@ export default function ConfiguracoesPage() {
               <CardDescription>CNPJ e inscrições</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <Label>CNPJ *</Label>
-                  <Input
-                    value={clube.cnpj}
-                    onChange={(e) => setClube({ ...clube, cnpj: e.target.value })}
+                  <Input 
+                    value={clube.cnpj} 
+                    onChange={(e) => setClube({ ...clube, cnpj: e.target.value })} 
                     placeholder="00.000.000/0000-00"
                   />
                 </div>
                 <div>
                   <Label>Inscrição Estadual</Label>
-                  <Input
-                    value={clube.inscricao_estadual}
-                    onChange={(e) => setClube({ ...clube, inscricao_estadual: e.target.value })}
+                  <Input 
+                    value={clube.inscricao_estadual} 
+                    onChange={(e) => setClube({ ...clube, inscricao_estadual: e.target.value })} 
                     placeholder="Isento ou número"
                   />
                 </div>
                 <div>
                   <Label>Inscrição Municipal</Label>
-                  <Input
-                    value={clube.inscricao_municipal}
-                    onChange={(e) => setClube({ ...clube, inscricao_municipal: e.target.value })}
+                  <Input 
+                    value={clube.inscricao_municipal} 
+                    onChange={(e) => setClube({ ...clube, inscricao_municipal: e.target.value })} 
                   />
                 </div>
               </div>
@@ -463,59 +476,59 @@ export default function ConfiguracoesPage() {
               <CardDescription>Localização do clube</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <Label>CEP</Label>
-                  <Input
-                    value={clube.cep}
-                    onChange={(e) => {setClube(prev => ({ ...prev, cep: e.target.value })); void buscarCEP(e.target.value)}}
+                  <Input 
+                    value={clube.cep} 
+                    onChange={(e) => {setClube(prev => ({ ...prev, cep: e.target.value })); void buscarCEP(e.target.value)}} 
                     inputMode="numeric" maxLength={9}
                     placeholder="00000-000"
                   />
                   <p role="status" className="text-xs text-muted-foreground mt-1">{mensagemCep}</p>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <Label>Endereço</Label>
-                  <Input
-                    value={clube.endereco}
-                    onChange={(e) => setClube({ ...clube, endereco: e.target.value })}
+                  <Input 
+                    value={clube.endereco} 
+                    onChange={(e) => setClube({ ...clube, endereco: e.target.value })} 
                   />
                 </div>
                 <div>
                   <Label>Número</Label>
-                  <Input
-                    value={clube.numero}
-                    onChange={(e) => setClube({ ...clube, numero: e.target.value })}
+                  <Input 
+                    value={clube.numero} 
+                    onChange={(e) => setClube({ ...clube, numero: e.target.value })} 
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <Label>Complemento</Label>
-                  <Input
-                    value={clube.complemento}
-                    onChange={(e) => setClube({ ...clube, complemento: e.target.value })}
+                  <Input 
+                    value={clube.complemento} 
+                    onChange={(e) => setClube({ ...clube, complemento: e.target.value })} 
                   />
                 </div>
                 <div>
                   <Label>Bairro</Label>
-                  <Input
-                    value={clube.bairro}
-                    onChange={(e) => setClube({ ...clube, bairro: e.target.value })}
+                  <Input 
+                    value={clube.bairro} 
+                    onChange={(e) => setClube({ ...clube, bairro: e.target.value })} 
                   />
                 </div>
                 <div>
                   <Label>Cidade</Label>
-                  <Input
-                    value={clube.cidade}
-                    onChange={(e) => setClube({ ...clube, cidade: e.target.value })}
+                  <Input 
+                    value={clube.cidade} 
+                    onChange={(e) => setClube({ ...clube, cidade: e.target.value })} 
                   />
                 </div>
                 <div>
                   <Label>Estado</Label>
-                  <Input
-                    value={clube.estado}
-                    onChange={(e) => setClube({ ...clube, estado: e.target.value })}
+                  <Input 
+                    value={clube.estado} 
+                    onChange={(e) => setClube({ ...clube, estado: e.target.value })} 
                     maxLength={2}
                     placeholder="SP"
                   />
@@ -531,37 +544,37 @@ export default function ConfiguracoesPage() {
               <CardDescription>Telefones e email</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <Label>Telefone Principal</Label>
-                  <Input
-                    value={clube.telefone}
-                    onChange={(e) => setClube({ ...clube, telefone: e.target.value })}
+                  <Input 
+                    value={clube.telefone} 
+                    onChange={(e) => setClube({ ...clube, telefone: e.target.value })} 
                     placeholder="(00) 0000-0000"
                   />
                 </div>
                 <div>
                   <Label>Telefone 2</Label>
-                  <Input
-                    value={clube.telefone2}
-                    onChange={(e) => setClube({ ...clube, telefone2: e.target.value })}
+                  <Input 
+                    value={clube.telefone2} 
+                    onChange={(e) => setClube({ ...clube, telefone2: e.target.value })} 
                     placeholder="(00) 00000-0000"
                   />
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <Input
+                  <Input 
                     type="email"
-                    value={clube.email}
-                    onChange={(e) => setClube({ ...clube, email: e.target.value })}
+                    value={clube.email} 
+                    onChange={(e) => setClube({ ...clube, email: e.target.value })} 
                     placeholder="contato@clube.com.br"
                   />
                 </div>
                 <div>
                   <Label>Site</Label>
-                  <Input
-                    value={clube.site}
-                    onChange={(e) => setClube({ ...clube, site: e.target.value })}
+                  <Input 
+                    value={clube.site} 
+                    onChange={(e) => setClube({ ...clube, site: e.target.value })} 
                     placeholder="www.clube.com.br"
                   />
                 </div>
@@ -576,28 +589,28 @@ export default function ConfiguracoesPage() {
               <CardDescription>Responsáveis pelo clube</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <Label>Presidente</Label>
-                  <Input
-                    value={clube.presidente}
-                    onChange={(e) => setClube({ ...clube, presidente: e.target.value })}
+                  <Input 
+                    value={clube.presidente} 
+                    onChange={(e) => setClube({ ...clube, presidente: e.target.value })} 
                     placeholder="Nome do presidente"
                   />
                 </div>
                 <div>
                   <Label>Vice-Presidente</Label>
-                  <Input
-                    value={clube.vice_presidente}
-                    onChange={(e) => setClube({ ...clube, vice_presidente: e.target.value })}
+                  <Input 
+                    value={clube.vice_presidente} 
+                    onChange={(e) => setClube({ ...clube, vice_presidente: e.target.value })} 
                     placeholder="Nome do vice"
                   />
                 </div>
                 <div>
                   <Label>Responsável Financeiro</Label>
-                  <Input
-                    value={clube.responsavel_financeiro}
-                    onChange={(e) => setClube({ ...clube, responsavel_financeiro: e.target.value })}
+                  <Input 
+                    value={clube.responsavel_financeiro} 
+                    onChange={(e) => setClube({ ...clube, responsavel_financeiro: e.target.value })} 
                     placeholder="Nome do tesoureiro"
                   />
                 </div>
@@ -615,11 +628,11 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader><CardTitle>Integração Sicoob</CardTitle><CardDescription>Configure a API do Sicoob para boletos e PIX</CardDescription></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div><Label>Client ID</Label><Input value={sicoob.client_id} onChange={(e) => setSicoob({ ...sicoob, client_id: e.target.value })} /></div>
               <div><Label>Client Secret</Label><Input type="password" value={sicoob.client_secret} onChange={(e) => setSicoob({ ...sicoob, client_secret: e.target.value })} /></div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <div><Label>Ambiente</Label>
                 <select value={sicoob.ambiente} onChange={(e) => setSicoob({ ...sicoob, ambiente: e.target.value })} className="w-full h-10 border rounded-md px-3">
                   <option value="sandbox">Sandbox (Teste)</option><option value="producao">Produção</option>
@@ -731,7 +744,7 @@ export default function ConfiguracoesPage() {
 
           {/* Modal Novo Usuário */}
           {showNovoUsuario && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8 clube-modal-overlay">
               <Card className="w-full max-w-lg mx-4">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Novo Usuário</CardTitle>
@@ -752,9 +765,9 @@ export default function ConfiguracoesPage() {
                     <Label>Senha *</Label>
                     <Input type="password" value={novoUsuario.senha} onChange={(e) => setNovoUsuario({ ...novoUsuario, senha: e.target.value })} placeholder="Mínimo 6 caracteres" />
                   </div>
-
+                  
                   <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                       <Label className="flex items-center gap-2">
                         <input type="checkbox" checked={novoUsuario.is_admin} onChange={(e) => setNovoUsuario({ ...novoUsuario, is_admin: e.target.checked })} className="h-4 w-4" />
                         <Shield className="h-4 w-4 text-purple-600" />
@@ -771,7 +784,7 @@ export default function ConfiguracoesPage() {
                             <Button type="button" variant="outline" size="sm" onClick={() => desmarcarTodas(true)}>Desmarcar</Button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                        <div className="grid gap-2 max-h-48 overflow-y-auto border rounded-lg p-3 grid-cols-1 sm:grid-cols-2">
                           {MODULOS.map((m) => (
                             <label key={m.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer">
                               <input type="checkbox" checked={novoUsuario.permissoes.includes(m.id)} onChange={() => toggleNovaPermissao(m.id)} className="h-4 w-4" />
@@ -794,7 +807,7 @@ export default function ConfiguracoesPage() {
 
           {/* Modal Editar Usuário */}
           {editandoUsuario && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8 clube-modal-overlay">
               <Card className="w-full max-w-lg mx-4">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Editar Usuário</CardTitle>
@@ -826,7 +839,7 @@ export default function ConfiguracoesPage() {
                   </div>
 
                   <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                       <Label className="flex items-center gap-2">
                         <input type="checkbox" checked={editandoUsuario.is_admin} onChange={(e) => setEditandoUsuario({ ...editandoUsuario, is_admin: e.target.checked })} className="h-4 w-4" />
                         <Shield className="h-4 w-4 text-purple-600" />
@@ -843,7 +856,7 @@ export default function ConfiguracoesPage() {
                             <Button type="button" variant="outline" size="sm" onClick={() => desmarcarTodas(false)}>Desmarcar</Button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                        <div className="grid gap-2 max-h-48 overflow-y-auto border rounded-lg p-3 grid-cols-1 sm:grid-cols-2">
                           {MODULOS.map((m) => (
                             <label key={m.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer">
                               <input type="checkbox" checked={editandoUsuario.permissoes?.includes(m.id)} onChange={() => toggleEditPermissao(m.id)} className="h-4 w-4" />

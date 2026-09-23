@@ -9,7 +9,7 @@ import net from 'net'
 
 /**
  * POST /api/bar/nfce/cancelar
- *
+ * 
  * Cancela uma NFC-e autorizada via ACBrMonitor.
  * Comando: NFe.Cancelar(chaveNFe, justificativa, CNPJ, lote)
  */

@@ -5,14 +5,17 @@ import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { listarPlanos, planoParaBanco } from '@/lib/planos-cadastro'
 import { toast } from 'sonner'
-import {
+import { 
   CreditCard, Plus, Trash2, Edit, Save, X, Check,
   Waves, Dumbbell, Goal, PartyPopper, UtensilsCrossed, Users
 } from 'lucide-react'
 
 type Plano = {
   id: string
+  codigo: string
+  valor_inscricao: number
   nome: string
   descricao: string | null
   valor_titulo: number
@@ -35,20 +38,23 @@ type Plano = {
 
 const corPadrao = '#3B82F6'
 const coresDisponiveis = [
-  '#22C55E', '#3B82F6', '#A855F7', '#F59E0B', '#EF4444',
+  '#22C55E', '#3B82F6', '#A855F7', '#F59E0B', '#EF4444', 
   '#EC4899', '#06B6D4', '#6B7280', '#14B8A6', '#8B5CF6'
 ]
 
 export default function PlanosPage() {
   const [planos, setPlanos] = useState<Plano[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState<Plano | null>(null)
   const [novoBeneficio, setNovoBeneficio] = useState('')
-
+  
   const [form, setForm] = useState({
     nome: '',
     descricao: '',
+    valor_inscricao: 0,
     valor_titulo: 0,
     valor_mensalidade: 0,
     valor_mensalidade_dependente: 0,
@@ -71,12 +77,10 @@ export default function PlanosPage() {
 
   const carregarPlanos = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('categorias_planos')
-      .select('*')
-      .order('ordem', { ascending: true })
-    setPlanos(data || [])
-    setLoading(false)
+    setErro('')
+    try { setPlanos(await listarPlanos(supabase)) }
+    catch { setErro('Não foi possível carregar os planos. Tente novamente.') }
+    finally { setLoading(false) }
   }
 
   useEffect(() => {
@@ -87,7 +91,8 @@ export default function PlanosPage() {
     setForm({
       nome: '',
       descricao: '',
-      valor_titulo: 0,
+      valor_inscricao: 0,
+    valor_titulo: 0,
       valor_mensalidade: 0,
       valor_mensalidade_dependente: 0,
       max_dependentes: 5,
@@ -113,6 +118,7 @@ export default function PlanosPage() {
     setForm({
       nome: p.nome,
       descricao: p.descricao || '',
+      valor_inscricao: p.valor_inscricao,
       valor_titulo: p.valor_titulo,
       valor_mensalidade: p.valor_mensalidade,
       valor_mensalidade_dependente: p.valor_mensalidade_dependente,
@@ -139,48 +145,54 @@ export default function PlanosPage() {
       return
     }
 
-    const dados = {
-      ...form,
-      updated_at: new Date().toISOString()
+    if (salvando) return
+    if ([form.valor_mensalidade, form.valor_inscricao, form.valor_titulo, form.valor_mensalidade_dependente].some(v => !Number.isFinite(v) || v < 0)) {
+      toast.error('Informe valores válidos, iguais ou maiores que zero.')
+      return
     }
+    setSalvando(true)
+    try {
+    const dados = planoParaBanco(form, editando?.codigo)
 
     if (editando) {
       const { error } = await supabase
-        .from('categorias_planos')
+        .from('planos')
         .update(dados)
-        .eq('id', editando.id)
+        .eq('id', editando.id).select('id').single()
 
       if (error) {
-        toast.error('Erro: ' + error.message)
+        toast.error('Não foi possível salvar a alteração do plano. Tente novamente.')
         return
       }
       toast.success('Plano atualizado!')
     } else {
       const { error } = await supabase
-        .from('categorias_planos')
+        .from('planos')
         .insert(dados)
 
       if (error) {
-        toast.error('Erro: ' + error.message)
+        toast.error('Não foi possível salvar a alteração do plano. Tente novamente.')
         return
       }
       toast.success('Plano criado!')
     }
 
     resetForm()
-    carregarPlanos()
+    await carregarPlanos()
+    } catch { toast.error('Não foi possível salvar o plano. Tente novamente.') }
+    finally { setSalvando(false) }
   }
 
   const excluir = async (id: string) => {
     if (!confirm('Excluir este plano? Associados vinculados ficarão sem categoria.')) return
 
     const { error } = await supabase
-      .from('categorias_planos')
+      .from('planos')
       .delete()
       .eq('id', id)
 
     if (error) {
-      toast.error('Erro: ' + error.message)
+      toast.error('Não foi possível salvar a alteração do plano. Tente novamente.')
       return
     }
     toast.success('Plano excluído!')
@@ -188,10 +200,11 @@ export default function PlanosPage() {
   }
 
   const toggleAtivo = async (p: Plano) => {
-    await supabase
-      .from('categorias_planos')
+    const {error} = await supabase
+      .from('planos')
       .update({ ativo: !p.ativo })
       .eq('id', p.id)
+    if(error) { toast.error('Não foi possível alterar o status do plano.'); return }
     carregarPlanos()
   }
 
@@ -212,7 +225,7 @@ export default function PlanosPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <CreditCard className="h-6 w-6" />
@@ -234,8 +247,8 @@ export default function PlanosPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Informações básicas */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="col-span-1 sm:col-span-2">
                 <label className="text-sm font-medium">Nome do Plano *</label>
                 <Input
                   placeholder="Ex: Titular, Contribuinte, Atleta..."
@@ -268,8 +281,13 @@ export default function PlanosPage() {
               />
             </div>
 
+            <div>
+              <label htmlFor="valor-inscricao" className="text-sm font-medium">Inscrição (R$)</label>
+              <Input id="valor-inscricao" type="number" min="0" step="0.01" value={form.valor_inscricao}
+                onChange={e => setForm({...form, valor_inscricao: parseFloat(e.target.value) || 0})} />
+            </div>
             {/* Valores */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
               <div>
                 <label className="text-sm font-medium">Valor do Título (R$)</label>
                 <Input
@@ -311,7 +329,7 @@ export default function PlanosPage() {
             </div>
 
             {/* Configurações financeiras */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <label className="text-sm font-medium">Dia Vencimento</label>
                 <Input
@@ -415,9 +433,9 @@ export default function PlanosPage() {
             {/* Botões */}
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={resetForm}>Cancelar</Button>
-              <Button onClick={salvar}>
+              <Button onClick={salvar} disabled={salvando} aria-busy={salvando}>
                 <Save className="h-4 w-4 mr-2" />
-                {editando ? 'Atualizar' : 'Criar'} Plano
+                {salvando ? 'Salvando...' : editando ? 'Atualizar Plano' : 'Criar Plano'}
               </Button>
             </div>
           </CardContent>
@@ -428,6 +446,8 @@ export default function PlanosPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <p className="col-span-full text-center py-8 text-muted-foreground">Carregando...</p>
+        ) : erro ? (
+          <Card className="col-span-full p-8"><p role="alert">{erro}</p><Button onClick={carregarPlanos}>Tentar novamente</Button></Card>
         ) : planos.length === 0 ? (
           <Card className="col-span-full p-8 text-center text-muted-foreground">
             <CreditCard className="h-12 w-12 mx-auto mb-2 opacity-50" />

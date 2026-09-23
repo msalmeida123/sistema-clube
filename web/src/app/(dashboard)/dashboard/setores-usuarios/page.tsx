@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import {
+import { 
   Users, Folder, Check, X, RefreshCw, Save, ChevronDown, ChevronUp,
   Eye, MessageSquare, ArrowRightLeft
 } from 'lucide-react'
@@ -88,7 +88,7 @@ export default function SetoresUsuariosPage() {
   // Toggle setor para usuário
   const toggleSetor = (userId: string, setorId: string) => {
     const existente = getAssociacao(userId, setorId)
-
+    
     if (existente) {
       // Remover
       setAssociacoes(prev => prev.filter(a => !(a.user_id === userId && a.setor_id === setorId)))
@@ -162,7 +162,7 @@ export default function SetoresUsuariosPage() {
   return (
     <PaginaProtegida codigoPagina="configuracoes">
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Setores por Usuário</h1>
             <p className="text-muted-foreground">Configure quais setores cada atendente pode ver e responder no CRM</p>
@@ -200,8 +200,8 @@ export default function SetoresUsuariosPage() {
         <div className="space-y-3">
           {usuarios.filter(u => !u.is_admin).map((usuario) => (
             <Card key={usuario.id} className="overflow-hidden">
-              <div
-                className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+              <div 
+                className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-gray-50"
                 onClick={() => setExpandido(expandido === usuario.id ? null : usuario.id)}
               >
                 <div className="flex items-center gap-3">
@@ -234,17 +234,17 @@ export default function SetoresUsuariosPage() {
                       const ativo = !!associacao
 
                       return (
-                        <div
+                        <div 
                           key={setor.id}
                           className={`p-3 rounded-lg border-2 transition-all ${
-                            ativo
-                              ? 'border-green-500 bg-white'
+                            ativo 
+                              ? 'border-green-500 bg-white' 
                               : 'border-gray-200 bg-gray-100'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2">
-                              <div
+                              <div 
                                 className="h-8 w-8 rounded-full flex items-center justify-center"
                                 style={{ backgroundColor: setor.cor + '20', color: setor.cor }}
                               >
@@ -258,8 +258,8 @@ export default function SetoresUsuariosPage() {
                                 toggleSetor(usuario.auth_id, setor.id)
                               }}
                               className={`h-6 w-6 rounded flex items-center justify-center transition-colors ${
-                                ativo
-                                  ? 'bg-green-500 text-white'
+                                ativo 
+                                  ? 'bg-green-500 text-white' 
                                   : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
                               }`}
                             >
@@ -276,8 +276,8 @@ export default function SetoresUsuariosPage() {
                                   togglePermissao(usuario.auth_id, setor.id, 'pode_ver')
                                 }}
                                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium transition-colors ${
-                                  associacao?.pode_ver
-                                    ? 'bg-blue-100 text-blue-700'
+                                  associacao?.pode_ver 
+                                    ? 'bg-blue-100 text-blue-700' 
                                     : 'bg-gray-200 text-gray-500'
                                 }`}
                                 title="Ver conversas"
@@ -291,8 +291,8 @@ export default function SetoresUsuariosPage() {
                                   togglePermissao(usuario.auth_id, setor.id, 'pode_responder')
                                 }}
                                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium transition-colors ${
-                                  associacao?.pode_responder
-                                    ? 'bg-green-100 text-green-700'
+                                  associacao?.pode_responder 
+                                    ? 'bg-green-100 text-green-700' 
                                     : 'bg-gray-200 text-gray-500'
                                 }`}
                                 title="Responder mensagens"
@@ -306,8 +306,8 @@ export default function SetoresUsuariosPage() {
                                   togglePermissao(usuario.auth_id, setor.id, 'pode_transferir')
                                 }}
                                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium transition-colors ${
-                                  associacao?.pode_transferir
-                                    ? 'bg-orange-100 text-orange-700'
+                                  associacao?.pode_transferir 
+                                    ? 'bg-orange-100 text-orange-700' 
                                     : 'bg-gray-200 text-gray-500'
                                 }`}
                                 title="Transferir conversas"

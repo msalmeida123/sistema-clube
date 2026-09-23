@@ -170,7 +170,7 @@ export default function EleicaoDetalhesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/eleicoes">
             <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -186,7 +186,7 @@ export default function EleicaoDetalhesPage() {
       </div>
 
       {/* Info Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ export default function EleicaoDetalhesPage() {
 
       {/* Modal Nova Chapa */}
       {showNovaChapa && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 clube-modal-overlay">
           <Card className="w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Nova Chapa</CardTitle>
@@ -363,7 +363,7 @@ export default function EleicaoDetalhesPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <Label>Número *</Label>
                   <Input

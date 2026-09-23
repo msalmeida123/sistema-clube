@@ -1,0 +1,15 @@
+import {portalApi,mensagemPortal,ErroPortal} from '@/lib/portal-api'
+const original=global.fetch
+beforeEach(()=>{global.fetch=jest.fn()})
+afterEach(()=>{global.fetch=original;jest.useRealTimers()})
+const responder=(body:string,status=200,type='application/json')=>(fetch as jest.Mock).mockResolvedValue(new Response(body,{status,headers:{'Content-Type':type}}))
+test('JSON válido',async()=>{responder('{"ok":true}');expect(await portalApi('/api')).toEqual({ok:true})})
+test.each(['<!doctype html><p>erro interno</p>','', '{invalido'])('resposta inválida não vaza conteúdo: %s',async body=>{responder(body);await expect(portalApi('/api')).rejects.toThrow('Serviço temporariamente indisponível.')})
+test('HTML com content-type HTML não é interpretado',async()=>{const r=new Response('<html>segredo</html>',{headers:{'Content-Type':'text/html'}});const spy=jest.spyOn(r,'json');(fetch as jest.Mock).mockResolvedValue(r);await expect(portalApi('/api')).rejects.toBeInstanceOf(ErroPortal);expect(spy).not.toHaveBeenCalled()})
+test.each([401,403,404,422,429,500,502,503,504])('status %i tem mensagem segura',async status=>{responder('{"error":"relation private_table stack senha"}',status);try{await portalApi('/api');throw Error('não lançou')}catch(e){expect(e).toBeInstanceOf(ErroPortal);expect((e as ErroPortal).status).toBe(status);expect(mensagemPortal(e)).not.toMatch(/relation|private_table|stack|senha/)}})
+test('401 diferencia login da sessão expirada',async()=>{responder('{}',401);await expect(portalApi('/api',{}, {login:true})).rejects.toThrow('CPF ou senha inválidos.');await expect(portalApi('/api')).rejects.toThrow('Sua sessão expirou.')})
+test('falha de rede não mostra erro nativo',async()=>{(fetch as jest.Mock).mockRejectedValue(new TypeError('failed fetch segredo'));await expect(portalApi('/api')).rejects.toThrow('Verifique sua conexão')})
+test('timeout cancela transporte e mostra mensagem amigável',async()=>{jest.useFakeTimers();(fetch as jest.Mock).mockImplementation((_u,init)=>new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('abort','AbortError')))));const req=portalApi('/api',{}, {timeoutMs:50});const expected=expect(req).rejects.toThrow('demorou');await jest.advanceTimersByTimeAsync(51);await expected})
+test('cancelamento de desmontagem não é tratado como falha',async()=>{const c=new AbortController();(fetch as jest.Mock).mockImplementation((_u,init)=>new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('abort','AbortError')))));const p=portalApi('/api',{signal:c.signal});c.abort();await expect(p).rejects.toMatchObject({name:'AbortError'})})
+test('redirecionamentos de API são recusados',async()=>{responder('{}');await portalApi('/api');expect(fetch).toHaveBeenCalledWith('/api',expect.objectContaining({redirect:'error',credentials:'same-origin'}))})
+test('erro desconhecido não expõe detalhes',()=>{expect(mensagemPortal(Error('stack banco'))).not.toContain('stack')})

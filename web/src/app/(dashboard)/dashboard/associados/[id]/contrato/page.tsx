@@ -1,4 +1,5 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -76,7 +77,7 @@ export default function ContratoPage() {
           <h1 className="text-2xl font-bold">Contrato de Associação</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={imprimir}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
+          <BotaoImpressao variant="outline" onClick={imprimir}><Printer className="h-4 w-4 mr-2" />Imprimir</BotaoImpressao>
           <Button onClick={gerarPDF}><Download className="h-4 w-4 mr-2" />Salvar em PDF</Button>
         </div>
       </div>

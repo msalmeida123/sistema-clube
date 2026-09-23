@@ -1,0 +1,4 @@
+import {expiraAviso,avisoDisponivel,novoAvisoSchema} from '@/lib/avisos-aplicativo'
+it('validade inclui todo o último dia no horário de Brasília',()=>{expect(expiraAviso('2026-10-10')).toBe('2026-10-10T23:59:59-03:00');expect(avisoDisponivel({ativo:true,expira_em:expiraAviso('2026-10-10')},Date.parse('2026-10-11T02:59:58Z'))).toBe(true);expect(avisoDisponivel({ativo:true,expira_em:expiraAviso('2026-10-10')},Date.parse('2026-10-11T03:00:00Z'))).toBe(false)})
+it('rejeita datas impossíveis e campos de controle enviados pelo cliente',()=>{expect(()=>expiraAviso('2026-02-30')).toThrow();expect(novoAvisoSchema.safeParse({id:'9b1358a3-2b59-455f-ae08-6e2d7fc10ee4',titulo:'Show no clube',descricao:'',validade:'',ativo:true}).success).toBe(false)})
+it('rascunho ou aviso pausado não está disponível e sem data não vence',()=>{expect(avisoDisponivel({ativo:false,expira_em:null})).toBe(false);expect(avisoDisponivel({ativo:true,expira_em:null})).toBe(true)})

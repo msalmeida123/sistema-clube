@@ -212,7 +212,7 @@ export default function NovoExameMedicoPage() {
                       >
                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                           {a.foto_url ? (
-                            <img src={a.foto_url} alt={a.nome} className="h-full w-full object-cover" />
+                            <img src={a.foto_url} alt={a.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                           ) : (
                             <span className="text-lg font-medium">{a.nome[0]}</span>
                           )}
@@ -227,11 +227,11 @@ export default function NovoExameMedicoPage() {
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                     {associadoSelecionado.foto_url ? (
-                      <img src={associadoSelecionado.foto_url} alt={associadoSelecionado.nome} className="h-full w-full object-cover" />
+                      <img src={associadoSelecionado.foto_url} alt={associadoSelecionado.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                     ) : (
                       <span className="text-xl font-medium">{associadoSelecionado.nome[0]}</span>
                     )}
@@ -256,7 +256,7 @@ export default function NovoExameMedicoPage() {
             <CardTitle>Dados do Exame</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Tipo de Exame *</Label>
                 <select
@@ -282,7 +282,7 @@ export default function NovoExameMedicoPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Data do Exame *</Label>
                 <Input
@@ -311,7 +311,7 @@ export default function NovoExameMedicoPage() {
             <CardTitle>Médico Responsável</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Nome do Médico *</Label>
                 <Input

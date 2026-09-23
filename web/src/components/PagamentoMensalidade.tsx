@@ -14,7 +14,7 @@ export default function PagamentoMensalidade({mensalidade,onPago}:{mensalidade:a
    toast.success('Pagamento registrado com log. Os requisitos de acesso serão consultados novamente.');setAberto(false);onPago()
   }catch(e:any){toast.error(e.message||'Não foi possível confirmar. Confira antes de tentar novamente.')}finally{setOcupado(false)}}
  return <div><Button size="sm" variant="outline" onClick={()=>{setRequisicao(crypto.randomUUID());setConfirmado(false);setAberto(true)}}>Receber na maquininha</Button>
- {aberto&&<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><form data-pagamento-modal role="dialog" aria-modal="true" aria-label="Confirmar pagamento na maquininha" onSubmit={salvar} className="bg-white rounded-xl p-6 space-y-4 max-w-lg w-full text-left text-gray-900">
+ {aberto&&<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 clube-modal-overlay"><form data-pagamento-modal role="dialog" aria-modal="true" aria-label="Confirmar pagamento na maquininha" onSubmit={salvar} className="bg-white rounded-xl p-6 space-y-4 max-w-lg w-full text-left text-gray-900">
  <h2 className="font-bold text-xl">Confirmar pagamento na maquininha</h2>
  <p>{mensalidade.tipo==='academia'?'Academia':'Clube'} · {mensalidade.referencia||mensalidade.mes_referencia} · <strong>{total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></p>
  <label className="block">Forma<select className="border p-2 w-full rounded" value={forma} onChange={e=>setForma(e.target.value)} disabled={ocupado}><option value="debito">Débito</option><option value="credito">Crédito</option></select></label>

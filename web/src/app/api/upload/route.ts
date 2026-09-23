@@ -17,20 +17,20 @@ const TIPOS_PERMITIDOS = new Map([
   ['image/png', { ext: ['png'], maxSize: 10 * 1024 * 1024 }],
   ['image/gif', { ext: ['gif'], maxSize: 5 * 1024 * 1024 }],
   ['image/webp', { ext: ['webp'], maxSize: 10 * 1024 * 1024 }],
-
+  
   // Documentos
   ['application/pdf', { ext: ['pdf'], maxSize: 20 * 1024 * 1024 }],
   ['application/msword', { ext: ['doc'], maxSize: 10 * 1024 * 1024 }],
   ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', { ext: ['docx'], maxSize: 10 * 1024 * 1024 }],
   ['application/vnd.ms-excel', { ext: ['xls'], maxSize: 10 * 1024 * 1024 }],
   ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { ext: ['xlsx'], maxSize: 10 * 1024 * 1024 }],
-
+  
   // Áudio
   ['audio/mpeg', { ext: ['mp3'], maxSize: 25 * 1024 * 1024 }],
   ['audio/ogg', { ext: ['ogg', 'oga'], maxSize: 25 * 1024 * 1024 }],
   ['audio/wav', { ext: ['wav'], maxSize: 25 * 1024 * 1024 }],
   ['audio/webm', { ext: ['weba'], maxSize: 25 * 1024 * 1024 }],
-
+  
   // Vídeo
   ['video/mp4', { ext: ['mp4'], maxSize: 50 * 1024 * 1024 }],
   ['video/webm', { ext: ['webm'], maxSize: 50 * 1024 * 1024 }],
@@ -65,7 +65,7 @@ function validarArquivo(file: File): { valido: boolean; erro?: string } {
 
   // Verificar extensão
   const extensao = getExtensao(file.name)
-
+  
   if (!extensao) {
     return { valido: false, erro: 'Arquivo sem extensão' }
   }
@@ -81,24 +81,24 @@ function validarArquivo(file: File): { valido: boolean; erro?: string } {
 
   // Verificar tipo MIME
   const tipoConfig = TIPOS_PERMITIDOS.get(file.type)
-
+  
   if (!tipoConfig) {
     return { valido: false, erro: `Tipo de arquivo não permitido: ${file.type}` }
   }
 
   // Verificar se extensão corresponde ao tipo MIME
   if (!tipoConfig.ext.includes(extensao)) {
-    return {
-      valido: false,
-      erro: `Extensão .${extensao} não corresponde ao tipo ${file.type}`
+    return { 
+      valido: false, 
+      erro: `Extensão .${extensao} não corresponde ao tipo ${file.type}` 
     }
   }
 
   // Verificar tamanho específico do tipo
   if (file.size > tipoConfig.maxSize) {
-    return {
-      valido: false,
-      erro: `Arquivo muito grande para este tipo. Máximo: ${tipoConfig.maxSize / 1024 / 1024}MB`
+    return { 
+      valido: false, 
+      erro: `Arquivo muito grande para este tipo. Máximo: ${tipoConfig.maxSize / 1024 / 1024}MB` 
     }
   }
 
@@ -108,7 +108,7 @@ function validarArquivo(file: File): { valido: boolean; erro?: string } {
 // Verificar magic bytes (assinatura do arquivo)
 async function verificarMagicBytes(buffer: ArrayBuffer, mimeType: string): Promise<boolean> {
   const bytes = new Uint8Array(buffer.slice(0, 12))
-
+  
   // Assinaturas conhecidas
   const assinaturas: Record<string, number[][]> = {
     'image/jpeg': [[0xFF, 0xD8, 0xFF]],
@@ -121,13 +121,13 @@ async function verificarMagicBytes(buffer: ArrayBuffer, mimeType: string): Promi
   }
 
   const assinaturasDoTipo = assinaturas[mimeType]
-
+  
   if (!assinaturasDoTipo) {
     // Se não temos assinatura conhecida, permitir (mas já passou validação de MIME)
     return true
   }
 
-  return assinaturasDoTipo.some(assinatura =>
+  return assinaturasDoTipo.some(assinatura => 
     assinatura.every((byte, index) => bytes[index] === byte)
   )
 }
@@ -150,9 +150,9 @@ export async function POST(request: Request) {
     // Verificar autenticação
     const cookieStore = await cookies()
     const supabase = await createRouteHandlerClient({ cookies: () => cookieStore })
-
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+    
     if (authError || !user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
     // Obter arquivo do FormData
     const formData = await request.formData()
     const file = formData.get('file') as File
-
+    
     if (!file) {
       return NextResponse.json({ error: 'Arquivo é obrigatório' }, { status: 400 })
     }
@@ -173,11 +173,11 @@ export async function POST(request: Request) {
 
     // Converter para buffer e verificar magic bytes
     const arrayBuffer = await file.arrayBuffer()
-
+    
     const magicBytesValido = await verificarMagicBytes(arrayBuffer, file.type)
     if (!magicBytesValido) {
-      return NextResponse.json({
-        error: 'Conteúdo do arquivo não corresponde ao tipo declarado'
+      return NextResponse.json({ 
+        error: 'Conteúdo do arquivo não corresponde ao tipo declarado' 
       }, { status: 400 })
     }
 
@@ -202,8 +202,8 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Erro no upload:', error)
-      return NextResponse.json({
-        error: 'Erro ao fazer upload: ' + error.message
+      return NextResponse.json({ 
+        error: 'Erro ao fazer upload: ' + error.message 
       }, { status: 500 })
     }
 
@@ -215,8 +215,8 @@ export async function POST(request: Request) {
     // Log de auditoria (opcional)
     console.log(`Upload: ${file.name} (${file.type}, ${file.size} bytes) por ${user.email}`)
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      success: true, 
       url: urlData.publicUrl,
       fileName: sanitizarNomeArquivo(file.name),
       fileType: file.type,

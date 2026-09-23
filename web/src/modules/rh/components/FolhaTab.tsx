@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {reservarDocumento} from '@/lib/impressao-documento'
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -39,7 +41,7 @@ export function FolhaTab() {
   const [referencia, setReferencia] = useState(currentMonth)
   const [statusFilter, setStatusFilter] = useState<StatusFolha | ''>('')
   const [selectedFolha, setSelectedFolha] = useState<FolhaPagamento | null>(null)
-
+  
   const { folhas, loading, gerarFolhaMensal, aprovar, marcarComoPaga, recarregar } = useFolhaPagamento({
     referencia,
     status: statusFilter || undefined,
@@ -75,12 +77,12 @@ export function FolhaTab() {
   }
 
   async function imprimir(id?:string,holerites=false){
-    const janela=window.open('', '_blank')
-    if(!janela){toast.error('Permita novas janelas para imprimir.');return}
-    janela.document.body.textContent='Preparando impressão...'
+    const janela=reservarDocumento()
+    if(!janela)return
+
     setImprimindo(true)
     try{
-      const r=await fetch('/api/rh/configuracao');const empresa=await r.json();if(!r.ok)throw Error(empresa.error)
+      const r=await fetch('/api/impressao/autorizar?rota='+encodeURIComponent(location.pathname),{cache:'no-store'});if(!r.ok)throw Error('Sem permissão para imprimir.');const {clube}=await r.json();const empresa={empresa_nome:clube?.nome_clube,empresa_documento:clube?.cnpj}
       const db=createClient();const registros:FolhaPagamento[]=[]
       for(let offset=0;;offset+=500){
         let q=db.from('folha_pagamento').select('*, funcionario:funcionarios(nome,cargo,departamento,data_admissao,banco,agencia,conta)').order('id').range(offset,offset+499)
@@ -90,7 +92,7 @@ export function FolhaTab() {
       if(!registros.length)throw Error('Nenhuma folha encontrada para imprimir.')
       const conteudo=holerites?registros.map(f=>'<div class="pagina-holerite">'+conteudoFolha([f],empresa,f.referencia,true)+'</div>').join(''):conteudoFolha(registros,empresa,id?registros[0].referencia:referencia,!!id,statusFilter?STATUS_FOLHA_LABELS[statusFilter]:'Todos')
       abrirDocumento('Folha de pagamento',estiloImpressaoRH()+'<style>@media print{.pagina-holerite + .pagina-holerite{break-before:page}}</style>'+conteudo,janela)
-    }catch(e:any){janela.close();toast.error(e.message||'Não foi possível preparar a impressão.')}
+    }catch(e:any){console.error('Falha na impressão do RH',e);janela.close();toast.error('Não foi possível preparar a impressão. Confira os filtros e tente novamente.')}
     finally{setImprimindo(false)}
   }
 
@@ -100,28 +102,28 @@ export function FolhaTab() {
   const totalLiquido = folhas.reduce((acc, f) => acc + f.salario_liquido, 0)
 
   if(selectedFolha){const f=selectedFolha;return <div className="space-y-4">
-    <div className="flex flex-wrap justify-between gap-2"><h3 className="text-lg font-semibold">Demonstrativo · {f.funcionario?.nome} · {f.referencia}</h3><div className="flex gap-2"><Button variant="outline" disabled={imprimindo} onClick={()=>void imprimir(f.id)}><Printer className="h-4 w-4 mr-2"/>Imprimir dados salvos</Button><Button variant="outline" onClick={()=>setSelectedFolha(null)}>Voltar</Button></div></div>
+    <div className="flex flex-wrap justify-between gap-2"><h3 className="text-lg font-semibold">Demonstrativo · {f.funcionario?.nome} · {f.referencia}</h3><div className="flex gap-2"><BotaoImpressao variant="outline" disabled={imprimindo} onClick={()=>void imprimir(f.id)}><Printer className="h-4 w-4 mr-2"/>Imprimir dados salvos</BotaoImpressao><Button variant="outline" onClick={()=>setSelectedFolha(null)}>Voltar</Button></div></div>
     <HoleriteEditor key={f.id} folha={f} onSave={()=>{setSelectedFolha(null);void recarregar()}}/>
   </div>}
 
   return (
     <div className="space-y-6">
       {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-xs text-gray-500">Total Proventos</p><p className="text-xl font-bold text-green-600">{formatCurrency(totalProventos)}</p></div>
             <DollarSign className="h-8 w-8 text-green-200" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-xs text-gray-500">Total Descontos</p><p className="text-xl font-bold text-red-600">{formatCurrency(totalDescontos)}</p></div>
             <DollarSign className="h-8 w-8 text-red-200" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-xs text-gray-500">Total Líquido</p><p className="text-xl font-bold text-blue-600">{formatCurrency(totalLiquido)}</p></div>
             <DollarSign className="h-8 w-8 text-blue-200" />
           </CardContent>
@@ -144,8 +146,8 @@ export function FolhaTab() {
           </select>
         </div>
         <div className="sm:ml-auto sm:self-end flex gap-2">
-          <Button variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir()}><Printer className="h-4 w-4 mr-2"/>Imprimir resumo</Button>
-          <Button variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir(undefined,true)}>Imprimir holerites</Button>
+          <BotaoImpressao variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir()}><Printer className="h-4 w-4 mr-2"/>Imprimir resumo</BotaoImpressao>
+          <BotaoImpressao variant="outline" disabled={loading||imprimindo||!folhas.length} onClick={()=>void imprimir(undefined,true)}>Imprimir holerites</BotaoImpressao>
           <Button onClick={handleGerar}>
             <Plus className="h-4 w-4 mr-2" /> Gerar Folha do Mês
           </Button>
@@ -185,7 +187,7 @@ export function FolhaTab() {
                   </td>
                   <td className="p-3">
                     <div className="flex items-center justify-center gap-1">
-                      <Button variant="ghost" size="sm" disabled={imprimindo} onClick={()=>void imprimir(folha.id)} aria-label={"Imprimir demonstrativo de "+folha.funcionario?.nome}><Printer className="h-4 w-4"/></Button>
+                      <BotaoImpressao variant="ghost" size="sm" disabled={imprimindo} onClick={()=>void imprimir(folha.id)} aria-label={"Imprimir demonstrativo de "+folha.funcionario?.nome}><Printer className="h-4 w-4"/></BotaoImpressao>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedFolha(folha)} title="Editar quinzena e descontos">
                         <Eye className="h-4 w-4 mr-1" /> Quinzena / descontos
                       </Button>

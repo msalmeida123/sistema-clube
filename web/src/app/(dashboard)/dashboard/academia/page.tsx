@@ -1,4 +1,5 @@
 'use client'
+import {formatarDataCalendario} from '@/lib/data-calendario'
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import {
+import { 
   Dumbbell, Plus, Trash2, Edit, Save, X, Users, Calendar,
   Clock, Award, CheckCircle, XCircle, AlertCircle, Search, QrCode
 } from 'lucide-react'
@@ -71,11 +72,11 @@ export default function AcademiaPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-
+    
     const [planosRes, assinaturasRes, associadosRes] = await Promise.all([
       supabase.from('planos_academia').select('*').order('ordem'),
       supabase.from('assinaturas_academia').select(`
-        *,
+        *, 
         associado:associados(nome, numero_titulo, telefone, qr_code),
         plano:planos_academia(nome)
       `).order('created_at', { ascending: false }),
@@ -98,7 +99,7 @@ export default function AcademiaPage() {
         const inicio = new Date(formAssinatura.data_inicio)
         const fim = new Date(inicio)
         fim.setMonth(fim.getMonth() + plano.duracao_meses)
-
+        
         setFormAssinatura(f => ({
           ...f,
           data_fim: fim.toISOString().split('T')[0],
@@ -187,16 +188,16 @@ export default function AcademiaPage() {
         .insert(dados)
         .select()
         .single()
-
+      
       if (error) { toast.error('Erro: ' + error.message); return }
-
+      
       // Gerar QR Code único
       const qrCode = 'ACAD-' + novaAssinatura.id.substring(0, 8).toUpperCase()
       await supabase
         .from('assinaturas_academia')
         .update({ qr_code: qrCode })
         .eq('id', novaAssinatura.id)
-
+      
       toast.success('Assinatura criada!')
     }
     resetFormAssinatura()
@@ -218,7 +219,7 @@ export default function AcademiaPage() {
   }
 
   const formatarMoeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  const formatarData = (d: string) => new Date(d).toLocaleDateString('pt-BR')
+  const formatarData = formatarDataCalendario
 
   const getStatusColor = (status: string, dataFim: string) => {
     if (new Date(dataFim) < new Date()) return 'bg-red-100 text-red-700'
@@ -233,16 +234,16 @@ export default function AcademiaPage() {
   }
 
   const assinaturasFiltradas = assinaturas.filter(a => {
-    const matchBusca = !busca ||
+    const matchBusca = !busca || 
       a.associado?.nome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.associado?.numero_titulo?.includes(busca)
-
+    
     const isVencida = new Date(a.data_fim) < new Date()
-    const matchStatus = filtroStatus === 'todas' ||
+    const matchStatus = filtroStatus === 'todas' || 
       (filtroStatus === 'vencidas' && isVencida) ||
       (filtroStatus === 'ativas' && a.status === 'ativa' && !isVencida) ||
       (filtroStatus === a.status && !isVencida)
-
+    
     return matchBusca && matchStatus
   })
 
@@ -254,7 +255,7 @@ export default function AcademiaPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-orange-500" />
@@ -265,7 +266,7 @@ export default function AcademiaPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <CheckCircle className="h-8 w-8 text-green-500" />
@@ -350,7 +351,7 @@ export default function AcademiaPage() {
                 <CardTitle>{editandoAssinatura ? 'Editar' : 'Nova'} Assinatura</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium">Associado *</label>
                     <select
@@ -381,7 +382,7 @@ export default function AcademiaPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="text-sm font-medium">Data Início</label>
                     <Input
@@ -419,7 +420,7 @@ export default function AcademiaPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                   <div>
                     <label className="text-sm font-medium">Status</label>
                     <select
@@ -468,7 +469,7 @@ export default function AcademiaPage() {
           {/* Lista Assinaturas */}
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left p-3 font-medium">Associado</th>
@@ -533,7 +534,7 @@ export default function AcademiaPage() {
                     ))
                   )}
                 </tbody>
-              </table>
+              </table></div>
             </CardContent>
           </Card>
         </div>
@@ -556,7 +557,7 @@ export default function AcademiaPage() {
                 <CardTitle>{editandoPlano ? 'Editar' : 'Novo'} Plano</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium">Nome *</label>
                     <Input
@@ -575,7 +576,7 @@ export default function AcademiaPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="text-sm font-medium">Mensalidade (R$)</label>
                     <Input
@@ -618,7 +619,7 @@ export default function AcademiaPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium">Horário de Acesso</label>
                     <Input

@@ -10,10 +10,10 @@ interface AssociadoSearchProps {
   placeholder?: string
 }
 
-export function AssociadoSearch({
-  value,
-  onChange,
-  placeholder = 'Buscar por nome ou CPF...'
+export function AssociadoSearch({ 
+  value, 
+  onChange, 
+  placeholder = 'Buscar por nome ou CPF...' 
 }: AssociadoSearchProps) {
   return (
     <div className="relative w-72">

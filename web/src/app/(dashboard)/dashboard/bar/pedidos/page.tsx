@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirUrl} from '@/lib/impressao'
 
 import { useState } from 'react'
 import {BotaoUSBLocal} from '@/components/ImpressaoUSBLocal'
@@ -81,7 +83,7 @@ export default function BarPedidosPage() {
 
       {/* Tabela */}
       <div className="bg-white rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="text-left px-4 py-3 font-semibold text-gray-600">#</th>
@@ -122,14 +124,14 @@ export default function BarPedidosPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {/* Modal detalhe */}
       {detalhe && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 clube-modal-overlay">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex items-center justify-between">
+            <div className="p-6 border-b flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold">Pedido #{detalhe.numero_pedido}</h2>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COR[detalhe.status]}`}>
                 {STATUS_LABEL[detalhe.status]}
@@ -145,7 +147,7 @@ export default function BarPedidosPage() {
 
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">Itens</h3>
-                <table className="w-full text-sm">
+                <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
                   <tbody className="divide-y">
                     {(detalhe.itens ?? []).map((item, i) => (
                       <tr key={i}>
@@ -155,7 +157,7 @@ export default function BarPedidosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               <div className="border-t pt-3 space-y-1 text-sm">
@@ -199,14 +201,14 @@ export default function BarPedidosPage() {
               {detalhe.status==='pago'&&<BotaoUSBLocal pedidoId={detalhe.id} destino="balcao" reimpressao/>}
               {detalhe.status !== 'cancelado' && detalhe.itens?.some(i => i.enviar_cozinha) && <ImprimirCozinha pedidoId={detalhe.id} reimpressao />}
               <Button variant="outline" className="flex-1" onClick={() => setDetalhe(null)}>Fechar</Button>
-              <Button
+              <BotaoImpressao
                 variant="outline"
                 className="gap-2"
-                onClick={() => window.open(`/api/bar/comprovante?pedido_id=${detalhe.id}`, '_blank')}
+                onClick={() => imprimirUrl(`/api/bar/comprovante?pedido_id=${detalhe.id}`)}
               >
                 <Printer size={16} />
                 Comprovante
-              </Button>
+              </BotaoImpressao>
             </div>
           </div>
         </div>

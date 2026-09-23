@@ -1,0 +1,14 @@
+'use client'
+import {useEffect,useState} from 'react'
+import Link from 'next/link'
+import {ArrowLeft} from 'lucide-react'
+import {Button} from '@/components/ui/button'
+import {createClientComponentClient} from '@/lib/supabase/client'
+import {NotificacoesClube} from '@/components/NotificacoesClube'
+import '@/components/mensagens-clube.css'
+export default function CaixaMensagens(){
+ const [lista,setLista]=useState<any[]>([]),[pagina,setPagina]=useState(0),[mais,setMais]=useState(false),[erro,setErro]=useState(''),[busca,setBusca]=useState(''),[pessoas,setPessoas]=useState<any[]>([])
+ useEffect(()=>{let ativo=true;const controller=new AbortController();async function load(){if(document.hidden)return;try{const r=await fetch('/api/associados/mensagens?caixa=1&pagina='+pagina,{cache:'no-store',signal:controller.signal}),j=await r.json();if(!r.ok)throw Error(j.error);if(ativo){setLista(j.conversas);setMais(j.mais)}}catch(e:any){if(ativo&&e.name!=='AbortError')setErro(e.message)}}void load();const t=setInterval(load,15000);return()=>{ativo=false;controller.abort();clearInterval(t)}},[pagina])
+ useEffect(()=>{let ativo=true;const timer=setTimeout(async()=>{const termo=busca.replace(/[^A-Za-zÀ-ÿ0-9 ]/g,'').trim().slice(0,100);if(termo.length<2){setPessoas([]);return}const {data,error}=await createClientComponentClient().from('associados').select('id,nome,numero_titulo').eq('tipo_cadastro','pf').ilike('nome','%'+termo+'%').order('nome').limit(20);if(ativo){setPessoas(data||[]);if(error)setErro('Não foi possível buscar associados.')}},400);return()=>{ativo=false;clearTimeout(timer)}},[busca])
+ return <main className="clube-caixa"><Button asChild variant="outline" className="clube-caixa-voltar"><Link href="/dashboard"><ArrowLeft className="h-4 w-4 mr-2" aria-hidden="true"/>Voltar ao painel</Link></Button><h1 className="text-2xl font-semibold">Mensagens dos associados</h1><p>Caixa de atendimento compartilhada com a equipe autorizada. A leitura é registrada individualmente.</p><NotificacoesClube tipo="equipe"/>{erro&&<p role="alert">{erro}</p>}<label>Iniciar conversa com um associado<input className="w-full border rounded p-3 my-2" value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar pelo nome (mínimo 2 caracteres)"/></label>{pessoas.map(p=><Link key={p.id} href={'/dashboard/associados/'+p.id+'/mensagens'}>{p.nome} · Título {p.numero_titulo}</Link>)}<h2 className="text-xl font-semibold mt-6">Conversas recentes</h2>{!lista.length&&<p>Nenhuma conversa nesta página.</p>}{lista.map(c=><Link key={c.associado_id} href={'/dashboard/associados/'+c.associado_id+'/mensagens'}><strong>{c.nome}</strong><br/>{c.nao_lidas} não lidas · {new Date(c.criado_em).toLocaleString('pt-BR')}</Link>)}<div className="clube-msg-actions"><button disabled={!pagina} onClick={()=>setPagina(p=>p-1)}>Anterior</button><span>Página {pagina+1}</span><button disabled={!mais} onClick={()=>setPagina(p=>p+1)}>Próxima</button></div></main>
+}

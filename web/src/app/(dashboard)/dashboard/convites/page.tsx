@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {reservarDocumento} from '@/lib/impressao-documento'
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
@@ -48,7 +50,8 @@ export default function ConvitesPage() {
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('todos')
   const [isAdmin, setIsAdmin] = useState(false)
-
+  
+  const [erroCpf,setErroCpf]=useState('')
   const [form, setForm] = useState({
     associado_id: '',
     convidado_nome: '',
@@ -85,7 +88,7 @@ export default function ConvitesPage() {
 
   const carregarDados = async () => {
     setLoading(true)
-
+    
     const [convitesRes, configRes, assocRes] = await Promise.all([
       supabase
         .from('convites')
@@ -138,9 +141,9 @@ export default function ConvitesPage() {
       .neq('status', 'cancelado')
 
     if ((count || 0) >= config.limite_convites_mes) {
-      return {
-        permitido: false,
-        motivo: `Limite de ${config.limite_convites_mes} convites por mês atingido`
+      return { 
+        permitido: false, 
+        motivo: `Limite de ${config.limite_convites_mes} convites por mês atingido` 
       }
     }
 
@@ -167,10 +170,10 @@ export default function ConvitesPage() {
       const ultimaVisita = new Date(data[0].data_visita)
       const proximaPermitida = new Date(ultimaVisita)
       proximaPermitida.setDate(proximaPermitida.getDate() + config.intervalo_dias_convidado)
-
-      return {
-        permitido: false,
-        motivo: `Este CPF só pode ser convidado novamente a partir de ${proximaPermitida.toLocaleDateString('pt-BR')}`
+      
+      return { 
+        permitido: false, 
+        motivo: `Este CPF só pode ser convidado novamente a partir de ${proximaPermitida.toLocaleDateString('pt-BR')}` 
       }
     }
 
@@ -178,6 +181,7 @@ export default function ConvitesPage() {
   }
 
   const criarConvite = async () => {
+    setErroCpf('')
     if (!form.associado_id || !form.convidado_nome || !form.convidado_cpf) {
       toast.error('Preencha todos os campos obrigatórios')
       return
@@ -190,12 +194,7 @@ export default function ConvitesPage() {
       return
     }
 
-    // Verificar intervalo do convidado
-    const intervaloCheck = await verificarIntervaloConvidado(form.convidado_cpf)
-    if (!intervaloCheck.permitido) {
-      toast.error(intervaloCheck.motivo)
-      return
-    }
+    // A unicidade do CPF é validada atomicamente no banco, inclusive entre datas diferentes.
 
     // Verificar se data é hoje ou futura
     if (form.data_validade < hojeBrasil()) {
@@ -222,7 +221,8 @@ export default function ConvitesPage() {
       .single()
 
     if (error) {
-      toast.error('Erro ao criar convite: ' + error.message)
+      if(error.code==='23505'&&/cpf/i.test(error.message)){setErroCpf('Este CPF já está cadastrado no clube. Não é permitido repetir CPF entre associados ou convites.');document.getElementById('convite-cpf')?.focus()}
+      else toast.error('Erro ao criar convite: ' + error.message)
       return
     }
 
@@ -281,35 +281,26 @@ export default function ConvitesPage() {
     try {
       validarConviteImpressao(convite)
       if (!baixar) {
-        janela = window.open('', '_blank')
-        if (!janela) throw new Error('Permita abrir novas janelas para imprimir ou use Baixar PDF.')
-        janela.document.title = 'Preparando convite'
-        janela.document.body.textContent = 'Preparando convite e QR Code. Aguarde...'
+        janela = reservarDocumento()
+        if (!janela) return
+
       }
       const QRCode = (await import('qrcode')).default
       const qr = await QRCode.toDataURL(convite.qr_code, { width:360, margin:4, errorCorrectionLevel:'M' })
-      if (baixar || formatoImpressao==='80mm') {
+      if (baixar) {
         const {gerarConvitePDF} = await import('@/lib/convite-pdf')
         const pdf=gerarConvitePDF(convite, qr,formatoImpressao)
         if(baixar){
           pdf.save('convite-' + convite.id + '-'+formatoImpressao+'.pdf')
           toast.success('PDF gerado. Abra o arquivo em um leitor de PDF para imprimir.')
-        }else if(janela){
-          const url=URL.createObjectURL(pdf.output('blob'));janela.location.href=url
-          const monitor=window.setInterval(()=>{if(janela?.closed){URL.revokeObjectURL(url);window.clearInterval(monitor)}},1000)
         }
         return
       }
-      abrirDocumento('Convite - ' + convite.convidado_nome, conteudoConvite(convite, qr), janela)
+      abrirDocumento('Convite - ' + convite.convidado_nome, (formatoImpressao==='80mm'?'<style>@page{size:80mm 297mm;margin:4mm}article,.convite{width:72mm;max-width:72mm;margin:0;padding:0;border:0}</style>':'')+conteudoConvite(convite, qr), janela)
     } catch(e: any) {
-      const mensagem = e.message || 'Erro ao gerar convite'
-      if (janela && !janela.closed) {
-        try {
-          janela.document.title = 'Não foi possível gerar o convite'
-          janela.document.body.textContent = mensagem + ' Volte à aba do sistema e tente novamente.'
-        } catch { /* A aba do sistema continua disponível para apresentar o erro. */ }
-      }
-      toast.error(mensagem)
+      console.error('Falha ao gerar convite',e)
+      janela?.close()
+      toast.error('Não foi possível preparar o convite. Confira a validade e tente novamente.')
     }
   }
 
@@ -317,7 +308,7 @@ export default function ConvitesPage() {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     const data = new Date(dataValidade + 'T00:00:00')
-
+    
     if (status === 'cancelado') return 'bg-gray-100 text-gray-600'
     if (status === 'utilizado') return 'bg-green-100 text-green-600'
     if (data < hoje) return 'bg-red-100 text-red-600'
@@ -329,7 +320,7 @@ export default function ConvitesPage() {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     const data = new Date(dataValidade + 'T00:00:00')
-
+    
     if (status === 'cancelado') return 'Cancelado'
     if (status === 'utilizado') return 'Utilizado'
     if (data < hoje) return 'Expirado'
@@ -338,11 +329,11 @@ export default function ConvitesPage() {
   }
 
   const convitesFiltrados = convites.filter(c => {
-    const matchBusca = !busca ||
+    const matchBusca = !busca || 
       c.convidado_nome.toLowerCase().includes(busca.toLowerCase()) ||
       c.convidado_cpf.includes(busca.replace(/\D/g, '')) ||
       c.associado?.nome?.toLowerCase().includes(busca.toLowerCase())
-
+    
     const statusAtual = getStatusLabel(c.status, c.data_validade).toLowerCase()
     const matchStatus = filtroStatus === 'todos' || statusAtual === filtroStatus
 
@@ -362,7 +353,7 @@ export default function ConvitesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Ticket className="h-6 w-6 text-purple-500" />
@@ -385,7 +376,7 @@ export default function ConvitesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <Calendar className="h-8 w-8 text-purple-500" />
@@ -434,7 +425,7 @@ export default function ConvitesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <label className="text-sm font-medium">Valor do Convite (R$)</label>
                 <Input
@@ -487,7 +478,7 @@ export default function ConvitesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Associado Responsável *</label>
                 <select
@@ -518,7 +509,7 @@ export default function ConvitesPage() {
                 <User className="h-4 w-4" />
                 Dados do Convidado
               </h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <label className="text-sm font-medium">Nome Completo *</label>
                   <Input
@@ -531,9 +522,10 @@ export default function ConvitesPage() {
                   <label className="text-sm font-medium">CPF *</label>
                   <Input
                     placeholder="000.000.000-00"
+                    id="convite-cpf" aria-invalid={!!erroCpf} aria-describedby={erroCpf?"convite-cpf-erro":undefined} className={erroCpf?"border-red-600 bg-red-50":""}
                     value={form.convidado_cpf}
-                    onChange={e => setForm({ ...form, convidado_cpf: formatarCPF(e.target.value) })}
-                  />
+                    onChange={e => {setErroCpf('');setForm({ ...form, convidado_cpf: formatarCPF(e.target.value) })}}
+                  />{erroCpf&&<p id="convite-cpf-erro" role="alert" className="mt-1 text-sm text-red-700">{erroCpf}</p>}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Telefone</label>
@@ -551,7 +543,7 @@ export default function ConvitesPage() {
                 <strong>Valor do convite:</strong> R$ {config?.valor_convite?.toFixed(2) || '0.00'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Limite: {config?.limite_convites_mes || 2} convites por mês |
+                Limite: {config?.limite_convites_mes || 2} convites por mês | 
                 Mesmo convidado: mínimo {config?.intervalo_dias_convidado || 90} dias entre visitas
               </p>
             </div>
@@ -594,7 +586,7 @@ export default function ConvitesPage() {
       {/* Lista */}
       <Card>
         <CardContent className="p-0">
-          <table className="w-full">
+          <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left p-3 font-medium">Convidado</th>
@@ -635,12 +627,12 @@ export default function ConvitesPage() {
                     <td className="p-3 text-right space-x-1">
                       {['pago','utilizado'].includes(c.status) && new Date(c.data_validade + 'T00:00:00') >= new Date(hojeBrasil()) && (
                         <>
-                          <Button variant="ghost" size="sm" onClick={() => imprimirConvite(c)} title="Imprimir convite">
+                          <BotaoImpressao variant="ghost" size="sm" onClick={() => imprimirConvite(c)} title="Imprimir convite">
                             <Printer className="h-4 w-4 mr-1" /> Imprimir convite
-                          </Button>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => imprimirConvite(c,true)} title="Baixar PDF do convite">
+                          </BotaoImpressao>
+                          <BotaoImpressao type="button" variant="ghost" size="sm" onClick={() => imprimirConvite(c,true)} title="Baixar PDF do convite">
                             <Download className="h-4 w-4 mr-1" /> Baixar PDF
-                          </Button>
+                          </BotaoImpressao>
                           <Button variant="ghost" size="sm" onClick={() => cancelarConvite(c.id)} className="text-red-500" title="Cancelar">
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -651,7 +643,7 @@ export default function ConvitesPage() {
                 ))
               )}
             </tbody>
-          </table>
+          </table></div>
         </CardContent>
       </Card>
     </div>

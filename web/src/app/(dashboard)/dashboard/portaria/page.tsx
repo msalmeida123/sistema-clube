@@ -1,4 +1,5 @@
 'use client'
+import {FotoPortaria} from '@/components/FotoPortaria'
 import {atenderConvite} from '@/components/AtendimentoConvidado'
 
 import { useState, useEffect, useRef } from 'react'
@@ -8,12 +9,10 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import PagamentoMensalidade from '@/components/PagamentoMensalidade'
-import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
-import { idCarteirinha, buscaNumerica } from '@/lib/carteirinha-qr'
-import { DOCUMENTACAO_VAZIA, validarDocumentacao, hojeBrasil } from '@/lib/documentos-dependente'
+import {PixSandboxPortaria} from '@/components/PixSandboxPortaria'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import {
+import { 
   QrCode, Search, CheckCircle, XCircle, User, Usb, AlertTriangle,
   CreditCard, Smartphone, DollarSign, Loader2, X, Banknote
 } from 'lucide-react'
@@ -61,7 +60,7 @@ export default function PortariaPage() {
   const [pontosPermitidos, setPontosPermitidos] = useState<string[]>([])
   const [loadingUser, setLoadingUser] = useState(true)
   const [erroCarregamento, setErroCarregamento] = useState('')
-
+  
   // Estados para pagamento
   const [showPagamento, setShowPagamento] = useState(false)
   const [formaPagamento, setFormaPagamento] = useState<'pix' | 'credito' | 'debito' | null>(null)
@@ -72,6 +71,7 @@ export default function PortariaPage() {
   const [pagamentoId, setPagamentoId] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const ultimaConsulta = useRef({tipo:'leitor',valor:''})
   const [supabase] = useState(() => createClientComponentClient())
 
   // Carregar setor do usuário e config PIX
@@ -109,7 +109,7 @@ export default function PortariaPage() {
         .select('*')
         .eq('ativo', true)
         .single()
-
+      
       if (pixConfig) setConfigPix(pixConfig)
 
       } catch {
@@ -135,15 +135,13 @@ export default function PortariaPage() {
 
   const verificarAcesso = async (tipo: string, valor: string, escolhida?: any) => {
     if (!valor.trim() || loading) return
-
+    
     setLoading(true)
     setAguardandoLeitor(false)
     setResultado(null)
     setShowPagamento(false)
-
+    
     try {
-      let pessoa = escolhida ?? null
-      let tipoPessoa = escolhida?.tipo ?? 'associado'
       setOpcoesPessoas([])
       const valorLimpo = valor.trim()
 
@@ -161,108 +159,20 @@ export default function PortariaPage() {
         return
       }
 
-      // Busca exata: nunca extrair números de um QR desconhecido.
-      let titular: any = null
-      if (!pessoa && tipo === 'leitor' && buscaNumerica(valorLimpo)) {
-        const pessoas=await buscarPessoasClube(supabase,valorLimpo,true)
-        if(pessoas.length>1){setOpcoesPessoas(pessoas);return}
-        pessoa=pessoas[0] ?? null
-        tipoPessoa=pessoa?.tipo ?? 'associado'
-      }
-      if (pessoa) { /* Pessoa escolhida pelo título. */ } else if (tipo === 'leitor' && !buscaNumerica(valorLimpo)) {
-        for (const tabela of ['associados', 'dependentes'] as const) {
-          const {data,error} = await supabase.from(tabela).select('*').eq('qr_code',valorLimpo).maybeSingle()
-          if (error) throw error
-          if (data) { pessoa=data; tipoPessoa=tabela==='dependentes'?'dependente':'associado'; break }
-        }
-        if (!pessoa) {
-          const socioId=idCarteirinha(valorLimpo,'SOCIO'), depId=idCarteirinha(valorLimpo,'DEP')
-          if (socioId || depId) {
-            const {data,error}=await supabase.from(depId?'dependentes':'associados').select('*').eq('id',depId || socioId).maybeSingle()
-            if(error) throw error
-            if(data && !data.qr_code?.trim()) {pessoa=data;tipoPessoa=depId?'dependente':'associado'}
-          }
-        }
-      } else if (tipo==='nome') {
-        const {data,error}=await supabase.from('associados').select('*').ilike('nome','%'+valorLimpo+'%').limit(1).maybeSingle()
-        if(error) throw error
-        pessoa=data
-      } else {
-        const numero=tipo==='cpf'?valorLimpo.replace(/\D/g,''):buscaNumerica(valorLimpo)
-        if(numero) {
-          const {data,error}=await supabase.from('associados').select('*').eq(tipo==='cpf'?'cpf':'numero_titulo',numero).maybeSingle()
-          if(error) throw error
-          pessoa=data
-          if(!pessoa && numero.length===11 && tipo!=='cpf') {
-            const {data,error}=await supabase.from('associados').select('*').eq('cpf',numero).maybeSingle()
-            if(error) throw error
-            pessoa=data
-          }
-        }
-      }
-      if(pessoa && tipoPessoa==='dependente') {
-        const docs=Object.fromEntries(Object.keys(DOCUMENTACAO_VAZIA).map(k=>[k,pessoa[k]??''])) as typeof DOCUMENTACAO_VAZIA
-        const pendencia=validarDocumentacao(pessoa.parentesco??'',pessoa.data_nascimento??'',docs,hojeBrasil())
-        if(pendencia) {setResultado({autorizado:false,motivo:pendencia,pessoa,tipo:tipoPessoa});playBeep(300,300);return}
-        const {data,error}=await supabase.from('associados').select('*').eq('id',pessoa.associado_id).maybeSingle()
-        if(error) throw error
-        titular=data
-        if(!titular || titular.status!=='ativo') {setResultado({autorizado:false,motivo:'Titular indisponível ou inativo.',pessoa,tipo:tipoPessoa});return}
-      }
-
-      if (!pessoa) {
-        setResultado({ autorizado: false, motivo: 'Pessoa não encontrada no sistema.' })
-        playBeep(300, 300)
-        return
-      }
-
-      if (pessoa.status !== 'ativo') {
-        setResultado({ autorizado: false, motivo: `Associado ${pessoa.status}. Acesso negado.`, pessoa, tipo: tipoPessoa })
-        playBeep(300, 300)
-        return
-      }
-
-      // VERIFICAR MENSALIDADES EM ATRASO
-      const hoje = hojeBrasil()
-      const { data: mensalidadesAtrasadas, error: erroMensalidades } = await supabase
-        .from('mensalidades')
-        .select('*')
-        .eq('associado_id', titular?.id ?? pessoa.id)
-        .eq('tipo', 'clube')
-        .in('status', ['pendente', 'atrasado'])
-        .lt('data_vencimento', hoje)
-        .order('data_vencimento', { ascending: true })
-
-      if (erroMensalidades) throw erroMensalidades
-      if (mensalidadesAtrasadas && mensalidadesAtrasadas.length > 0) {
-        // TEM MENSALIDADES EM ATRASO - OFERECER PAGAMENTO
-        setResultado({
-          autorizado: false,
-          motivo: `${mensalidadesAtrasadas.length} mensalidade(s) em atraso. Pague agora para liberar a entrada.`,
-          pessoa,
-          tipo: tipoPessoa,
-          mensalidadesPendentes: tipoPessoa === 'dependente' ? undefined : mensalidadesAtrasadas
-        })
-        playBeep(400, 200)
-        return
-      }
-
-      // LIBERADO
-      const {error: erroRegistro} = await supabase.from('registros_acesso').insert({
-        portaria: pontoAcesso, local: pontoAcesso, associado_id: titular?.id ?? pessoa.id,
-        dependente_id: tipoPessoa === 'dependente' ? pessoa.id : null,
-        pessoa_id: pessoa.id, pessoa_nome: pessoa.nome, tipo_pessoa: tipoPessoa,
-        tipo: 'entrada', metodo: tipo
+      const resposta = await fetch('/api/portaria/clube', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({tipo:escolhida ? ultimaConsulta.current.tipo : tipo,valor:escolhida ? ultimaConsulta.current.valor : valorLimpo,...(escolhida?{escolhida:escolhida.id}:{})})
       })
-      if (erroRegistro) throw erroRegistro
-
-      setResultado({ autorizado: true, pessoa, tipo: tipoPessoa })
-      playBeep(800, 150)
-      toast.success(`Bem-vindo(a), ${pessoa.nome}!`)
+      const dados=await resposta.json()
+      if(!resposta.ok)throw Error(dados.error || 'Não foi possível verificar o acesso.')
+      if(dados.opcoes?.length){ultimaConsulta.current={tipo,valor:valorLimpo};setOpcoesPessoas(dados.opcoes);return}
+      setResultado(dados)
+      playBeep(dados.autorizado?800:300,dados.autorizado?150:300)
+      if(dados.autorizado)toast.success(`Bem-vindo(a), ${dados.pessoa.nome}!`)
 
     } catch (error: any) {
       console.error('Erro:', error)
-      setResultado({ autorizado: false, motivo: 'Erro ao verificar. Tente novamente.' })
+      setResultado({ autorizado: false, motivo: error.message || 'Erro ao verificar. Tente novamente.' })
       playBeep(300, 300)
     } finally {
       setLoading(false)
@@ -304,7 +214,7 @@ export default function PortariaPage() {
     inputRef.current?.focus()
   }
 
-  const formatCurrency = (value: number) =>
+  const formatCurrency = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
   if (loadingUser) {
@@ -334,13 +244,14 @@ export default function PortariaPage() {
   return (
     <PaginaProtegida codigoPagina="portaria">
     <div className="max-w-5xl mx-auto p-6 space-y-6">
+      <PixSandboxPortaria setor="clube"/>
       {opcoesPessoas.length>0 && <Card><CardContent className="pt-4 space-y-2"><p>Selecione quem está entrando:</p>{opcoesPessoas.map(p=><Button key={p.tipo+p.id} variant="outline" disabled={loading} onClick={()=>verificarAcesso('leitor',p.id,p)}>{p.nome} — {p.tipo}</Button>)}</CardContent></Card>}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-2xl">
-              <Usb className="h-7 w-7" />
-              <QrCode className="h-7 w-7" />
+              <Usb className="h-7 w-7" /> 
+              <QrCode className="h-7 w-7" /> 
               Controle de Acesso - Portaria
             </div>
             <div className="text-sm font-normal text-muted-foreground">
@@ -387,13 +298,14 @@ export default function PortariaPage() {
           {/* Resultado */}
           {resultado && !showPagamento && (
             <div className={`p-6 rounded-xl border-4 ${
-              resultado.autorizado
-                ? 'bg-green-50 border-green-500'
-                : resultado.mensalidadesPendentes
+              resultado.autorizado 
+                ? 'bg-green-50 border-green-500' 
+                : resultado.mensalidadesPendentes 
                   ? 'bg-yellow-50 border-yellow-500'
                   : 'bg-red-50 border-red-500'
             }`}>
-              <div className="flex items-start gap-6">
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                {resultado.pessoa && resultado.tipo!=='convidado' && <FotoPortaria key={`${resultado.pessoa.id}-${resultado.pessoa.foto_url}`} url={resultado.pessoa.foto_url} nome={resultado.pessoa.nome} tipo={resultado.tipo}/> }
                 {/* Ícone */}
                 <div className={`p-4 rounded-full ${
                   resultado.autorizado ? 'bg-green-500' : resultado.mensalidadesPendentes ? 'bg-yellow-500' : 'bg-red-500'
@@ -414,16 +326,18 @@ export default function PortariaPage() {
                   }`}>
                     {resultado.autorizado ? '✅ ACESSO LIBERADO' : resultado.mensalidadesPendentes ? '⚠️ PAGAMENTO PENDENTE' : '🚫 ACESSO NEGADO'}
                   </h2>
-
+                  
                   {resultado.pessoa && (
                     <div className="mt-2">
                       <p className="text-2xl font-semibold">{resultado.pessoa.nome}</p>
-                      {resultado.pessoa.numero_titulo && (
-                        <p className="text-lg text-muted-foreground">Título: {resultado.pessoa.numero_titulo}</p>
-                      )}
+                      {resultado.tipo!=='convidado' && <dl className="mt-3 grid gap-2 text-lg">
+                        <div><dt className="inline text-muted-foreground">Título: </dt><dd className="inline font-semibold">{resultado.pessoa.numero_titulo || 'Não informado'}</dd></div>
+                        <div><dt className="inline text-muted-foreground">Vínculo: </dt><dd className="inline font-semibold">{resultado.tipo==='dependente'?'Dependente':'Titular'}</dd></div>
+                        <div><dt className="inline text-muted-foreground">Categoria: </dt><dd className="inline font-semibold capitalize">{resultado.pessoa.plano || 'Não informada'}</dd></div>
+                      </dl>}
                     </div>
                   )}
-
+                  
                   {resultado.motivo && !resultado.autorizado && (
                     <p className="mt-2 text-lg">{resultado.motivo}</p>
                   )}

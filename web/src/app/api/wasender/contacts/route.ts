@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const supabase = await createRouteHandlerClient({ cookies })
-
+    
     // Buscar configuração do WaSender
     const { data: config } = await supabase
       .from('config_wasender')
@@ -28,8 +28,8 @@ export async function GET() {
 
     if (!response.ok) {
       console.error('Erro WaSender:', result)
-      return NextResponse.json({
-        error: result.message || 'Erro ao buscar contatos'
+      return NextResponse.json({ 
+        error: result.message || 'Erro ao buscar contatos' 
       }, { status: response.status })
     }
 
@@ -45,13 +45,13 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { contacts } = await request.json()
-
+    
     if (!contacts || !Array.isArray(contacts)) {
       return NextResponse.json({ error: 'Lista de contatos inválida' }, { status: 400 })
     }
 
     const supabase = await createRouteHandlerClient({ cookies })
-
+    
     let importados = 0
     let existentes = 0
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       if (!telefone) continue
 
       const telefoneFormatado = telefone.replace(/\D/g, '')
-
+      
       // Verificar se já existe
       const { data: existente } = await supabase
         .from('conversas_whatsapp')
@@ -86,11 +86,11 @@ export async function POST(request: Request) {
       if (!error) importados++
     }
 
-    return NextResponse.json({
-      success: true,
-      importados,
+    return NextResponse.json({ 
+      success: true, 
+      importados, 
       existentes,
-      total: contacts.length
+      total: contacts.length 
     })
 
   } catch (error: any) {

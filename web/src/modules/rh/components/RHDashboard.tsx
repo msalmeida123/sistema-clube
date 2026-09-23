@@ -45,7 +45,7 @@ export function RHDashboard({ stats, loading }: RHDashboardProps) {
         {cards.map((card) => (
           <Card key={card.title}>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-gray-500">{card.title}</p>
                   <p className="text-3xl font-bold mt-1">{card.value}</p>
@@ -87,7 +87,7 @@ export function RHDashboard({ stats, loading }: RHDashboardProps) {
             ) : (
               <div className="space-y-2">
                 {stats.departamentos.map((dep) => (
-                  <div key={dep.nome} className="flex items-center justify-between">
+                  <div key={dep.nome} className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-sm">{dep.nome}</span>
                     <span className="font-semibold text-sm bg-gray-100 px-2 py-1 rounded">{dep.quantidade}</span>
                   </div>

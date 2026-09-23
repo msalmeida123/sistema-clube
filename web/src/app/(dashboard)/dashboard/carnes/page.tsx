@@ -1,6 +1,10 @@
 'use client'
+import {escapeHtml} from '@/lib/security'
+import {calcularCarneConjunto} from '@/lib/carne-conjunto'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirHtml} from '@/lib/impressao'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +39,8 @@ type Parcela = {
   valor: number
   data_vencimento: string
   data_pagamento: string | null
+  valor_titulo?: number | null
+  valor_mensalidade?: number | null
   valor_pago: number | null
   status: string
 }
@@ -56,6 +62,7 @@ const CATEGORIAS = [
 
 // Tipos de carnê
 const TIPOS_CARNE = [
+  { id: 'titulo_mensalidade', label: 'Título + mensalidades', icone: '📋' },
   { id: 'mensalidade', label: 'Mensalidade', icone: '📅' },
   { id: 'titulo', label: 'Título', icone: '🎫' },
   { id: 'joia', label: 'Joia (Entrada)', icone: '💎' },
@@ -64,6 +71,11 @@ const TIPOS_CARNE = [
 export default function CarnesPage() {
   const [carnes, setCarnes] = useState<Carne[]>([])
   const [configValores, setConfigValores] = useState<ConfigValor[]>([])
+  const [planos, setPlanos] = useState<any[]>([])
+  const [gerando, setGerando] = useState(false)
+  const gerandoRef = useRef(false)
+  const requisicaoRef = useRef('')
+  const [erroCarga, setErroCarga] = useState('')
   const [associados, setAssociados] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -75,7 +87,8 @@ export default function CarnesPage() {
   const [form, setForm] = useState({
     associado_id: '',
     categoria: 'individual',
-    tipo_carne: 'mensalidade',
+    tipo_carne: 'titulo_mensalidade',
+    plano_id: '',
     numero_parcelas: 12,
     data_primeiro_vencimento: '',
     forma_pagamento: 'boleto',
@@ -83,6 +96,11 @@ export default function CarnesPage() {
   })
 
   const supabase = createClientComponentClient()
+  const conjunto = form.tipo_carne === 'titulo_mensalidade'
+  const planoSelecionado = planos.find(p => p.id === form.plano_id)
+  const composicao = calcularCarneConjunto(Number(planoSelecionado?.valor_titulo || 0), Number(planoSelecionado?.valor_mensal || 0), form.numero_parcelas)
+  useEffect(() => { requisicaoRef.current = crypto.randomUUID() }, [form])
+
 
   useEffect(() => {
     carregarDados()
@@ -105,16 +123,19 @@ export default function CarnesPage() {
   const carregarDados = async () => {
     setLoading(true)
     
-    const [carnesRes, configRes, assocRes] = await Promise.all([
+    const [carnesRes, configRes, assocRes, planosRes] = await Promise.all([
       supabase
         .from('carnes')
         .select('*, associado:associados(nome, numero_titulo)')
         .order('created_at', { ascending: false }),
       supabase.from('config_valores').select('*').eq('ativo', true),
-      supabase.from('associados').select('id, nome, numero_titulo').eq('status', 'ativo').order('nome')
+      supabase.from('associados').select('id, nome, numero_titulo').eq('status', 'ativo').order('nome'),
+      supabase.from('planos').select('id,nome,valor_titulo,valor_mensal').eq('ativo',true).order('nome')
     ])
 
-    setCarnes(carnesRes.data || [])
+    setErroCarga(assocRes.error || planosRes.error ? 'Não foi possível carregar associados ou planos. Atualize a página para tentar novamente.' : '')
+    setPlanos(planosRes.data || [])
+    setCarnes((carnesRes.data || []).map(c => ({...c,numero_parcelas:c.quantidade_parcelas})))
     setConfigValores(configRes.data || [])
     setAssociados(assocRes.data || [])
     setLoading(false)
@@ -132,11 +153,13 @@ export default function CarnesPage() {
   }
 
   const getValor = () => {
+    if(conjunto) return composicao.total
     const config = getConfig(form.tipo_carne, form.categoria)
     return config?.valor || 0
   }
 
   const getParcelasMax = () => {
+    if(conjunto) return 60
     const config = getConfig(form.tipo_carne, form.categoria)
     return config?.parcelas_max || 12
   }
@@ -147,6 +170,7 @@ export default function CarnesPage() {
   }
 
   const calcularValorParcela = () => {
+    if(conjunto) return composicao.parcelas[0].total
     const valorTotal = getValor()
     return valorTotal / form.numero_parcelas
   }
@@ -154,6 +178,25 @@ export default function CarnesPage() {
   const gerarCarne = async () => {
     if (!form.associado_id) {
       toast.error('Selecione um associado')
+      return
+    }
+
+    if(conjunto) {
+      if(!planoSelecionado || composicao.total<=0) { toast.error('Selecione um plano com título ou mensalidade maior que zero.'); return }
+      if(!form.data_primeiro_vencimento) { toast.error('Informe o primeiro vencimento.'); return }
+      if(gerandoRef.current) return
+      gerandoRef.current=true; setGerando(true)
+      try {
+        const {error}=await supabase.rpc('gerar_carne_conjunto',{
+          p_associado:form.associado_id,p_plano:form.plano_id,p_quantidade:form.numero_parcelas,
+          p_vencimento:form.data_primeiro_vencimento,p_pagamento:form.forma_pagamento,
+          p_requisicao:requisicaoRef.current
+        })
+        if(error) throw error
+        toast.success('Carnê de título e mensalidades gerado!')
+        setShowForm(false); resetForm(); await carregarDados()
+      } catch { toast.error('Não foi possível gerar o carnê. Confira o plano, o associado e suas permissões e tente novamente.') }
+      finally { gerandoRef.current=false;setGerando(false) }
       return
     }
 
@@ -226,7 +269,8 @@ export default function CarnesPage() {
     setForm({
       associado_id: '',
       categoria: 'individual',
-      tipo_carne: 'mensalidade',
+      tipo_carne: 'titulo_mensalidade',
+    plano_id: '',
       numero_parcelas: 12,
       data_primeiro_vencimento: proximoMes.toISOString().split('T')[0],
       forma_pagamento: 'boleto',
@@ -286,8 +330,6 @@ export default function CarnesPage() {
   }
 
   const imprimirCarne = (carne: Carne) => {
-    const win = window.open('', '_blank')
-    if (!win) return
 
     const parcelas = carne.parcelas || []
     const parcelasHtml = parcelas.map(p => `
@@ -297,20 +339,21 @@ export default function CarnesPage() {
           <span class="parcela-valor">R$ ${p.valor.toFixed(2)}</span>
         </div>
         <div class="parcela-info">
-          <div><strong>Associado:</strong> ${carne.associado?.nome}</div>
-          <div><strong>Título:</strong> ${carne.associado?.numero_titulo}</div>
+          <div><strong>Associado:</strong> ${escapeHtml(carne.associado?.nome)}</div>
+          <div><strong>Título:</strong> ${escapeHtml(carne.associado?.numero_titulo)}</div>
           <div><strong>Vencimento:</strong> ${new Date(p.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
-          <div><strong>Referente a:</strong> ${carne.descricao}</div>
+          <div><strong>Referente a:</strong> ${escapeHtml(carne.descricao)}</div>
+          ${p.valor_titulo != null ? `<div>Título: R$ ${Number(p.valor_titulo).toFixed(2)} + mensalidade: R$ ${Number(p.valor_mensalidade).toFixed(2)}</div>` : ''}
         </div>
         <div class="parcela-status">${p.status === 'pago' ? '✓ PAGO' : 'PENDENTE'}</div>
       </div>
     `).join('')
 
-    win.document.write(`
+    void imprimirHtml(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Carnê - ${carne.associado?.nome}</title>
+        <title>Carnê - ${escapeHtml(carne.associado?.nome)}</title>
         <style>
           * { box-sizing: border-box; }
           body { font-family: Arial, sans-serif; padding: 20px; }
@@ -342,11 +385,11 @@ export default function CarnesPage() {
         <div class="resumo">
           <div class="resumo-grid">
             <div class="resumo-item">
-              <strong>${carne.associado?.nome}</strong>
+              <strong>${escapeHtml(carne.associado?.nome)}</strong>
               <span>Associado</span>
             </div>
             <div class="resumo-item">
-              <strong>${carne.descricao}</strong>
+              <strong>${escapeHtml(carne.descricao)}</strong>
               <span>Tipo</span>
             </div>
             <div class="resumo-item">
@@ -361,11 +404,11 @@ export default function CarnesPage() {
         </div>
 
         <div class="parcelas">${parcelasHtml}</div>
-        <script>window.print();</script>
+        
       </body>
       </html>
-    `)
-    win.document.close()
+    `).catch(()=>{})
+
   }
 
   const salvarConfigValor = async (id: string, valor: number, parcelasMax: number) => {
@@ -421,7 +464,7 @@ export default function CarnesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Receipt className="h-6 w-6 text-green-600" />
@@ -444,7 +487,7 @@ export default function CarnesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <FileText className="h-8 w-8 text-blue-500" />
@@ -490,11 +533,11 @@ export default function CarnesPage() {
                   <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                     {cat.label}
                   </h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                     {getConfigsPorCategoria(cat.id).map(cv => (
                       <div key={cv.id} className="bg-gray-50 p-3 rounded">
                         <p className="text-sm font-medium mb-2">{cv.descricao}</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                           <div>
                             <label className="text-xs text-muted-foreground">Valor (R$)</label>
                             <Input
@@ -545,10 +588,20 @@ export default function CarnesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {erroCarga && <p role="alert" className="text-red-700">{erroCarga}</p>}
+            {conjunto && <div>
+              <label htmlFor="plano-carne" className="text-sm font-medium">Plano para os valores do carnê *</label>
+              <select id="plano-carne" value={form.plano_id} onChange={e=>setForm({...form,plano_id:e.target.value})} className="w-full h-10 px-3 border rounded-md">
+                <option value="">Selecione o plano...</option>
+                {planos.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+              <p className="text-sm text-muted-foreground mt-2">O título será dividido entre as parcelas e somado à mensalidade de cada mês. Valores definidos em Planos/Categorias.</p>
+              {planoSelecionado && <p className="mt-2">Título: R$ {Number(planoSelecionado.valor_titulo).toFixed(2)} · Mensalidade: R$ {Number(planoSelecionado.valor_mensal).toFixed(2)}</p>}
+            </div>}
             {/* Seleção de Categoria */}
-            <div>
+            <div hidden={conjunto}>
               <label className="text-sm font-medium mb-2 block">Categoria do Associado *</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 {CATEGORIAS.map(cat => (
                   <button
                     key={cat.id}
@@ -570,7 +623,7 @@ export default function CarnesPage() {
             {/* Tipo de Carnê */}
             <div>
               <label className="text-sm font-medium mb-2 block">Tipo de Carnê *</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 {TIPOS_CARNE.map(tipo => {
                   const config = getConfig(tipo.id, form.categoria)
                   return (
@@ -597,7 +650,7 @@ export default function CarnesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Associado *</label>
                 <select
@@ -626,7 +679,7 @@ export default function CarnesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Número de Parcelas</label>
                 <select
@@ -635,7 +688,7 @@ export default function CarnesPage() {
                   className="w-full h-10 px-3 border rounded-md"
                 >
                   {Array.from({ length: getParcelasMax() }, (_, i) => i + 1).map(n => (
-                    <option key={n} value={n}>{n}x de R$ {(getValor() / n).toFixed(2)}</option>
+                    <option key={n} value={n}>{n}x de R$ {(conjunto ? calcularCarneConjunto(Number(planoSelecionado?.valor_titulo||0),Number(planoSelecionado?.valor_mensal||0),n).parcelas[0].total : getValor() / n).toFixed(2)}</option>
                   ))}
                 </select>
               </div>
@@ -652,10 +705,16 @@ export default function CarnesPage() {
             {/* Resumo */}
             <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border">
               <h3 className="font-medium mb-3 text-center">📋 Resumo do Carnê</h3>
-              <div className="grid grid-cols-4 gap-4 text-center">
+              {conjunto && <div className="mb-4 space-y-1">
+                <p>Plano: {planoSelecionado?.nome || 'Selecione um plano'}</p>
+                <p>Título total: R$ {Number(planoSelecionado?.valor_titulo||0).toFixed(2)} + {form.numero_parcelas} mensalidades de R$ {Number(planoSelecionado?.valor_mensal||0).toFixed(2)}</p>
+                <p>Primeira parcela: título R$ {composicao.parcelas[0].titulo.toFixed(2)} + mensalidade R$ {composicao.parcelas[0].mensalidade.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">Eventuais centavos restantes do título são distribuídos nas primeiras parcelas. A mensalidade mantém seu valor integral.</p>
+              </div>}
+              <div className="grid gap-4 text-center grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Categoria</p>
-                  <p className="font-bold">{CATEGORIAS.find(c => c.id === form.categoria)?.label}</p>
+                  <p className="font-bold">{conjunto ? planoSelecionado?.nome || '—' : CATEGORIAS.find(c => c.id === form.categoria)?.label}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Valor Total</p>
@@ -677,12 +736,12 @@ export default function CarnesPage() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => { setShowForm(false); resetForm(); }}>
+              <Button variant="outline" disabled={gerando} onClick={() => { setShowForm(false); resetForm(); }}>
                 Cancelar
               </Button>
-              <Button onClick={gerarCarne} className="bg-green-600 hover:bg-green-700">
+              <Button disabled={gerando || (conjunto && (!form.associado_id || !planoSelecionado || composicao.total<=0))} aria-busy={gerando} onClick={gerarCarne} className="bg-green-600 hover:bg-green-700">
                 <Receipt className="h-4 w-4 mr-2" />
-                Gerar Carnê
+                {gerando ? 'Gerando...' : 'Gerar Carnê'}
               </Button>
             </div>
           </CardContent>
@@ -703,7 +762,7 @@ export default function CarnesPage() {
       {/* Lista de Carnês */}
       <Card>
         <CardContent className="p-0">
-          <table className="w-full">
+          <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left p-3 font-medium">Associado</th>
@@ -732,7 +791,7 @@ export default function CarnesPage() {
                       </td>
                       <td className="p-3">
                         <div className="font-medium">R$ {c.valor_total.toFixed(2)}</div>
-                        <div className="text-sm text-muted-foreground">{c.numero_parcelas}x R$ {c.valor_parcela.toFixed(2)}</div>
+                        <div className="text-sm text-muted-foreground">{c.numero_parcelas} parcelas · {c.tipo === 'titulo_mensalidade' ? 'primeira: ' : ''}R$ {c.valor_parcela.toFixed(2)}</div>
                       </td>
                       <td className="p-3">
                         <div className="flex items-center gap-1 text-sm">
@@ -755,14 +814,14 @@ export default function CarnesPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {c.parcelas && c.parcelas.length > 0 && (
-                          <Button 
+                          <BotaoImpressao 
                             variant="ghost" 
                             size="sm" 
                             onClick={() => imprimirCarne(c)}
                             title="Imprimir"
                           >
                             <Printer className="h-4 w-4" />
-                          </Button>
+                          </BotaoImpressao>
                         )}
                       </td>
                     </tr>
@@ -771,7 +830,7 @@ export default function CarnesPage() {
                     {showParcelas === c.id && c.parcelas && (
                       <tr>
                         <td colSpan={6} className="bg-gray-50 p-4">
-                          <div className="grid grid-cols-6 gap-2">
+                          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                             {c.parcelas.map(p => (
                               <div 
                                 key={p.id} 
@@ -782,6 +841,7 @@ export default function CarnesPage() {
                                   {p.status === 'pago' && <CheckCircle className="h-4 w-4 text-green-600" />}
                                 </div>
                                 <div className="text-lg font-bold">R$ {p.valor.toFixed(2)}</div>
+                                {p.valor_titulo != null && <div className="text-xs">Título: R$ {Number(p.valor_titulo).toFixed(2)} + mensalidade: R$ {Number(p.valor_mensalidade).toFixed(2)}</div>}
                                 <div className="text-xs">
                                   {new Date(p.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}
                                 </div>
@@ -816,7 +876,7 @@ export default function CarnesPage() {
                 ))
               )}
             </tbody>
-          </table>
+          </table></div>
         </CardContent>
       </Card>
     </div>

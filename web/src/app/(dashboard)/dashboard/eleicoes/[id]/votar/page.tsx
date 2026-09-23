@@ -227,7 +227,7 @@ export default function VotarPage() {
                     >
                       <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                         {a.foto_url ? (
-                          <img src={a.foto_url} alt={a.nome} className="h-full w-full object-cover" />
+                          <img src={a.foto_url} alt={a.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                         ) : (
                           <User className="h-5 w-5 text-muted-foreground" />
                         )}
@@ -242,11 +242,11 @@ export default function VotarPage() {
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                   {associadoSelecionado.foto_url ? (
-                    <img src={associadoSelecionado.foto_url} alt={associadoSelecionado.nome} className="h-full w-full object-cover" />
+                    <img src={associadoSelecionado.foto_url} alt={associadoSelecionado.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                   ) : (
                     <User className="h-6 w-6 text-muted-foreground" />
                   )}

@@ -192,7 +192,7 @@ async function testarConexao(body: any) {
       const supabase = await createRouteHandlerClient({ cookies })
       await supabase
         .from('whatsapp_providers')
-        .update({
+        .update({ 
           status: status.connected ? 'conectado' : 'desconectado',
           telefone: status.phone || null,
           nome_exibicao: status.name || null,

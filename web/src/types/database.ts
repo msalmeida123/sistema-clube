@@ -7,6 +7,10 @@ export type TipoCobranca = 'mensalidade_clube' | 'mensalidade_academia' | 'taxa_
 export type SetorUsuario = 'admin' | 'presidente' | 'vice_presidente' | 'diretoria' | 'financeiro' | 'secretaria' | 'portaria_clube' | 'portaria_piscina' | 'portaria_academia' | 'atendimento'
 
 export interface Associado {
+  tipo_cadastro?: 'pf' | 'pj'
+  cnpj?: string | null
+  nome_fantasia?: string | null
+  empresa_associada_id?: string | null
   id: string
   numero_titulo: number
   nome: string

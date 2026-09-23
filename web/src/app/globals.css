@@ -104,7 +104,8 @@
   /* Conteúdo principal ocupa tudo */
   main,
   main > *,
-  [class*="lg:ml-"] {
+  [class*="lg:ml-"],
+  [class*="xl:ml-"] {
     margin-left: 0 !important;
     padding: 0 !important;
     width: 100% !important;
@@ -124,3 +125,88 @@
     display: none !important;
   }
 }
+
+/* Cadastro: conteúdo flexível sem esconder campos em telas compactas. */
+.cadastro-associado input,
+.cadastro-associado select {
+  min-width: 0;
+  max-width: 100%;
+}
+.cadastro-associado p { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .cadastro-associado input,
+  .cadastro-associado select {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+  .cadastro-associado button { min-height: 2.75rem; }
+}
+
+.cadastro-associado .grid > * { min-width: 0; }
+
+.crm-responsivo { overflow-wrap: anywhere; }
+.crm-responsivo input { min-width: 0; }
+@media (max-width: 639px) {
+  .crm-responsivo input:not([type="checkbox"]) { font-size: 1rem; min-height: 2.75rem; }
+  .crm-responsivo button { min-height: 2.75rem; }
+}
+
+/* Responsividade compartilhada: contenção no componente, sem recortar a página. */
+.clube-conteudo :where(.grid > *, .flex > *, fieldset) { min-width: 0; }
+.clube-conteudo :where(input, select, textarea) { min-width: 0; max-width: 100%; }
+.clube-conteudo :where(img, canvas, video, iframe) { max-width: 100%; }
+.clube-conteudo :where(h1,h2,h3,p,dd,label) { overflow-wrap: break-word; }
+.clube-table-scroll { width:100%; max-width:100%; min-width:0; overflow-x:auto; }
+.clube-table-scroll:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
+.clube-modal-overlay { margin:0 !important; padding:1rem; overflow-y:auto; overscroll-behavior:contain; }
+.clube-modal-overlay > :is(div,section,form) { min-width:0; max-height:calc(100dvh - 2rem); overflow-y:auto; overscroll-behavior:contain; margin:0; }
+@media (max-width:639px) {
+ .clube-conteudo .clube-modal-overlay > :is(div,section,form) { padding:1rem; }
+ .clube-conteudo :where(input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea) { font-size:1rem; }
+ .clube-conteudo > .p-6 { padding:1rem; }
+}
+@media (pointer:coarse), (max-width:1023px) {
+ .clube-conteudo :where(button,input:not([type=checkbox]):not([type=radio]),select), header button, aside button { min-height:44px; }
+ .clube-conteudo button, header button, aside button { min-width:44px; }
+}
+@media print { .clube-table-scroll { overflow:visible; } }
+
+@media screen { body:has(.clube-modal-overlay) { overflow:hidden; } }
+
+/* Personalização: tokens únicos para componentes novos e telas legadas. */
+html[data-tema] body { background:var(--tema-fundo); color:var(--tema-texto); }
+html[data-tema] :is(.bg-gray-100,.bg-gray-50) { background-color:var(--tema-fundo); }
+html[data-tema] [data-tema-cabecalho] { background:var(--tema-cabecalho); color:var(--tema-cabecalho-texto); }
+html[data-tema] [data-tema-menu],html[data-tema] [data-tema-menu] .bg-white { background:var(--tema-menu); color:var(--tema-textoMenu); }
+html[data-tema] [data-tema-menu] a:not(.bg-primary),html[data-tema] [data-tema-menu] .text-gray-600 { color:var(--tema-textoMenu); }
+html[data-tema] [data-tema-menu] a:hover { background:var(--tema-secundaria); color:hsl(var(--secondary-foreground)); }
+html[data-tema] .socio-app { --club:var(--tema-primaria); --canvas:var(--tema-fundo); --ink:var(--tema-texto); --soft:var(--tema-secundaria); --muted:var(--tema-texto); }
+html[data-tema] .socio-header { background:var(--tema-cabecalho); color:var(--tema-cabecalho-texto); }
+html[data-tema] .socio-header .socio-brand span span { color:inherit; }
+html[data-tema] .socio-primary { background:var(--tema-botoes); color:var(--tema-botoes-texto); }
+html[data-tema] .socio-pass-head { color:hsl(var(--primary-foreground)); }
+html[data-tema] .socio-pass-footer { color:hsl(var(--secondary-foreground)); }
+html[data-tema] :is(.bg-blue-600,.bg-blue-500) { background-color:var(--tema-botoes); color:var(--tema-botoes-texto); }
+html[data-tema] :is(.text-blue-600,.text-blue-500) { color:var(--tema-primaria); }
+
+html[data-tema] :is(.text-gray-400,.text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900,.text-slate-500,.text-slate-600) { color:var(--tema-texto); }
+html[data-tema] [data-tema-menu] :is(.text-gray-400,.text-gray-500,.text-gray-600,.text-gray-700,.text-gray-800,.text-gray-900) { color:var(--tema-textoMenu); }
+
+html[data-tema] { --muted-foreground:var(--foreground); }
+html[data-tema] :is(button.bg-primary,input[type=submit].bg-primary),html[data-tema] .clube-mensagens .clube-msg-enviar { background:var(--tema-botoes); color:var(--tema-botoes-texto); }
+html[data-tema] .clube-mensagens { color:var(--tema-texto); }
+html[data-tema] .clube-msg-balao.minha { background:var(--tema-secundaria); color:hsl(var(--secondary-foreground)); }
+html[data-tema] .clube-msg-balao.minha small { color:inherit; }
+html[data-tema] .clube-mensagens :is(button,textarea):focus-visible,html[data-tema] .socio-app :is(button,a,input,textarea,select):focus-visible { outline-color:var(--tema-primaria); }
+html[data-tema] .socio-header :is(button,a):focus-visible { outline-color:var(--tema-cabecalho-texto); }
+
+/* Crédito em fluxo normal: não cobre formulários nem a navegação do celular. */
+.credito-desenvolvedor {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.credito-desenvolvedor span { font-weight: 500; }

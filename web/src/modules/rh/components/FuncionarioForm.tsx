@@ -254,7 +254,7 @@ export function FuncionarioForm({ funcionario, onSubmit, onCancel, loading }: Fu
         <CardHeader>
           <CardTitle className="text-base">Documentos Trabalhistas</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           <div>
             <Label>CTPS Número</Label>
             <Input value={form.ctps_numero || ''} onChange={(e) => handleChange('ctps_numero', e.target.value)} />

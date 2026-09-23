@@ -2,7 +2,7 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
-import {
+import { 
   TrendingUp, TrendingDown, DollarSign, CreditCard,
   CheckCircle, Receipt, Ticket, AlertCircle, PiggyBank
 } from 'lucide-react'
@@ -17,7 +17,7 @@ interface StatsCardsProps {
 export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4 h-24 bg-gray-100" />
@@ -28,10 +28,10 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-green-100 text-sm">Receita do Mês</p>
               <p className="text-2xl font-bold">{formatCurrency(stats.receitaMes || 0)}</p>
@@ -43,7 +43,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
 
       <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-red-100 text-sm">Despesas do Mês</p>
               <p className="text-2xl font-bold">{formatCurrency(stats.despesaMes || 0)}</p>
@@ -55,7 +55,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
 
       <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-blue-100 text-sm">A Receber</p>
               <p className="text-2xl font-bold">{formatCurrency(stats.aReceber || 0)}</p>
@@ -67,7 +67,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
 
       <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-orange-100 text-sm">A Pagar</p>
               <p className="text-2xl font-bold">{formatCurrency(stats.aPagar || 0)}</p>
@@ -83,7 +83,7 @@ export function StatsCardsPrincipais({ stats, loading }: StatsCardsProps) {
 export function StatsCardsSecundarios({ stats, loading }: StatsCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4 h-20 bg-gray-50" />
@@ -94,34 +94,34 @@ export function StatsCardsSecundarios({ stats, loading }: StatsCardsProps) {
   }
 
   const items = [
-    {
-      icon: CheckCircle,
-      color: 'green',
-      value: stats.mensalidadesPagas || 0,
-      label: 'Mensalidades Pagas'
+    { 
+      icon: CheckCircle, 
+      color: 'green', 
+      value: stats.mensalidadesPagas || 0, 
+      label: 'Mensalidades Pagas' 
     },
-    {
-      icon: Receipt,
-      color: 'blue',
-      value: stats.parcelasPagas || 0,
-      label: 'Parcelas Pagas'
+    { 
+      icon: Receipt, 
+      color: 'blue', 
+      value: stats.parcelasPagas || 0, 
+      label: 'Parcelas Pagas' 
     },
-    {
-      icon: Ticket,
-      color: 'purple',
-      value: stats.convitesMes || 0,
-      label: 'Convites no Mês'
+    { 
+      icon: Ticket, 
+      color: 'purple', 
+      value: stats.convitesMes || 0, 
+      label: 'Convites no Mês' 
     },
-    {
-      icon: AlertCircle,
-      color: 'red',
-      value: stats.inadimplentes || 0,
-      label: 'Inadimplentes'
+    { 
+      icon: AlertCircle, 
+      color: 'red', 
+      value: stats.inadimplentes || 0, 
+      label: 'Inadimplentes' 
     },
   ]
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item, i) => (
         <Card key={i}>
           <CardContent className="p-4 flex items-center gap-3">
@@ -154,7 +154,7 @@ export function SaldoCard({ stats, loading }: StatsCardsProps) {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-muted-foreground">Saldo do Mês (Receitas - Despesas)</p>
             <p className={`text-4xl font-bold ${positivo ? 'text-green-600' : 'text-red-600'}`}>

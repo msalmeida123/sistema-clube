@@ -27,8 +27,8 @@ function checkRateLimit(ip: string): boolean {
 export async function POST(request: Request) {
   try {
     const headersList = await headers()
-    const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-               headersList.get('x-real-ip') ||
+    const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+               headersList.get('x-real-ip') || 
                'unknown'
 
     // Rate limiting
@@ -37,10 +37,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-
+    
     // Validar campos
     const { type, details, timestamp, url, userAgent } = body
-
+    
     if (!type || typeof type !== 'string') {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
     }
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     if (supabaseUrl && supabaseKey) {
       const supabase = createClient(supabaseUrl, supabaseKey)
-
+      
       await supabase
         .from('webhook_logs')
         .insert(sanitizedLog)

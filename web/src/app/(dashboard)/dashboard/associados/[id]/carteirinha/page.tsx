@@ -1,4 +1,7 @@
 'use client'
+import VersoCarteirinha from '@/components/VersoCarteirinha'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {reservarDocumento,abrirDocumento} from '@/lib/impressao-documento'
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -15,9 +18,15 @@ import { toast } from 'sonner'
 import type { Associado } from '@/types/database'
 
 export default function CarteirinhaPage() {
+  const [papel,setPapel]=useState<'cupom80'|'a4'>('cupom80')
   const { id } = useParams()
-  const [associado, setAssociado] = useState<Associado | null>(null)
+  const [associado, setAssociado] = useState<(Associado & {qr_code?: string | null}) | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
+  const [segundaVia, setSegundaVia] = useState(false)
+  const [renovando, setRenovando] = useState(false)
+  const renovandoRef = useRef(false)
+  const [erroQr, setErroQr] = useState('')
+
   const [clubeConfig, setClubeConfig] = useState<any>(null)
   const cardFrenteRef = useRef<HTMLDivElement>(null)
   const cardVersoRef = useRef<HTMLDivElement>(null)
@@ -38,6 +47,23 @@ export default function CarteirinhaPage() {
     fetch()
   }, [id, supabase])
 
+  const renovarCarteirinha = async () => {
+    if (!associado || !segundaVia || renovandoRef.current) return
+    renovandoRef.current = true; setRenovando(true); setErroQr(''); setQrCodeUrl('')
+    try {
+      const {data, error} = await supabase.rpc('renovar_qr_associado', {
+        p_associado: associado.id, p_qr_anterior: associado.qr_code ?? null
+      })
+      if (error || typeof data !== 'string') throw Error('Falha na emissão')
+      setAssociado({...associado,qr_code:data})
+      setQrCodeUrl(await QRCode.toDataURL(data,{width:240,margin:4}))
+      setSegundaVia(false)
+      toast.success('Nova carteirinha emitida. O QR Code anterior foi invalidado.')
+    } catch {
+      setErroQr('Não foi possível confirmar a nova carteirinha. Atualize a página antes de imprimir ou tentar novamente.')
+    } finally { renovandoRef.current=false; setRenovando(false) }
+  }
+
   const getPlanoColor = (plano: string) => {
     const colors: Record<string, string> = { individual: '#3B82F6', familiar: '#22C55E', patrimonial: '#F59E0B' }
     return colors[plano] || '#6B7280'
@@ -45,9 +71,8 @@ export default function CarteirinhaPage() {
 
   const gerarPDF = async (imprimir = false) => {
     if (!cardFrenteRef.current || !qrCodeUrl) return
-    const janela = imprimir ? window.open('', '_blank') : null
+    const janela = imprimir ? reservarDocumento() : null
     if (imprimir && !janela) {
-      toast.error('Permita abrir a aba de impressão ou use Baixar PDF.')
       return
     }
     try {
@@ -56,6 +81,7 @@ export default function CarteirinhaPage() {
       await document.fonts.ready
       const canvas = await html2canvas(cardFrenteRef.current, { scale: 3 })
       const imgData = canvas.toDataURL('image/png')
+      let conteudo=`<img src="${imgData}" alt="Frente da carteirinha" style="width:85.6mm;height:54mm;display:block;margin-bottom:10mm">`
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 54] })
       pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
 
@@ -65,14 +91,11 @@ export default function CarteirinhaPage() {
         const imgVerso = canvasVerso.toDataURL('image/png')
         pdf.addPage([85.6, 54], 'landscape')
         pdf.addImage(imgVerso, 'PNG', 0, 0, 85.6, 54)
+        conteudo+=`<img src="${imgVerso}" alt="Verso da carteirinha" style="width:85.6mm;height:54mm;display:block">`
       }
 
       if (janela) {
-        const url = URL.createObjectURL(pdf.output('blob'))
-        janela.location.href = url
-        const monitor = window.setInterval(() => {
-          if (janela.closed) { URL.revokeObjectURL(url); window.clearInterval(monitor) }
-        }, 1000)
+        abrirDocumento('Carteirinha do associado',conteudo,janela,papel==='cupom80'?'cupom80':undefined)
       } else {
         pdf.save("carteirinha-" + associado?.numero_titulo + '.pdf')
       }
@@ -94,16 +117,35 @@ export default function CarteirinhaPage() {
         <h2 className="text-2xl font-bold">Carteirinha do Associado</h2>
       </div>
 
+      <Card className="no-print">
+        <CardHeader><CardTitle>Segunda via por perda</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <label htmlFor="segunda-via" className="flex items-start gap-3 cursor-pointer">
+            <input id="segunda-via" type="checkbox" checked={segundaVia} disabled={renovando}
+              onChange={e=>setSegundaVia(e.target.checked)} className="mt-1 h-5 w-5" aria-describedby="segunda-via-aviso" />
+            <span>A carteirinha foi perdida. Gerar um novo QR Code e invalidar o anterior.</span>
+          </label>
+          <p id="segunda-via-aviso" className="text-sm text-muted-foreground">
+            Ao confirmar, a carteirinha anterior deixará de funcionar, mesmo que seja encontrada.
+            O aplicativo do associado mostrará o novo código ao atualizar a carteirinha.
+          </p>
+          <Button onClick={renovarCarteirinha} disabled={!segundaVia || renovando || !!erroQr} aria-busy={renovando}>
+            {renovando ? 'Emitindo nova carteirinha...' : 'Gerar novo QR Code'}
+          </Button>
+          {erroQr && <p role="alert" className="text-red-700">{erroQr}</p>}
+        </CardContent>
+      </Card>
+
       {/* Área de impressão */}
-      <div className="flex gap-6 print-area">
+      <div className="flex flex-wrap gap-6 print-area">
         {/* Preview da Carteirinha - Frente */}
         <Card className="print:shadow-none print:border-none">
           <CardHeader className="no-print"><CardTitle>Frente</CardTitle></CardHeader>
-          <CardContent className="print:p-0">
+          <CardContent className="p-2 sm:p-6 print:p-0">
             <div ref={cardFrenteRef} className="relative bg-white rounded-lg shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ width: '342px', height: '216px' }}>
               {/* Barra de cor do plano */}
               <div className="absolute top-0 left-0 right-0 h-2" style={{ backgroundColor: getPlanoColor(associado.plano) }} />
-
+              
               {/* Logo */}
               <div className="absolute top-4 left-4">
                 {clubeConfig?.logo_url ? (
@@ -121,7 +163,7 @@ export default function CarteirinhaPage() {
               {/* Foto */}
               <div className="absolute bottom-4 left-4">
                 {associado.foto_url ? (
-                  <img src={associado.foto_url} alt="Foto" className="w-20 h-24 object-cover rounded border-2 border-gray-300" />
+                  <img src={associado.foto_url} alt="Foto" className="w-20 h-24 object-contain object-center bg-gray-100 rounded border-2 border-gray-300" />
                 ) : (
                   <div className="w-20 h-24 bg-gray-200 rounded flex items-center justify-center text-3xl font-bold text-gray-400">
                     {associado.nome[0]}
@@ -143,24 +185,19 @@ export default function CarteirinhaPage() {
         {/* Preview - Verso */}
         <Card className="print:shadow-none print:border-none">
           <CardHeader className="no-print"><CardTitle>Verso</CardTitle></CardHeader>
-          <CardContent className="print:p-0">
+          <CardContent className="p-2 sm:p-6 print:p-0">
             <div ref={cardVersoRef} className="relative bg-gray-100 rounded-lg shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ width: '342px', height: '216px' }}>
-              {clubeConfig?.foto_clube_url ? (
-                <img src={clubeConfig.foto_clube_url} alt="Clube" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 text-white text-2xl font-bold">
-                  {clubeConfig?.nome || 'CLUBE'}
-                </div>
-              )}
+              <VersoCarteirinha nome={clubeConfig?.nome || 'CLUBE'}/>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      <div className="no-print space-y-2"><label className="block font-medium" htmlFor="papel-carteirinha">Papel para impressão</label><select id="papel-carteirinha" className="rounded border p-2" value={papel} onChange={e=>setPapel(e.target.value as 'cupom80'|'a4')}><option value="cupom80">Cupom não fiscal — 80 mm</option><option value="a4">Folha A4 — cartão 85,6 × 54 mm</option></select><p className="text-sm text-muted-foreground">Na impressora de cupom, selecione bobina de 80 mm, escala 100% e desative cabeçalhos e rodapés. O PDF mantém o tamanho de cartão.</p></div>
       {/* Botões - escondidos na impressão */}
-      <div className="flex gap-4 no-print">
-        <Button disabled={!qrCodeUrl} onClick={() => gerarPDF()}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
-        <Button disabled={!qrCodeUrl} variant="outline" onClick={() => gerarPDF(true)}><Printer className="h-4 w-4 mr-2" />Imprimir</Button>
+      <div className="flex flex-wrap gap-4 no-print">
+        <Button disabled={!qrCodeUrl || renovando || segundaVia || !!erroQr} onClick={() => gerarPDF()}><Download className="h-4 w-4 mr-2" />Baixar PDF</Button>
+        <BotaoImpressao disabled={!qrCodeUrl || renovando || segundaVia || !!erroQr} variant="outline" onClick={() => gerarPDF(true)}><Printer className="h-4 w-4 mr-2" />Imprimir</BotaoImpressao>
       </div>
 
       {/* Instruções - escondidas na impressão */}

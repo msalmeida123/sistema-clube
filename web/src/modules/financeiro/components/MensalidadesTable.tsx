@@ -108,7 +108,7 @@ function MensalidadeRow({
   onDesconto,
   onDetalhes
 }: MensalidadeRowProps) {
-  const isAtrasado = mensalidade.status === 'pendente' &&
+  const isAtrasado = mensalidade.status === 'pendente' && 
     new Date(mensalidade.data_vencimento) < new Date()
 
   const status = isAtrasado ? 'atrasado' : mensalidade.status
@@ -138,9 +138,9 @@ function MensalidadeRow({
           {mensalidade.status === 'pendente' && (
             <>
               {onPagar && (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
                   title="Registrar pagamento"
                   onClick={() => onPagar(mensalidade.id)}
                 >
@@ -148,9 +148,9 @@ function MensalidadeRow({
                 </Button>
               )}
               {onDesconto && (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
                   title="Aplicar desconto"
                   onClick={() => onDesconto(mensalidade.id)}
                 >
@@ -158,9 +158,9 @@ function MensalidadeRow({
                 </Button>
               )}
               {onCancelar && (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
                   title="Cancelar"
                   onClick={() => onCancelar(mensalidade.id)}
                 >
@@ -170,9 +170,9 @@ function MensalidadeRow({
             </>
           )}
           {onDetalhes && (
-            <Button
-              variant="ghost"
-              size="icon"
+            <Button 
+              variant="ghost" 
+              size="icon" 
               title="Ver detalhes"
               onClick={() => onDetalhes(mensalidade.id)}
             >

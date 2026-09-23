@@ -229,13 +229,13 @@ export default function NovoDependentePage() {
                     {titulares.map((t) => (
                       <div
                         key={t.id}
-                        className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                        className="p-3 hover:bg-gray-50 cursor-pointer flex flex-wrap items-center justify-between gap-3"
                         onClick={() => selecionarTitular(t)}
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                             {t.foto_url ? (
-                              <img src={t.foto_url} alt={t.nome} className="h-full w-full object-cover" />
+                              <img src={t.foto_url} alt={t.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                             ) : (
                               <span className="text-lg font-medium">{t.nome[0]}</span>
                             )}
@@ -262,11 +262,11 @@ export default function NovoDependentePage() {
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                     {titularSelecionado.foto_url ? (
-                      <img src={titularSelecionado.foto_url} alt={titularSelecionado.nome} className="h-full w-full object-cover" />
+                      <img src={titularSelecionado.foto_url} alt={titularSelecionado.nome} className="h-full w-full object-contain object-center bg-gray-100" />
                     ) : (
                       <span className="text-xl font-medium">{titularSelecionado.nome[0]}</span>
                     )}
@@ -300,7 +300,7 @@ export default function NovoDependentePage() {
                   <label className="cursor-pointer">
                     <div className="h-32 w-32 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
                       {fotoPreview ? (
-                        <img src={fotoPreview} alt="Preview" className="h-full w-full object-cover" />
+                        <img src={fotoPreview} alt="Preview" className="h-full w-full object-contain object-center bg-gray-100" />
                       ) : (
                         <Upload className="h-8 w-8 text-muted-foreground" />
                       )}
@@ -320,7 +320,7 @@ export default function NovoDependentePage() {
                     placeholder="Nome do dependente"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <Label>CPF</Label>
                     <Input
@@ -340,7 +340,7 @@ export default function NovoDependentePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Data de Nascimento *</Label>
                 <Input
@@ -381,7 +381,7 @@ export default function NovoDependentePage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Telefone</Label>
                 <Input

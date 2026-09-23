@@ -42,7 +42,7 @@ export default function ExamesMedicosPage() {
       .order('data_validade', { ascending: true })
 
     let resultado = data || []
-
+    
     // Filtrar por busca
     if (search) {
       resultado = resultado.filter((e: any) =>
@@ -121,7 +121,7 @@ export default function ExamesMedicosPage() {
   hoje.setHours(0, 0, 0, 0)
   const em30dias = new Date()
   em30dias.setDate(em30dias.getDate() + 30)
-
+  
   const totalValidos = exames.filter(e => new Date(e.data_validade) >= hoje).length
   const totalVencidos = exames.filter(e => new Date(e.data_validade) < hoje).length
   const totalAVencer = exames.filter(e => {
@@ -145,7 +145,7 @@ export default function ExamesMedicosPage() {
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="cursor-pointer hover:shadow-md" onClick={() => setFiltro('todos')}>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ export default function ExamesMedicosPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[
             { id: 'todos', label: 'Todos' },
             { id: 'validos', label: 'Válidos' },

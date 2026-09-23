@@ -197,7 +197,7 @@ export default function RespostasAutomaticasPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/crm">
             <Button variant="outline" size="icon">
@@ -225,7 +225,7 @@ export default function RespostasAutomaticasPage() {
             <CardTitle>{editando ? 'Editar' : 'Nova'} Resposta Automática</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Nome *</label>
                 <Input
@@ -249,7 +249,7 @@ export default function RespostasAutomaticasPage() {
 
             <div>
               <label className="text-sm font-medium">Tipo de Gatilho *</label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="grid gap-2 mt-2 grid-cols-1 sm:grid-cols-2">
                 {GATILHOS.map(g => {
                   const Icon = g.icon
                   return (
@@ -290,7 +290,7 @@ export default function RespostasAutomaticasPage() {
 
             {form.gatilho_tipo === 'fora_horario' && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium">Horário início atendimento</label>
                     <Input

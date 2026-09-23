@@ -44,13 +44,13 @@ export default function ComprasPage() {
       .from('orcamentos_compra')
       .select('*, orcamento_itens(*)')
       .order('data_criacao', { ascending: false })
-
+    
     if (filtroStatus !== 'todos') {
       query = query.eq('status', filtroStatus)
     }
 
     const { data, error } = await query.limit(100)
-
+    
     if (error) {
       console.error('Erro:', error)
     } else {
@@ -61,7 +61,7 @@ export default function ComprasPage() {
 
   const excluirOrcamento = async (id: string) => {
     if (!confirm('Deseja excluir este orçamento?')) return
-
+    
     const { error } = await supabase.from('orcamentos_compra').delete().eq('id', id)
     if (error) {
       toast.error('Erro ao excluir')
@@ -94,8 +94,8 @@ export default function ComprasPage() {
     valorTotal: orcamentos.filter(o => o.status === 'aprovado').reduce((acc, o) => acc + (o.valor_total || 0), 0)
   }
 
-  const orcamentosFiltrados = orcamentos.filter(o =>
-    busca === '' ||
+  const orcamentosFiltrados = orcamentos.filter(o => 
+    busca === '' || 
     o.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
     o.numero?.toLowerCase().includes(busca.toLowerCase())
   )
@@ -114,7 +114,7 @@ export default function ComprasPage() {
 
       <Link href="/dashboard/compras/uso-clube"><Button variant="outline">Compras pagas / Notas de uso do clube</Button></Link>
       {/* Cards de Resumo */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm">Total</CardTitle>
@@ -159,9 +159,9 @@ export default function ComprasPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar..." className="pl-10" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
-        <select
-          value={filtroStatus}
-          onChange={(e) => setFiltroStatus(e.target.value)}
+        <select 
+          value={filtroStatus} 
+          onChange={(e) => setFiltroStatus(e.target.value)} 
           className="h-10 border rounded-md px-3"
         >
           <option value="todos">Todos os Status</option>
@@ -186,7 +186,7 @@ export default function ComprasPage() {
               </Link>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4">Número</th>
@@ -231,7 +231,7 @@ export default function ComprasPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </CardContent>
       </Card>

@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirPagina} from '@/lib/impressao'
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
@@ -8,8 +10,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { PaginaProtegida } from '@/components/ui/permissao'
-import {
-  FileText, Users, DollarSign, Calendar, Download, Printer,
+import { 
+  FileText, Users, DollarSign, Calendar, Download, Printer, 
   TrendingUp, TrendingDown, BarChart3, PieChart, UserCheck,
   AlertTriangle, CreditCard, ShoppingCart, Vote
 } from 'lucide-react'
@@ -50,7 +52,7 @@ export default function RelatoriosPage() {
     // Financeiro
     const { count: mensalidadesPendentes } = await supabase.from('mensalidades').select('*', { count: 'exact', head: true }).eq('status', 'pendente')
     const { count: mensalidadesAtrasadas } = await supabase.from('mensalidades').select('*', { count: 'exact', head: true }).eq('status', 'atrasado')
-
+    
     const mesAtual = new Date().toISOString().slice(0, 7)
     const { data: receitaData } = await supabase
       .from('mensalidades')
@@ -151,7 +153,7 @@ export default function RelatoriosPage() {
     }
   }
 
-  const imprimir = () => window.print()
+  const imprimir = () => imprimirPagina()
 
   const exportarCSV = () => {
     if (!dados?.lista?.length) {
@@ -200,10 +202,10 @@ export default function RelatoriosPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Relatórios</h1>
         {dados && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={imprimir}>
+          <div className="flex flex-wrap gap-2">
+            <BotaoImpressao type="button" variant="outline" onClick={imprimir}>
               <Printer className="h-4 w-4 mr-2" />Imprimir
-            </Button>
+            </BotaoImpressao>
             <Button variant="outline" onClick={exportarCSV}>
               <Download className="h-4 w-4 mr-2" />Exportar CSV
             </Button>
@@ -212,7 +214,7 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid gap-4 md:grid-cols-4 print:hidden">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print:hidden">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm">Associados Ativos</CardTitle>
@@ -254,11 +256,11 @@ export default function RelatoriosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b print:hidden">
+      <div className="flex flex-wrap gap-2 border-b print:hidden">
         {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => { setTab(t.id as any); setDados(null) }}
+          <button 
+            key={t.id} 
+            onClick={() => { setTab(t.id as any); setDados(null) }} 
             className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${tab === t.id ? 'border-primary text-primary' : 'border-transparent'}`}
           >
             <t.icon className="h-4 w-4" />{t.label}
@@ -310,7 +312,7 @@ export default function RelatoriosPage() {
                 <CardTitle>Filtro por Período</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-4 items-end">
+                <div className="flex flex-wrap gap-4 items-end">
                   <div>
                     <Label>Data Início</Label>
                     <Input type="date" value={periodo.inicio} onChange={(e) => setPeriodo({ ...periodo, inicio: e.target.value })} />
@@ -364,7 +366,7 @@ export default function RelatoriosPage() {
                 <CardTitle>Filtro por Período</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-4 items-end">
+                <div className="flex flex-wrap gap-4 items-end">
                   <div>
                     <Label>Data Início</Label>
                     <Input type="date" value={periodo.inicio} onChange={(e) => setPeriodo({ ...periodo, inicio: e.target.value })} />
@@ -455,7 +457,7 @@ export default function RelatoriosPage() {
           <CardContent>
             <div className="overflow-x-auto">
               {dados.tipo === 'associados' && (
-                <table className="w-full text-sm">
+                <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-3">Nome</th>
@@ -482,11 +484,11 @@ export default function RelatoriosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
 
               {dados.tipo === 'financeiro' && (
-                <table className="w-full text-sm">
+                <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-3">Associado</th>
@@ -507,8 +509,8 @@ export default function RelatoriosPage() {
                         <td className="py-2 px-3">{formatDate(m.data_vencimento)}</td>
                         <td className="py-2 px-3">
                           <span className={`px-2 py-1 rounded-full text-xs ${
-                            m.status === 'pago' ? 'bg-green-100 text-green-800' :
-                            m.status === 'atrasado' ? 'bg-red-100 text-red-800' :
+                            m.status === 'pago' ? 'bg-green-100 text-green-800' : 
+                            m.status === 'atrasado' ? 'bg-red-100 text-red-800' : 
                             'bg-yellow-100 text-yellow-800'
                           }`}>
                             {m.status}
@@ -517,11 +519,11 @@ export default function RelatoriosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
 
               {dados.tipo === 'acessos' && (
-                <table className="w-full text-sm">
+                <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-3">Data/Hora</th>
@@ -548,7 +550,7 @@ export default function RelatoriosPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
           </CardContent>

@@ -19,12 +19,12 @@ export const SafeInput = React.forwardRef<HTMLInputElement, SafeInputProps>(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         // Sanitiza o valor
         const sanitized = sanitizeForDatabase(e.target.value)
-
+        
         // Callback com valor sanitizado
         if (onSanitizedChange) {
           onSanitizedChange(sanitized)
         }
-
+        
         // Chama o onChange original se existir
         if (onChange) {
           onChange(e)
@@ -51,11 +51,11 @@ export const SafeTextarea = React.forwardRef<HTMLTextAreaElement, SafeTextareaPr
     const handleChange = React.useCallback(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const sanitized = sanitizeForDatabase(e.target.value)
-
+        
         if (onSanitizedChange) {
           onSanitizedChange(sanitized)
         }
-
+        
         if (onChange) {
           onChange(e)
         }

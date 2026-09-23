@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirHtml} from '@/lib/impressao'
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
@@ -309,8 +311,6 @@ export default function QuiosquesPage() {
   }
 
   const imprimirComprovante = (reserva: Reserva) => {
-    const win = window.open('', '_blank')
-    if (!win) return
 
     const dataFormatada = new Date(reserva.data_reserva + 'T00:00:00').toLocaleDateString('pt-BR', {
       weekday: 'long',
@@ -319,7 +319,7 @@ export default function QuiosquesPage() {
       year: 'numeric'
     })
 
-    win.document.write(`
+    void imprimirHtml(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -396,11 +396,11 @@ export default function QuiosquesPage() {
             <p>Código: ${reserva.id.slice(0, 8).toUpperCase()}</p>
           </div>
         </div>
-        <script>window.print();</script>
+        
       </body>
       </html>
-    `)
-    win.document.close()
+    `).catch(()=>{})
+
   }
 
   // CRUD de Quiosques
@@ -559,7 +559,7 @@ export default function QuiosquesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Tent className="h-6 w-6 text-green-600" />
@@ -610,7 +610,7 @@ export default function QuiosquesPage() {
 
       {/* Tab: Reservar */}
       {tab === 'reservar' && (
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {/* Form de Reserva */}
           <Card className="col-span-1">
             <CardHeader>
@@ -706,7 +706,7 @@ export default function QuiosquesPage() {
           </Card>
 
           {/* Lista de Quiosques */}
-          <div className="col-span-2 grid grid-cols-2 gap-4">
+          <div className="col-span-1 sm:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
             {quiosques.filter(q => q.ativo).map(q => {
               const reservado = dataReserva 
                 ? reservas.find(r => r.quiosque_id === q.id && r.data_reserva === dataReserva && r.status === 'ativo')
@@ -725,7 +725,7 @@ export default function QuiosquesPage() {
                   onClick={() => !reservado && dataReserva && setQuiosqueSelecionado(q.id)}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-3xl font-bold text-green-600">{q.numero}</span>
                         <span className="font-medium">{q.nome}</span>
@@ -777,7 +777,7 @@ export default function QuiosquesPage() {
       {tab === 'minhas' && (
         <Card>
           <CardContent className="p-0">
-            <table className="w-full">
+            <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left p-3 font-medium">Quiosque</th>
@@ -804,9 +804,9 @@ export default function QuiosquesPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => imprimirComprovante(r)} title="Imprimir">
+                      <BotaoImpressao variant="ghost" size="sm" onClick={() => imprimirComprovante(r)} title="Imprimir">
                         <Printer className="h-4 w-4" />
-                      </Button>
+                      </BotaoImpressao>
                       {r.status === 'ativo' && (
                         <Button variant="ghost" size="sm" onClick={() => cancelarReserva(r.id)} title="Cancelar" className="text-red-600">
                           <XCircle className="h-4 w-4" />
@@ -819,7 +819,7 @@ export default function QuiosquesPage() {
                   <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma reserva encontrada</td></tr>
                 )}
               </tbody>
-            </table>
+            </table></div>
           </CardContent>
         </Card>
       )}
@@ -836,7 +836,7 @@ export default function QuiosquesPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <table className="w-full">
+            <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left p-3 font-medium">Quiosque</th>
@@ -871,9 +871,9 @@ export default function QuiosquesPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => imprimirComprovante(r)}>
+                      <BotaoImpressao variant="ghost" size="sm" onClick={() => imprimirComprovante(r)}>
                         <Printer className="h-4 w-4" />
-                      </Button>
+                      </BotaoImpressao>
                       {r.status === 'ativo' && (
                         <Button variant="ghost" size="sm" onClick={() => cancelarReserva(r.id)} className="text-red-600">
                           <XCircle className="h-4 w-4" />
@@ -883,7 +883,7 @@ export default function QuiosquesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </CardContent>
         </Card>
       )}
@@ -904,12 +904,12 @@ export default function QuiosquesPage() {
                 <CardTitle>{editandoQuiosque ? 'Editar' : 'Novo'} Quiosque</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="text-sm font-medium">Número *</label>
                     <Input type="number" value={formQuiosque.numero} onChange={e => setFormQuiosque({...formQuiosque, numero: e.target.value})} />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-sm font-medium">Nome</label>
                     <Input value={formQuiosque.nome} onChange={e => setFormQuiosque({...formQuiosque, nome: e.target.value})} placeholder="Ex: Quiosque do Lago" />
                   </div>
@@ -924,7 +924,7 @@ export default function QuiosquesPage() {
                   <Input value={formQuiosque.descricao} onChange={e => setFormQuiosque({...formQuiosque, descricao: e.target.value})} placeholder="Localização, características..." />
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="text-sm font-medium">Valor Reserva</label>
                     <Input type="number" step="0.01" value={formQuiosque.valor_reserva} onChange={e => setFormQuiosque({...formQuiosque, valor_reserva: e.target.value})} />
@@ -954,11 +954,11 @@ export default function QuiosquesPage() {
             </Card>
           )}
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {quiosques.map(q => (
               <Card key={q.id} className={!q.ativo ? 'opacity-50' : ''}>
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <span className="text-3xl font-bold text-green-600">{q.numero}</span>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => editarQuiosque(q)}><Edit className="h-4 w-4" /></Button>
@@ -993,7 +993,7 @@ export default function QuiosquesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Dia de Abertura das Reservas</label>
                 <select
@@ -1016,7 +1016,7 @@ export default function QuiosquesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Hora Limite da Reserva (no dia)</label>
                 <Input
@@ -1036,7 +1036,7 @@ export default function QuiosquesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Valor Padrão da Reserva</label>
                 <Input

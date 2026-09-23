@@ -199,7 +199,7 @@ export default function NovoOrcamentoPage() {
             <CardTitle>Dados do Orçamento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
                 <Label>Descrição *</Label>
                 <Input
@@ -256,8 +256,8 @@ export default function NovoOrcamentoPage() {
                 </div>
 
                 {/* Dados do Produto */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="col-span-2">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="col-span-1 sm:col-span-2">
                     <Label>Produto *</Label>
                     <Input
                       value={item.produto}
@@ -293,7 +293,7 @@ export default function NovoOrcamentoPage() {
                 </div>
 
                 {/* 3 Orçamentos */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                   {/* Orçamento 1 */}
                   <div className={`p-3 rounded-lg border-2 ${melhorOrcamento?.num === 1 && item.orcamento1_valor > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -384,7 +384,7 @@ export default function NovoOrcamentoPage() {
               </div>
             ))}
 
-            <Button type="button" variant="outline" onClick={adicionarItem} className="w-full">
+            <Button type="button" variant="outline" onClick={adicionarItem} className="w-auto min-h-11">
               <Plus className="h-4 w-4 mr-2" />Adicionar Item
             </Button>
           </CardContent>
@@ -396,7 +396,7 @@ export default function NovoOrcamentoPage() {
             <CardTitle>Comparativo de Totais</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               <div className={`p-4 rounded-lg text-center ${melhorOrcamento?.num === 1 ? 'bg-green-100 border-2 border-green-500' : 'bg-gray-50'}`}>
                 <p className="text-sm text-muted-foreground">Orçamento 1</p>
                 <p className="text-xl font-bold">{formatCurrency(getTotalOrcamento(1))}</p>
@@ -448,11 +448,11 @@ export default function NovoOrcamentoPage() {
         </Card>
 
         {/* Botões */}
-        <div className="flex gap-4">
-          <Link href="/dashboard/compras" className="flex-1">
-            <Button type="button" variant="outline" className="w-full">Cancelar</Button>
-          </Link>
-          <Button type="submit" disabled={loading} className="flex-1">
+        <div className="flex flex-wrap justify-end items-center gap-3">
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/dashboard/compras">Cancelar</Link>
+          </Button>
+          <Button type="submit" disabled={loading} className="min-h-11">
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Salvando...' : 'Salvar Orçamento'}
           </Button>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Plus, Search, Eye, Edit, Trash2, Users, AlertCircle } from 'lucide-react'
+import { Plus, Search, Eye, Edit, Trash2, Users, AlertCircle, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaginaProtegida, ComPermissao } from '@/components/ui/permissao'
 
@@ -173,6 +173,11 @@ export default function DependentesPage() {
                             <Link href={`/dashboard/dependentes/${d.id}`}>
                               <Button variant="ghost" size="icon" title="Ver detalhes">
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link href={`/dashboard/dependentes/${d.id}/carteirinha`}>
+                              <Button variant="ghost" size="icon" title="Carteirinha do dependente" aria-label={`Carteirinha de ${d.nome}`}>
+                                <CreditCard className="h-4 w-4" />
                               </Button>
                             </Link>
                             <ComPermissao codigoPagina="dependentes" acao="editar">

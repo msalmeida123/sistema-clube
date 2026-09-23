@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { RelatosRecebidos } from '@/components/RelatosRecebidos'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,8 @@ type Infracao = {
 }
 
 export default function InfracoesPage() {
+  const [relatosRecebidos, setRelatosRecebidos] = useState<number | null>(null)
+  const [infracoesPendentes, setInfracoesPendentes] = useState<number | null>(null)
   const [infracoes, setInfracoes] = useState<Infracao[]>([])
   const [search, setSearch] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('todos')
@@ -37,16 +40,17 @@ export default function InfracoesPage() {
         query = query.eq('status', filtroStatus)
       }
 
-      const { data } = await query
-
+      const [{ data }, contagem] = await Promise.all([query, supabase.from('infracoes').select('id', { count: 'exact', head: true }).eq('status', 'pendente')])
+      setInfracoesPendentes(contagem.error ? null : contagem.count)
+      
       let resultado = data || []
       if (search) {
-        resultado = resultado.filter((i: any) =>
+        resultado = resultado.filter((i: any) => 
           i.associado?.nome?.toLowerCase().includes(search.toLowerCase()) ||
           i.local_ocorrencia?.toLowerCase().includes(search.toLowerCase())
         )
       }
-
+      
       setInfracoes(resultado as any)
       setLoading(false)
     }
@@ -121,9 +125,8 @@ export default function InfracoesPage() {
 
   return (
     <PaginaProtegida codigoPagina="infracoes">
-      <div className="px-6 pt-4"><Link className="text-blue-700 underline" href="/dashboard/infracoes/relatos">Relatos enviados pelo aplicativo dos associados →</Link></div>
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <h1 className="text-2xl font-bold">Registro de Infrações</h1>
         <ComPermissao codigoPagina="infracoes" acao="criar">
           <Link href="/dashboard/infracoes/nova">
@@ -132,18 +135,21 @@ export default function InfracoesPage() {
         </ComPermissao>
       </div>
 
+      <RelatosRecebidos onRecebidosChange={setRelatosRecebidos} />
+
+      <h2 className="text-xl font-semibold">Infrações registradas pela equipe</h2>
       {/* Filtros */}
       <div className="flex gap-4 flex-wrap">
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por associado ou local..."
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <Input 
+            placeholder="Buscar por associado ou local..." 
+            className="pl-10" 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {['todos', 'pendente', 'em_analise', 'julgado', 'arquivado'].map((status) => (
             <Button
               key={status}
@@ -158,14 +164,15 @@ export default function InfracoesPage() {
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-yellow-600" />
               <div>
-                <p className="text-2xl font-bold">{infracoes.filter(i => i.status === 'pendente').length}</p>
+                <p className="text-2xl font-bold">{infracoesPendentes === null || relatosRecebidos === null ? '—' : infracoesPendentes + relatosRecebidos}</p>
                 <p className="text-sm text-muted-foreground">Pendentes</p>
+                <p className="text-xs text-muted-foreground">Infrações + relatos recebidos</p>
               </div>
             </div>
           </CardContent>

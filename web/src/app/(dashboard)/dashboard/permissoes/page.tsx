@@ -55,12 +55,17 @@ export default function PermissoesPage() {
   const [perfis, setPerfis] = useState<Perfil[]>([])
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null)
   const [perfilSelecionado, setPerfilSelecionado] = useState<Perfil | null>(null)
-  const [permissoes, setPermissoes] = useState<Record<string, Permissao>>({})
+  const [permissoesIndividuais, setPermissoes] = useState<Record<string, Permissao>>({})
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [busca, setBusca] = useState('')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [isAdmin, setIsAdmin] = useState(false)
+
+  const administradorSelecionado = tab === 'usuarios' && usuarioSelecionado?.is_admin === true
+  const permissoes: Record<string, Permissao> = administradorSelecionado
+    ? Object.fromEntries(paginas.flatMap(p => [p, ...(p.subpaginas || [])]).map(p => [p.id, {pagina_id:p.id,pode_visualizar:true,pode_criar:true,pode_editar:true,pode_excluir:true}]))
+    : permissoesIndividuais
 
   const supabase = createClientComponentClient()
 
@@ -123,7 +128,7 @@ export default function PermissoesPage() {
       .eq('usuario_id', usuario.id)
 
     const permissoesMap: Record<string, Permissao> = {}
-
+    
     if (usuario.perfil_acesso_id) {
       const { data: permissoesPerfil } = await supabase
         .from('permissoes_perfil')
@@ -237,7 +242,7 @@ export default function PermissoesPage() {
   }
 
   const salvarPermissoes = async () => {
-    if (!usuarioSelecionado && !perfilSelecionado) return
+    if (administradorSelecionado || (!usuarioSelecionado && !perfilSelecionado)) return
 
     setSalvando(true)
 
@@ -312,7 +317,7 @@ export default function PermissoesPage() {
     })
   }
 
-  const usuariosFiltrados = usuarios.filter(u =>
+  const usuariosFiltrados = usuarios.filter(u => 
     u.nome?.toLowerCase().includes(busca.toLowerCase()) ||
     u.email?.toLowerCase().includes(busca.toLowerCase())
   )
@@ -333,7 +338,7 @@ export default function PermissoesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6 text-purple-600" />
@@ -344,17 +349,17 @@ export default function PermissoesPage() {
       </div>
 
       <div className="flex gap-2">
-        <Button variant={tab === 'usuarios' ? 'default' : 'outline'} onClick={() => setTab('usuarios')}>
+        <Button variant={tab === 'usuarios' ? 'default' : 'outline'} onClick={() => {setTab('usuarios');setPerfilSelecionado(null);setUsuarioSelecionado(null);setPermissoes({})}}>
           <Users className="h-4 w-4 mr-2" />
           Por Usuário
         </Button>
-        <Button variant={tab === 'perfis' ? 'default' : 'outline'} onClick={() => setTab('perfis')}>
+        <Button variant={tab === 'perfis' ? 'default' : 'outline'} onClick={() => {setTab('perfis');setPerfilSelecionado(null);setUsuarioSelecionado(null);setPermissoes({})}}>
           <UserCog className="h-4 w-4 mr-2" />
           Por Perfil
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">{tab === 'usuarios' ? 'Usuários' : 'Perfis de Acesso'}</CardTitle>
@@ -410,13 +415,13 @@ export default function PermissoesPage() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-2">
+        <Card className="col-span-1 sm:col-span-2">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="text-lg">
                 {usuarioSelecionado ? `Permissões de ${usuarioSelecionado.nome}` : perfilSelecionado ? `Permissões do Perfil ${perfilSelecionado.nome}` : 'Selecione um usuário ou perfil'}
               </CardTitle>
-              {(usuarioSelecionado || perfilSelecionado) && (
+              {(usuarioSelecionado || perfilSelecionado) && !administradorSelecionado && (
                 <Button onClick={salvarPermissoes} disabled={salvando} className="bg-green-600 hover:bg-green-700">
                   {salvando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Salvar Permissões
@@ -425,7 +430,13 @@ export default function PermissoesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {usuarioSelecionado && tab === 'usuarios' && (
+            {administradorSelecionado && (
+              <div role="status" className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-950">
+                <p className="font-semibold">Administrador: acesso total ao sistema</p>
+                <p className="mt-1 text-sm">Todas as permissões já estão liberadas. As marcações abaixo são apenas para consulta. Para configurar acesso limitado, use um usuário sem a opção Administrador.</p>
+              </div>
+            )}
+            {usuarioSelecionado && tab === 'usuarios' && !administradorSelecionado && (
               <div className="mb-4 p-3 bg-gray-50 rounded-lg flex items-center gap-4 flex-wrap">
                 <span className="text-sm font-medium">Perfil de Acesso:</span>
                 <select
@@ -450,8 +461,8 @@ export default function PermissoesPage() {
             )}
 
             {(usuarioSelecionado || perfilSelecionado) ? (
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
+              <fieldset disabled={administradorSelecionado} className="border rounded-lg overflow-hidden min-w-0">
+                <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="text-left p-3 font-medium">Página</th>
@@ -504,7 +515,7 @@ export default function PermissoesPage() {
                             </div>
                           </td>
                         </tr>
-
+                        
                         {expandidos.has(pagina.id) && pagina.subpaginas?.map(sub => (
                           <tr key={sub.id} className="border-t bg-gray-50/50 hover:bg-gray-100">
                             <td className="p-3 pl-12">
@@ -542,8 +553,8 @@ export default function PermissoesPage() {
                       </>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </table></div>
+              </fieldset>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Shield className="h-16 w-16 mx-auto mb-4 opacity-20" />

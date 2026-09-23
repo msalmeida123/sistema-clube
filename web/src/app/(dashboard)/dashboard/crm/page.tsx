@@ -13,7 +13,7 @@ import {
   Send, Search, Phone, User, MessageSquare, Plus, RefreshCw, 
   Check, CheckCheck, Clock, Download, Image, Paperclip, Mic, 
   X, FileText, Video, Loader2, FileType, Settings, Bot,
-  ArrowRightLeft, Inbox, ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder,
+  ArrowLeft, ArrowRightLeft, Inbox, ShoppingCart, LifeBuoy, DollarSign, Briefcase, Folder,
   Lock, AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
@@ -959,7 +959,7 @@ export default function CRMPage() {
 
   return (
     <PaginaProtegida codigoPagina="crm">
-    <div className="flex h-[calc(100vh-120px)] gap-4 p-6">
+    <div className="crm-responsivo flex min-w-0 w-full h-[calc(100dvh-4rem)] gap-4 p-3 sm:p-6 xl:h-[calc(100dvh-120px)]">
       {/* Input de arquivo oculto */}
       <input
         type="file"
@@ -969,16 +969,17 @@ export default function CRMPage() {
       />
 
       {/* Lista de Conversas */}
-      <Card className="w-80 flex flex-col">
+      <Card className={`min-w-0 w-full flex-col xl:w-80 xl:shrink-0 ${conversaAtiva ? "hidden xl:flex" : "flex"}`}>
         <div className="p-4 border-b space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-lg">Conversas</h2>
-            <div className="flex gap-1">
+            <Link className="text-xs underline" href="/dashboard/crm/sincronizar">Sincronizar contatos</Link>
+            <div className="flex w-full flex-wrap gap-1">
               <Link href="/dashboard/respostas-automaticas">
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  title="Respostas automáticas"
+                  aria-label="Respostas automáticas" title="Respostas automáticas"
                 >
                   <Bot className="h-4 w-4" />
                 </Button>
@@ -990,14 +991,14 @@ export default function CRMPage() {
                   setShowImportarContatos(true)
                   buscarContatosWhatsApp()
                 }}
-                title="Importar contatos do WhatsApp"
+                aria-label="Importar contatos do WhatsApp" title="Importar contatos do WhatsApp"
               >
                 <Download className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowNovaConversa(true)}>
+              <Button variant="ghost" size="icon" aria-label="Nova conversa" onClick={() => setShowNovaConversa(true)}>
                 <Plus className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={carregarConversas} title="Atualizar">
+              <Button variant="ghost" size="icon" onClick={carregarConversas} aria-label="Atualizar conversas" title="Atualizar">
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
@@ -1005,7 +1006,7 @@ export default function CRMPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar..."
+              aria-label="Buscar conversas" placeholder="Buscar..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="pl-9"
@@ -1051,7 +1052,7 @@ export default function CRMPage() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           {loadingConversas || loadingPermissoes ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1084,7 +1085,7 @@ export default function CRMPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="font-medium truncate">
                           {conversa.nome_contato || conversa.telefone}
                         </p>
@@ -1094,7 +1095,7 @@ export default function CRMPage() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-muted-foreground truncate">
                           {conversa.ultima_mensagem || 'Sem mensagens'}
                         </p>
@@ -1124,12 +1125,15 @@ export default function CRMPage() {
       </Card>
 
       {/* Área de Chat */}
-      <Card className="flex-1 flex flex-col">
+      <Card className={`min-w-0 flex-1 flex-col ${conversaAtiva ? "flex" : "hidden xl:flex"}`}>
         {conversaAtiva ? (
           <>
             {/* Header do Chat */}
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="p-3 sm:p-4 border-b flex flex-wrap items-center justify-between gap-3">
+              <Button variant="outline" className="xl:hidden" onClick={() => {setConversaAtiva(null);setShowTransferir(false);setShowAnexo(false);setShowTemplates(false)}} aria-label="Voltar para conversas">
+                <ArrowLeft className="h-4 w-4 mr-2" />Conversas
+              </Button>
+              <div className="flex min-w-0 items-center gap-3">
                 <Avatar className="h-10 w-10">
                   {conversaAtiva.foto_perfil_url ? (
                     <AvatarImage src={conversaAtiva.foto_perfil_url} alt={conversaAtiva.nome_contato || 'Contato'} />
@@ -1138,7 +1142,7 @@ export default function CRMPage() {
                     {conversaAtiva.nome_contato?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}
                   </AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="min-w-0 break-words">
                   <p className="font-medium">{conversaAtiva.nome_contato || conversaAtiva.telefone}</p>
                   <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={!!conversaAtiva.preservar_historico} onChange={async e => {
                     const preservar_historico=e.target.checked, id=conversaAtiva.id
@@ -1225,7 +1229,7 @@ export default function CRMPage() {
             </div>
 
             {/* Mensagens */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
               {temAnteriores && <div className="text-center"><Button variant="outline" onClick={carregarAnteriores} disabled={carregandoAnteriores}>{carregandoAnteriores ? 'Carregando...' : 'Carregar 50 mensagens anteriores'}</Button></div>}
               {mensagens.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -1239,7 +1243,7 @@ export default function CRMPage() {
                     className={`flex ${msg.direcao === 'saida' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                      className={`min-w-0 max-w-[90%] sm:max-w-[70%] rounded-lg px-4 py-2 ${
                         msg.direcao === 'saida'
                           ? 'bg-green-500 text-white rounded-br-none'
                           : 'bg-white shadow rounded-bl-none'
@@ -1304,13 +1308,13 @@ export default function CRMPage() {
             {!mediaPreview && (
               <div className="p-4 border-t">
                 {podeResponder ? (
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap gap-2 items-center">
                     {/* Botão de anexo */}
                     <div className="relative">
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        onClick={() => { setShowAnexo(!showAnexo); setShowTemplates(false) }}
+                        aria-label="Anexar arquivo" onClick={() => { setShowAnexo(!showAnexo); setShowTemplates(false) }}
                       >
                         <Paperclip className="h-5 w-5" />
                       </Button>
@@ -1364,7 +1368,7 @@ export default function CRMPage() {
                       {/* Menu de templates */}
                       {showTemplates && (
                         <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 min-w-[280px] max-h-[300px] overflow-y-auto">
-                          <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                          <div className="flex flex-wrap items-center justify-between gap-3 mb-2 pb-2 border-b">
                             <span className="text-sm font-medium">Templates</span>
                             <Button 
                               variant="ghost" 
@@ -1394,14 +1398,14 @@ export default function CRMPage() {
                     </div>
                     
                     <Input
-                      placeholder="Digite sua mensagem..."
+                      aria-label="Mensagem" placeholder="Digite sua mensagem..."
                       value={novaMensagem}
                       onChange={(e) => setNovaMensagem(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && enviarMensagem()}
                       disabled={loading}
-                      className="flex-1"
+                      className="min-w-0 flex-1"
                     />
-                    <Button onClick={enviarMensagem} disabled={loading || !novaMensagem.trim()}>
+                    <Button aria-label="Enviar mensagem" onClick={enviarMensagem} disabled={loading || !novaMensagem.trim()}>
                       {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -1431,7 +1435,7 @@ export default function CRMPage() {
 
       {/* Modal Nova Conversa */}
       {showNovaConversa && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 clube-modal-overlay">
           <Card className="w-full max-w-md p-6">
             <h2 className="text-lg font-semibold mb-4">Nova Conversa</h2>
             <div className="space-y-4">
@@ -1465,9 +1469,9 @@ export default function CRMPage() {
 
       {/* Modal Importar Contatos */}
       {showImportarContatos && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 clube-modal-overlay">
           <Card className="w-full max-w-2xl p-6 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-semibold">Importar Contatos do WhatsApp</h2>
               <Button variant="ghost" size="sm" onClick={() => setShowImportarContatos(false)}>✕</Button>
             </div>
@@ -1487,7 +1491,7 @@ export default function CRMPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-3 pb-3 border-b">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3 pb-3 border-b">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1502,7 +1506,7 @@ export default function CRMPage() {
                   </span>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto space-y-1 mb-4">
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto space-y-1 mb-4">
                   {contatosWhatsApp.map((contato) => {
                     const id = contato.id || contato.number || contato.phone
                     const nome = contato.name || contato.pushName || contato.notify || 'Sem nome'
@@ -1553,14 +1557,14 @@ export default function CRMPage() {
 
       {/* Modal Gerenciar Templates */}
       {showGerenciarTemplates && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 clube-modal-overlay">
           <Card className="w-full max-w-3xl p-6 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-semibold">Gerenciar Templates</h2>
               <Button variant="ghost" size="sm" onClick={() => { setShowGerenciarTemplates(false); setTemplateEditando(null); setNovoTemplate({ titulo: '', categoria: '', conteudo: '' }) }}>✕</Button>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
+            <div className="grid gap-4 flex-1 overflow-hidden grid-cols-1 sm:grid-cols-2">
               {/* Formulário */}
               <div className="space-y-3">
                 <h3 className="font-medium">{templateEditando ? 'Editar Template' : 'Novo Template'}</h3>

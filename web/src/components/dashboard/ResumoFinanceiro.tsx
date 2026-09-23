@@ -22,7 +22,7 @@ export function ResumoFinanceiro({ financeiro, loading }: ResumoFinanceiroProps)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-20" />
@@ -44,7 +44,7 @@ export function ResumoFinanceiro({ financeiro, loading }: ResumoFinanceiroProps)
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
           <div className="p-3 rounded-lg bg-green-50 border border-green-100">
             <div className="flex items-center gap-2 text-green-600 mb-1">
               <TrendingUp className="h-4 w-4" />

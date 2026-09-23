@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { toast } from 'sonner'
 import { buscarUsuarioAtual } from '@/lib/usuario-atual'
 import {
-  Users, Search, Plus, Edit, Trash2, Save, Loader2, X,
+  Users, Search, Plus, Edit, Trash2, Save, Loader2, X, 
   Shield, Mail, Phone, Building2, Eye, EyeOff, KeyRound,
   UserCog, Check
 } from 'lucide-react'
@@ -170,13 +170,13 @@ export default function UsuariosPage() {
   const togglePermissao = (permissao: string) => {
     setForm(prev => {
       const estaMarcada = prev.permissoes.includes(permissao)
-
+      
       if (estaMarcada) {
         // Ao desmarcar, remove a permissão e todas as subpermissões
         const subPermissoes = permissoesDisponiveis
           .filter(p => p.grupo === permissao)
           .map(p => p.value)
-
+        
         return {
           ...prev,
           permissoes: prev.permissoes.filter(p => p !== permissao && !subPermissoes.includes(p))
@@ -322,7 +322,7 @@ export default function UsuariosPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <UserCog className="h-6 w-6 text-blue-600" />
@@ -457,9 +457,9 @@ export default function UsuariosPage() {
 
       {/* Modal de Edição/Criação */}
       {modalAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 clube-modal-overlay">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
-            <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b">
               <h2 className="text-lg font-semibold">
                 {editando ? 'Editar Usuário' : 'Novo Usuário'}
               </h2>
@@ -470,7 +470,7 @@ export default function UsuariosPage() {
 
             <div className="p-4 space-y-4">
               {/* Dados básicos */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <label className="text-sm font-medium">Nome *</label>
                   <Input
@@ -491,7 +491,7 @@ export default function UsuariosPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <label className="text-sm font-medium">Telefone</label>
                   <Input
@@ -573,7 +573,7 @@ export default function UsuariosPage() {
               {/* Permissões individuais */}
               {!form.is_admin && !form.perfil_acesso_id && (
                 <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <h3 className="font-medium">Permissões</h3>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={marcarTodasPermissoes}>
@@ -584,11 +584,11 @@ export default function UsuariosPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                     {permissoesDisponiveis.map(p => {
                       const isSubPermissao = p.grupo !== null
                       const paiMarcado = !isSubPermissao || form.permissoes.includes(p.grupo!)
-
+                      
                       return (
                         <label
                           key={p.value}

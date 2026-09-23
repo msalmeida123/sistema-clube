@@ -24,9 +24,10 @@ export async function POST(req:NextRequest,{params}: {params:Promise<{id:string}
     if(error||data!==true) return NextResponse.json({error:'É necessário ter permissão para editar associados.'},{status:403})
   }
   const db=servicoAuditado(user.id)
-  const {data:a,error}=await db.from('associados').select('id,email').eq('id',(await params).id).maybeSingle()
+  const {data:a,error}=await db.from('associados').select('id,email,tipo_cadastro').eq('id',(await params).id).maybeSingle()
   if(error) return NextResponse.json({error:'Não foi possível consultar o associado.'},{status:500})
   if(!a) return NextResponse.json({error:'Associado não encontrado.'},{status:404})
+  if(a.tipo_cadastro==='pj')return NextResponse.json({error:'O acesso ao aplicativo é individual. Envie o acesso pelo cadastro do funcionário associado.'},{status:400})
   if(!a.email) return NextResponse.json({error:'Cadastre o e-mail do associado antes de enviar.'},{status:400})
   try {
     await limite(db,'enviar-acesso-usuario:'+user.id,20)

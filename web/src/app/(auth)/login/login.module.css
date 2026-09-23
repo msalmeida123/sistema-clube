@@ -1,0 +1,59 @@
+/* Identidade do login ilustrado. Escopo local preserva as cores do restante do sistema. */
+.page {
+  --login-ink: #242449;
+  --login-muted: #494965;
+  --login-accent: #087f98;
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: #5352b8;
+  color: var(--login-ink);
+}
+.scene { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.scene img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.panel {
+  position: relative;
+  width: 100%;
+  max-width: 408px;
+  padding: 32px 36px 22px;
+  border: 1px solid rgba(255,255,255,.65);
+  border-top: 8px solid #7c9cf5;
+  border-radius: 6px 6px 20px 20px;
+  background: rgba(239,238,255,.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 65px rgba(29,24,88,.25);
+}
+.header { text-align: center; margin-bottom: 30px; }
+.logo { width: 80px; height: 80px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 18px; background: #c9d7ff; border: 1px solid #edf1ff; }
+.header h1 { font-size: 26px; line-height: 1.25; font-weight: 700; letter-spacing: -.6px; }
+.header p { font-size: 14px; line-height: 1.5; color: var(--login-muted); margin-top: 8px; }
+.form { display: grid; gap: 22px; }
+.field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.inputLine { display: flex; align-items: center; gap: 10px; min-height: 48px; border-bottom: 1px solid #737398; color: var(--login-muted); }
+.inputLine:focus-within { border-bottom-color: #264c93; box-shadow: 0 2px 0 #264c93; }
+.inputLine svg { flex-shrink: 0; }
+.inputLine input { width: 100%; min-width: 0; height: 48px; border: 0; border-radius: 0; background: transparent; outline: none; color: var(--login-ink); font: inherit; font-size: 16px; }
+.inputLine input::placeholder { color: #595972; opacity: 1; }
+.eye { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; }
+.eye:hover { background: rgba(255,255,255,.55); }
+.submit { min-height: 48px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; border-radius: 999px; background: var(--login-accent); color: #fff; font-size: 16px; font-weight: 600; margin-top: 4px; }
+.submit:hover { background: #066b80; }
+.submit:disabled { opacity: .7; cursor: wait; }
+.forgot { display: flex; justify-content: center; align-items: center; min-height: 44px; margin-top: 10px; color: #254481; text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.eye:focus-visible,.submit:focus-visible,.forgot:focus-visible { outline: 3px solid #254481; outline-offset: 4px; }
+.credit { border-top: 1px solid rgba(73,73,101,.2); margin-top: 18px; padding-top: 18px; }
+.credit footer { margin: 0; padding: 0; background: transparent; color: var(--login-muted); font-size: 12px; line-height: 1.6; text-align: center; }
+@media(max-width:600px) {
+  .page { align-items: flex-start; padding: 28px 16px 160px; }
+  .panel { padding: 28px 24px 20px; }
+  /* Mostra os personagens inteiros no rodapé em telas estreitas, sem ampliar a arte. */
+  .scene img { object-fit: contain; object-position: center bottom; }
+}
+@media(max-width:360px) { .panel { padding-left: 20px; padding-right: 20px; } .header h1 { font-size: 24px; } }
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more) { .panel { background:#efeeff; backdrop-filter:none; -webkit-backdrop-filter:none; } }
+@media(forced-colors:active) { .panel,.inputLine,.submit { border:1px solid CanvasText; } }

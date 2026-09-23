@@ -1,16 +1,17 @@
 'use client'
+import {formatarDataCalendario} from '@/lib/data-calendario'
 
 import PagamentoMensalidade from '@/components/PagamentoMensalidade'
-import { buscarPessoasClube } from '@/lib/busca-pessoas-clube'
+import {PixSandboxPortaria} from '@/components/PixSandboxPortaria'
+import { hojeBrasil } from '@/lib/documentos-dependente'
 import { codigoCarteirinha } from '@/lib/carteirinha-qr'
 import { useState, useEffect, useRef } from 'react'
-import { createClientComponentClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import {
-  Dumbbell, Search, CheckCircle, XCircle, AlertCircle,
+import { 
+  Dumbbell, Search, CheckCircle, XCircle, AlertCircle, 
   LogIn, LogOut, QrCode, User, Clock, Calendar, History
 } from 'lucide-react'
 
@@ -50,51 +51,39 @@ export default function AcademiaPortariaPage() {
   const [acessosHoje, setAcessosHoje] = useState<Acesso[]>([])
   const [loading, setLoading] = useState(false)
   const [registrando, setRegistrando] = useState(false)
+  const [paginaHistorico,setPaginaHistorico]=useState(1)
+  const [temMaisHistorico,setTemMaisHistorico]=useState(false)
+  const [carregandoHistorico,setCarregandoHistorico]=useState(false)
   const [totalHoje, setTotalHoje] = useState(0)
   const [modoScanner, setModoScanner] = useState(true)
   const [ultimoScan, setUltimoScan] = useState<number>(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const [supabase] = useState(() => createClientComponentClient())
+  const travaRegistro = useRef(false)
+  const travaBusca = useRef(false)
+  async function consultarAcademia(body?:object,pagina=1){
+    const r=await fetch(`/api/portaria/academia${body?'':`?pagina=${pagina}&limite=20`}`,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'})
+    const d=await r.json();if(!r.ok)throw Error(d.error||'Falha ao consultar a academia.');return d
+  }
 
   useEffect(() => {
     carregarAcessosHoje()
     inputRef.current?.focus()
-
+    
     // Manter foco no input (para scanner USB)
     const interval = setInterval(() => {
       if (modoScanner && document.activeElement !== inputRef.current && !document.querySelector('[data-pagamento-modal]')) {
         inputRef.current?.focus()
       }
     }, 500)
-
+    
     return () => clearInterval(interval)
   }, [modoScanner])
 
-  const carregarAcessosHoje = async () => {
-    const hoje = new Date().toISOString().split('T')[0]
-
-    const { data, count } = await supabase
-      .from('acessos_academia')
-      .select(`
-        id, data_hora, tipo,
-        associado:associados(nome, numero_titulo)
-      `, { count: 'exact' })
-      .gte('data_hora', hoje + 'T00:00:00')
-      .lte('data_hora', hoje + 'T23:59:59')
-      .order('data_hora', { ascending: false })
-      .limit(20)
-
-    // Transformar dados para o formato correto
-    const acessosFormatados = (data || []).map((item: any) => ({
-      id: item.id,
-      data_hora: item.data_hora,
-      tipo: item.tipo,
-      associado: Array.isArray(item.associado) ? item.associado[0] : item.associado
-    }))
-
-    setAcessosHoje(acessosFormatados)
-    setTotalHoje(count || 0)
+  const carregarAcessosHoje = async (pagina=1) => {
+    setCarregandoHistorico(true)
+    try{const d=await consultarAcademia(undefined,pagina);setAcessosHoje(d.acessos);setTotalHoje(d.total);setPaginaHistorico(d.pagina);setTemMaisHistorico(d.temMais)}
+    catch(e:any){toast.error(e.message)}finally{setCarregandoHistorico(false)}
   }
 
   const playBeep = (frequency: number, duration: number) => {
@@ -112,103 +101,29 @@ export default function AcademiaPortariaPage() {
     } catch (e) {}
   }
 
-  const buscarAssociado = async (codigo?: string) => {
-    if (loading) return
-    const termoBusca = codigo || busca
-    if (!termoBusca.trim()) {
-      toast.error('Digite um código QR, nome ou matrícula')
-      return
-    }
-
-    setLoading(true)
-    setAssociado(null)
-    setAssinatura(null)
-    setFinanceiroOk(false);setPendencias([])
-
-    setOpcoes([])
-    let assocData: any
-    try {
-      const encontrados=await buscarPessoasClube(supabase,termoBusca)
-      if(encontrados.length>1) {setOpcoes(encontrados);setLoading(false);return}
-      assocData=encontrados[0]
-      if(!assocData) {setLoading(false);toast.error('Associado não encontrado');return}
-    } catch {setLoading(false);toast.error('Erro ao consultar. Tente novamente.');return}
-
-    setAssociado(assocData)
-
-    const { data: assData } = await supabase
-      .from('assinaturas_academia')
-      .select(`
-        id, data_inicio, data_fim, valor_mensal, status,
-        plano:planos_academia(nome, horario_acesso)
-      `)
-      .eq('associado_id', assocData.id)
-      .eq('status', 'ativa')
-      .order('data_fim', { ascending: false })
-      .limit(1)
-      .single()
-
-    setAssinatura(assData as any)
-    if (assData) {
-      const {data:contas,error:erroContas}=await supabase.from('mensalidades').select('*').eq('assinatura_academia_id',assData.id)
-      const hoje=new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})
-      const mes=hoje.slice(0,7)
-      setPendencias((contas||[]).filter(m=>['pendente','atrasado'].includes(m.status)))
-      setFinanceiroOk(!erroContas && !!contas?.some(m=>m.status==='pago'&&m.periodo_inicio<=hoje&&m.periodo_fim>hoje) && !contas?.some(m=>['pendente','atrasado'].includes(m.status)&&m.data_vencimento<hoje))
-    }
-    setLoading(false)
-    setBusca('')
-
-    // Som de feedback
-    if (assData && assData.status === 'ativa' && new Date(assData.data_fim) >= new Date()) {
-      playBeep(800, 150)
-    } else {
-      playBeep(300, 300)
-      setTimeout(() => playBeep(200, 300), 350)
-    }
+  const buscarAssociado = async (codigo?:string) => {
+    if(travaBusca.current)return
+    const valor=(codigo||busca).trim()
+    if(!valor)return
+    travaBusca.current=true;setLoading(true);setBusca('')
+    setAssociado(null);setAssinatura(null);setFinanceiroOk(false);setPendencias([]);setOpcoes([])
+    try{
+      const d=await consultarAcademia({acao:'buscar',valor})
+      if(d.opcoes){setOpcoes(d.opcoes);return}
+      setAssociado(d.associado);setAssinatura(d.assinatura);setFinanceiroOk(d.financeiroOk);setPendencias(d.pendencias||[])
+      playBeep(d.financeiroOk&&d.associado.status==='ativo'?800:300,150)
+    }catch(e:any){toast.error(e.message)}finally{travaBusca.current=false;setLoading(false)}
   }
 
-  const registrarAcesso = async (tipo: 'entrada' | 'saida') => {
-    if (!associado || !assinatura) return
-    if(tipo==='entrada'&&!financeiroOk){toast.error('Mensalidade da academia pendente.');return}
-
-    const hoje = new Date()
-    const dataFim = new Date(assinatura.data_fim)
-
-    if (assinatura.status !== 'ativa') {
-      toast.error('Assinatura da academia não está ativa!')
-      return
-    }
-
-    if (dataFim < hoje) {
-      toast.error('Assinatura da academia vencida!')
-      return
-    }
-
-    setRegistrando(true)
-
-    const { error } = await supabase
-      .from('acessos_academia')
-      .insert({
-        assinatura_id: assinatura.id,
-        associado_id: associado.id,
-        tipo
-      })
-
-    setRegistrando(false)
-
-    if (error) {
-      toast.error('Erro ao registrar: ' + error.message)
-      return
-    }
-
-    toast.success(`${tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada!`)
-    playBeep(1000, 100)
-
-    setAssociado(null)
-    setAssinatura(null)
-    carregarAcessosHoje()
-    inputRef.current?.focus()
+  const registrarAcesso = async (tipo:'entrada'|'saida') => {
+    if(!associado||travaRegistro.current)return
+    travaRegistro.current=true;setRegistrando(true)
+    try{
+      await consultarAcademia({acao:'registrar',associado_id:associado.id,tipo})
+      toast.success(`${tipo==='entrada'?'Entrada':'Saída'} registrada!`);playBeep(1000,100)
+      setAssociado(null);setAssinatura(null);await carregarAcessosHoje();inputRef.current?.focus()
+    }catch(e:any){toast.error(e.message);playBeep(200,300)}
+    finally{travaRegistro.current=false;setRegistrando(false)}
   }
 
   const getStatusInfo = () => {
@@ -230,7 +145,7 @@ export default function AcademiaPortariaPage() {
       return { cor: 'bg-gray-100 border-gray-300', texto: 'ASSINATURA INATIVA', icone: XCircle, corIcone: 'text-gray-500', podeEntrar: false }
     }
 
-    if (dataFim < hoje) {
+    if (assinatura.data_fim < hojeBrasil() || assinatura.data_inicio > hojeBrasil()) {
       return { cor: 'bg-red-100 border-red-500', texto: '🚫 ASSINATURA VENCIDA', icone: XCircle, corIcone: 'text-red-500', podeEntrar: false }
     }
 
@@ -246,7 +161,7 @@ export default function AcademiaPortariaPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-orange-500" />
@@ -279,6 +194,8 @@ export default function AcademiaPortariaPage() {
               <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 ref={inputRef}
+                maxLength={512}
+                onFocus={e=>{if(modoScanner)e.currentTarget.select()}}
                 disabled={loading}
                 placeholder={modoScanner ? "QR Code ou número do título..." : "Nome, CPF ou número do título..."}
                 value={busca}
@@ -304,6 +221,7 @@ export default function AcademiaPortariaPage() {
       </Card>
 
       {/* Resultado */}
+      <PixSandboxPortaria setor="academia"/>
       {associado && pendencias.length>0 && <Card><CardContent className="p-4 space-y-3"><h2>Mensalidades da academia</h2>{pendencias.map(m=><PagamentoMensalidade key={m.id} mensalidade={m} onPago={()=>{setAssociado(null);setAssinatura(null);setPendencias([]);toast.info('Leia novamente a carteirinha para verificar a liberação.')}}/>)}</CardContent></Card>}
       {associado && statusInfo && (
         <Card className={`border-4 ${statusInfo.cor}`}>
@@ -311,7 +229,7 @@ export default function AcademiaPortariaPage() {
             <div className="flex items-start gap-6">
               <div className="w-40 h-40 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
                 {associado.foto_url ? (
-                  <img src={associado.foto_url} alt="Foto" className="w-full h-full object-cover" />
+                  <img src={associado.foto_url} alt="Foto" className="w-full h-full object-contain object-center bg-gray-100" />
                 ) : (
                   <User className="h-20 w-20 text-gray-400" />
                 )}
@@ -319,13 +237,13 @@ export default function AcademiaPortariaPage() {
 
               <div className="flex-1">
                 <h2 className="text-3xl font-bold mb-2">{associado.nome}</h2>
-
+                
                 <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-2xl font-bold mb-4 ${statusInfo.cor}`}>
                   <statusInfo.icone className={`h-8 w-8 ${statusInfo.corIcone}`} />
                   {statusInfo.texto}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-base">
+                <div className="grid gap-4 text-base grid-cols-1 sm:grid-cols-2">
                   <div>
                     <span className="text-muted-foreground">Matrícula:</span>
                     <span className="ml-2 font-bold text-lg">{associado.numero_titulo}</span>
@@ -342,7 +260,7 @@ export default function AcademiaPortariaPage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Válido até:</span>
-                        <span className="ml-2 font-bold text-lg">{new Date(assinatura.data_fim).toLocaleDateString('pt-BR')}</span>
+                        <span className="ml-2 font-bold text-lg">{formatarDataCalendario(assinatura.data_fim)}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Horário:</span>
@@ -402,12 +320,17 @@ export default function AcademiaPortariaPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-3 flex items-center gap-3">
+            <Button variant="outline" disabled={carregandoHistorico||paginaHistorico<=1} onClick={()=>carregarAcessosHoje(paginaHistorico-1)}>Anterior</Button>
+            <span>Página {paginaHistorico}</span>
+            <Button variant="outline" disabled={carregandoHistorico||!temMaisHistorico} onClick={()=>carregarAcessosHoje(paginaHistorico+1)}>Próxima</Button>
+          </div>
           {acessosHoje.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">Nenhum acesso registrado hoje</p>
           ) : (
             <div className="space-y-2">
               {acessosHoje.map(acesso => (
-                <div key={acesso.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={acesso.id} className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     {acesso.tipo === 'entrada' ? (
                       <LogIn className="h-5 w-5 text-green-500" />

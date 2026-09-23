@@ -1,8 +1,14 @@
+/** Casca das rotas administrativas: menu, cabeçalho, notificações e tema do clube. */
 'use client'
+import {RodapeDesenvolvedor} from '@/components/RodapeDesenvolvedor'
+import {IconeClube} from '@/components/providers/tema-provider'
+import {AvisoMensagens} from '@/components/AvisoMensagens'
+import {desligarPush} from '@/components/NotificacoesClube'
+import '@/components/mensagens-clube.css'
 import {LicencaPainel} from '@/components/LicencaSistema'
 import {RegistroAcessoSistema} from '@/components/RegistroAcessoSistema'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -15,7 +21,7 @@ import { AuthProvider } from '@/modules/auth/components/AuthProvider'
 import { PermissoesProvider } from '@/modules/auth'
 import {
   Users, CreditCard, ShoppingCart, DoorOpen, MessageSquare, Vote, Settings, LayoutDashboard,
-  LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone,
+  LogOut, Menu, X, UserPlus, FileText, Building2, AlertTriangle, Stethoscope, Smartphone, 
   Bot, Sparkles, BadgeDollarSign, Dumbbell, ScanLine, Waves, Ticket, Receipt, Shield, Wallet, Tent, UserCog, Droplets, BarChart3, Bell, Columns3, Briefcase,
   UtensilsCrossed, Package
 } from 'lucide-react'
@@ -25,6 +31,7 @@ const menuItems = [
   {href:'/dashboard/suporte',label:'Suporte',icon:MessageSquare,permissao:'suporte'},
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissao: 'dashboard' },
   { href: '/dashboard/dashboard-clube', label: 'Dashboard Clube', icon: BarChart3, permissao: 'relatorios' },
+  { href: '/dashboard/avisos', label: 'Avisos do aplicativo', icon: Bell, permissao: 'configuracoes', apenasAdmin: true },
   { href: '/dashboard/associados', label: 'Associados', icon: Users, permissao: 'associados' },
   { href: '/dashboard/dependentes', label: 'Dependentes', icon: UserPlus, permissao: 'dependentes' },
   { href: '/dashboard/planos', label: 'Planos/Categorias', icon: BadgeDollarSign, permissao: 'configuracoes' },
@@ -67,12 +74,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isAdmin, setIsAdmin] = useState(false)
   const [regras, setRegras] = useState<any[]>([])
   const [permissoes, setPermissoes] = useState<string[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [compacto,setCompacto]=useState(true)
+  const menuRef=useRef<HTMLElement>(null)
+  const botaoMenuRef=useRef<HTMLButtonElement>(null)
   const [loading, setLoading] = useState(true)
   const [mensagensNaoLidas, setMensagensNaoLidas] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClientComponentClient()
+
+  useEffect(()=>{
+    const media=window.matchMedia('(max-width: 1279px)')
+    const adaptar=()=>{setCompacto(media.matches);setSidebarOpen(!media.matches)}
+    adaptar();media.addEventListener('change',adaptar)
+    return()=>media.removeEventListener('change',adaptar)
+  },[])
+  useEffect(()=>{
+    if(!compacto||!sidebarOpen||loading)return
+    const antes=document.body.style.overflow;document.body.style.overflow='hidden'
+    const itens=()=>Array.from(menuRef.current?.querySelectorAll<HTMLElement>('a[href],button:not([disabled])')||[])
+    itens()[0]?.focus()
+    const tecla=(e:KeyboardEvent)=>{
+      if(e.key==='Escape'){e.preventDefault();setSidebarOpen(false)}
+      if(e.key==='Tab'){const lista=itens(),primeiro=lista[0],ultimo=lista[lista.length-1];if(e.shiftKey&&document.activeElement===primeiro){e.preventDefault();ultimo?.focus()}else if(!e.shiftKey&&document.activeElement===ultimo){e.preventDefault();primeiro?.focus()}}
+    }
+    document.addEventListener('keydown',tecla)
+    return()=>{document.body.style.overflow=antes;document.removeEventListener('keydown',tecla);botaoMenuRef.current?.focus()}
+  },[compacto,sidebarOpen,loading])
 
   // Buscar mensagens não lidas do WhatsApp
   const fetchMensagensNaoLidas = useCallback(async () => {
@@ -94,9 +123,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const carregarUsuario = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (!user) { 
         router.push('/login')
-        return
+        return 
       }
       setUser(user)
 
@@ -167,7 +196,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         (payload) => {
           console.log('🔔 Nova mensagem WhatsApp recebida!')
           fetchMensagensNaoLidas()
-
+          
           // Tocar som de notificação
           try {
             const audio = new Audio('/sounds/notification.mp3')
@@ -202,6 +231,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const handleLogout = async () => {
+    try{await desligarPush('equipe')}catch{}
     await supabase.auth.signOut()
     router.push('/login')
   }
@@ -231,27 +261,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r transform transition-transform duration-200",
+      <aside data-tema-menu ref={menuRef} inert={!sidebarOpen} id="menu-principal" aria-label="Menu principal" className={cn(
+        "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 max-w-[calc(100vw-2rem)] flex-col bg-white border-r transform transition-transform duration-200",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex items-center justify-between h-16 px-4 border-b">
+        <div className="flex shrink-0 items-center justify-between min-h-16 px-4 border-b">
           <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
+            <IconeClube className="h-8 w-8" />
             <span className="font-bold text-lg">Sistema Clube</span>
           </div>
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Fechar menu" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <nav className="min-h-0 flex-1 p-4 space-y-1 overflow-y-auto overscroll-contain">
           {menuFiltrado.map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              onClick={()=>{if(compacto)setSidebarOpen(false)}}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex min-h-11 items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 pathname === item.href
                   ? "bg-primary text-primary-foreground"
                   : "text-gray-600 hover:bg-gray-100"
@@ -261,8 +292,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="flex-1">{item.label}</span>
               {/* Badge de notificação para CRM WhatsApp */}
               {item.showNotification && mensagensNaoLidas > 0 && (
-                <NotificationBadgeInline
-                  count={mensagensNaoLidas}
+                <NotificationBadgeInline 
+                  count={mensagensNaoLidas} 
                   className={pathname === item.href ? "bg-white text-primary" : ""}
                 />
               )}
@@ -271,7 +302,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+        <div className="shrink-0 p-4 border-t bg-white">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarFallback className="bg-primary text-white">
@@ -292,29 +323,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <div className={cn(
-        "transition-all duration-200",
-        sidebarOpen ? "lg:ml-64" : "ml-0"
+      <div inert={compacto&&sidebarOpen} className={cn(
+        "min-w-0 transition-all duration-200",
+        sidebarOpen ? "xl:ml-64" : "ml-0"
       )}>
         {/* Top bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white px-4 shadow-sm">
+        <header data-tema-cabecalho className="sticky top-0 z-40 flex flex-wrap min-h-16 min-w-0 items-center gap-2 py-2 sm:gap-4 border-b bg-white px-4 shadow-sm">
           <Button
             variant="ghost"
             size="icon"
+            aria-label={sidebarOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={sidebarOpen}
+            aria-controls="menu-principal"
+            ref={botaoMenuRef}
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             <Menu className="h-5 w-5" />
           </Button>
-
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold">
+          
+          <div className="min-w-[8rem] flex-1">
+            <h1 className="break-words text-lg font-semibold">
               {menuItems.find(item => item.href === pathname)?.label || 'Painel'}
             </h1>
           </div>
 
+          {(isAdmin||regraRota('/dashboard/associados')?.pode_visualizar)&&<AvisoMensagens tipo="equipe"/>}
           {/* Indicador de novas mensagens no header */}
           {mensagensNaoLidas > 0 && (
-            <Link
+            <Link 
               href="/dashboard/crm"
               className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
             >
@@ -334,19 +370,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {isAdmin&&<LicencaPainel/>}
 
         {/* Page content */}
-        <main className="min-h-[calc(100vh-4rem)]">
+        <main className="clube-conteudo min-w-0 min-h-[calc(100dvh-4rem)]">
           <AuthProvider><RegistroAcessoSistema/>
           <PermissoesProvider>
             {podeAbrir ? children : <div role="alert" className="p-8"><h1 className="text-xl font-semibold">Acesso não permitido</h1><p>Seu usuário não tem permissão para esta página. Selecione uma opção disponível no menu.</p></div>}
           </PermissoesProvider>
           </AuthProvider>
         </main>
+        <RodapeDesenvolvedor/>
       </div>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 xl:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}

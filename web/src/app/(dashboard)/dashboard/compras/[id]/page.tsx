@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirPagina} from '@/lib/impressao'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -148,7 +150,7 @@ export default function OrcamentoDetalhesPage() {
     setActionLoading(false)
   }
 
-  const imprimir = () => window.print()
+  const imprimir = () => imprimirPagina()
 
   if (loading) {
     return <div className="flex justify-center p-8">Carregando...</div>
@@ -183,7 +185,7 @@ export default function OrcamentoDetalhesPage() {
   return (
     <div className="space-y-6 print:space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/compras">
             <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -193,15 +195,15 @@ export default function OrcamentoDetalhesPage() {
             <p className="text-muted-foreground">{orcamento.descricao}</p>
           </div>
         </div>
-        <Button variant="outline" onClick={imprimir}>
+        <BotaoImpressao type="button" variant="outline" onClick={imprimir}>
           <Printer className="h-4 w-4 mr-2" />Imprimir
-        </Button>
+        </BotaoImpressao>
       </div>
 
       {/* Status Banner */}
       <Card className={`border-2 ${statusConfig.bg}`}>
         <CardContent className="py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <StatusIcon className="h-8 w-8" />
               <div>
@@ -224,7 +226,7 @@ export default function OrcamentoDetalhesPage() {
       </Card>
 
       {/* Info */}
-      <div className="grid grid-cols-4 gap-4 print:grid-cols-2">
+      <div className="grid gap-4 print: grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Número</p>
@@ -257,7 +259,7 @@ export default function OrcamentoDetalhesPage() {
           <CardTitle>Comparativo de Orçamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((num) => {
               const total = getTotalOrcamento(num as 1 | 2 | 3)
               const fornecedor = num === 1 
@@ -318,7 +320,7 @@ export default function OrcamentoDetalhesPage() {
           <CardTitle>Itens do Orçamento</CardTitle>
         </CardHeader>
         <CardContent>
-          <table className="w-full text-sm">
+          <div className="clube-table-scroll" tabIndex={0} role="region" aria-label="Tabela com rolagem horizontal"><table className="w-full text-sm">
             <thead>
               <tr className="border-b">
                 <th className="text-left py-2 px-3">Produto</th>
@@ -360,7 +362,7 @@ export default function OrcamentoDetalhesPage() {
                 <td className="py-2 px-3 text-right">{formatCurrency(getTotalOrcamento(3))}</td>
               </tr>
             </tfoot>
-          </table>
+          </table></div>
         </CardContent>
       </Card>
 

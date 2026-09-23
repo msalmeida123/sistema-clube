@@ -1,4 +1,6 @@
 'use client'
+import {BotaoImpressao} from '@/components/BotaoImpressao'
+import {imprimirPagina} from '@/lib/impressao'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -78,7 +80,7 @@ export default function DetalhesExamePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/exames-medicos">
             <Button variant="outline" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
@@ -89,9 +91,9 @@ export default function DetalhesExamePage() {
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.print()}>
+          <BotaoImpressao type="button" variant="outline" onClick={() => imprimirPagina()}>
             <Printer className="h-4 w-4 mr-2" />Imprimir
-          </Button>
+          </BotaoImpressao>
           <Link href={`/dashboard/exames-medicos/${id}/editar`}>
             <Button><Edit className="h-4 w-4 mr-2" />Editar</Button>
           </Link>
@@ -101,7 +103,7 @@ export default function DetalhesExamePage() {
       {/* Status Grande */}
       <Card className={`border-2 ${statusInfo.cor}`}>
         <CardContent className="py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4">
               <statusInfo.icon className="h-16 w-16" />
               <div>
@@ -128,7 +130,7 @@ export default function DetalhesExamePage() {
           <div className="flex items-center gap-4">
             <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
               {exame.associado?.foto_url ? (
-                <img src={exame.associado.foto_url} alt={exame.associado.nome} className="h-full w-full object-cover" />
+                <img src={exame.associado.foto_url} alt={exame.associado.nome} className="h-full w-full object-contain object-center bg-gray-100" />
               ) : (
                 <span className="text-3xl font-medium">{exame.associado?.nome?.[0]}</span>
               )}
@@ -148,7 +150,7 @@ export default function DetalhesExamePage() {
           <CardTitle>Informações do Exame</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Tipo de Exame</p>
               <p className="text-lg font-medium">{getTipoExameLabel(exame.tipo_exame)}</p>
@@ -177,7 +179,7 @@ export default function DetalhesExamePage() {
           <CardTitle>Médico Responsável</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Nome do Médico</p>
               <p className="text-lg font-medium">{exame.medico_nome}</p>

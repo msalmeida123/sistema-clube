@@ -113,7 +113,7 @@ function QuadroServicos(){
    </section>})}
   </div></div>}
   {total>tarefas.length&&<Button variant="outline" onClick={()=>setLimite(l=>l+100)} disabled={loading}>Carregar mais tarefas ({tarefas.length} de {total})</Button>}
-  {form&&<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"><form onSubmit={salvar} className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto space-y-4" role="dialog" aria-modal="true" aria-label={editando?'Editar serviço':'Novo serviço'}>
+  {form&&<div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 clube-modal-overlay"><form onSubmit={salvar} className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto space-y-4" role="dialog" aria-modal="true" aria-label={editando?'Editar serviço':'Novo serviço'}>
    <h2 className="text-xl font-bold">{editando?'Editar serviço':'Novo serviço'}</h2>
    <label className="block text-sm">Título<Input required minLength={3} maxLength={160} value={form.titulo} onChange={e=>setForm({...form,titulo:e.target.value})}/></label>
    <label className="block text-sm">Descrição<textarea maxLength={2000} className="w-full border rounded p-2" rows={3} value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})}/></label>
